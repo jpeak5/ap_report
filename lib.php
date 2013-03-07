@@ -178,23 +178,11 @@ class lmsEnrollment extends lsuonlinereport{
     public function getDataOpt($limit = 10) {
         global $DB;
 
-        $semSQL = "SELECT                 
-                id
-               FROM
-                mdl_enrol_ues_semesters usem
-               WHERE
-                usem.classes_start < UNIX_TIMESTAMP(NOW())
-                AND 
-                usem.grades_due > UNIX_TIMESTAMP(NOW())";
-        $semIds = array();
+        //get semester objects from the enrolment system;
+        //for convenience, store a list of semester ids in inSems for use in DB query
         
-        $semesters = $DB->get_records_sql($semSQL);
-        foreach($semesters as $s){
-            $semIds[] = $s->id;
-        }
-        $inSems = sprintf("(%s)", implode(',',$semIds));
-        
-        
+        list($semesters, $inSems) = $this->get_semesters();
+ 
         $sql = sprintf(
             "SELECT
                 CONCAT(usem.year,usem.name, uc.department, uc.cou_number, u.id, us.sec_number) AS 'key',
@@ -207,13 +195,13 @@ class lmsEnrollment extends lsuonlinereport{
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate
             FROM mdl_course AS c
-                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
-                INNER JOIN mdl_user AS u ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+                INNER JOIN mdl_context AS           ctx ON c.id = ctx.instanceid
+                INNER JOIN mdl_role_assignments AS  ra ON ra.contextid = ctx.id
+                INNER JOIN mdl_user                 u ON u.id = ra.userid
+                INNER JOIN mdl_enrol_ues_sections   us ON c.idnumber = us.idnumber
+                INNER JOIN mdl_enrol_ues_students   ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN mdl_enrol_ues_semesters  usem ON usem.id = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses    uc ON uc.id = us.courseid
             WHERE 
             ra.roleid IN (5)
             AND usem.id IN {$inSems}
@@ -241,6 +229,23 @@ class lmsEnrollment extends lsuonlinereport{
                 $records[] = $seamless;
             }
             return $records;
+    }
+    
+    public function get_semesters(){
+        global $DB;
+        //get active semesters and their significant dates
+        $time = time();
+        $semesters = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_semesters WHERE classes_start < ? AND grades_due > ?', array($time, $time));
+        
+        //build an array of semester IDs for use in subsequent queries
+        $ids = array();
+        foreach($semesters as $s){
+            $sids[] = $s->id;
+        }
+        
+        $inSems = sprintf("(%s)", implode(',',$sems));
+        return array($semesters, $inSems);
+        
     }
 }
 
@@ -352,6 +357,8 @@ class lmsEnrollmentRecord {
         $this->studentId        = (int)$this->studentId;
         $this->sectionId        = (int)$this->sectionId;
         $this->timeSpentInClass = (int)$this->timeSpentInClass;
+        $this->startDate        = strftime('%m/%d/%Y', $this->startDate);
+        $this->endDate          = strftime('%m/%d/%Y',$this->endDate);
         
     }
 }

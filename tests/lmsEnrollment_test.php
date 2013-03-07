@@ -27,6 +27,11 @@ class lmsEnrollment_testcase extends basic_testcase{
 
     }
     
+    public function test_get_semesters(){
+        $sems = $this->sp->get_semesters();
+        $this->assertNotEmpty($sems);
+    }
+    
     /**
      * This test only exists to verify the refactoring of getData()
      */
