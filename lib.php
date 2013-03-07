@@ -1,6 +1,6 @@
 <?php
 
-defined('MOODLE_INTERNAL') || die;
+//defined('MOODLE_INTERNAL') || die;
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
 
@@ -65,15 +65,21 @@ abstract class lsuonlinereport {
 }
 
 
-class currentEnrollment extends lsuonlinereport{
+class lmsEnrollment extends lsuonlinereport{
 
+    /**
+     * The enrollment status should accurately reflect the status of the student’s enrollment in the section. If
+        the student enrolls and the enrollment is accepted, a new enrollment record should reflect that the
+        student is actively enrolled in the course. If there is a reason that the student should no longer have
+        access to the class, i.e., they drop the course, do not fulfill their financial obligation, etc., then the
+        enrollment status should reflect this.
+     */
     public function saveData() {
         
     }
 
     /**
-     * @TODO do something with $format
-     * @param string $format what format? ('json'|'xml'|'plain')
+     * @TODO include schema definition
      * @return DOMDocument
      */
     public function buildXML($records) {
@@ -99,13 +105,13 @@ class currentEnrollment extends lsuonlinereport{
     /**
      * 
      * @TODO make use of the start/end timestamps
-     * @TODO uncomment debug clauses of query
-     * 
+     * @TODO replace this query with one that leaves the concatenation to the script
      * @global type $DB the global moodle db
      * @param int $start smallest timestamp to return
      * @param int $end   latest timestamp to return 
      * @param int $limit how many records
-     * @return array
+     * @return array of record objects with fieds conformant to the schema
+     * located in tests/lmsEnrollment.xsd
      */
     public function getData($limit = 0) {
         global $DB;
@@ -118,6 +124,8 @@ class currentEnrollment extends lsuonlinereport{
                 us.sec_number AS sectionId,
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,
+                123 as lastcourseacccess,
+                789 as timespentinclass,
                 'A' AS status,
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
             FROM mdl_course AS c
@@ -137,7 +145,25 @@ class currentEnrollment extends lsuonlinereport{
             ORDER BY uniqueCourseSection
             LIMIT %s", $limit);
             
-        return $DB->get_records_sql($sql);
+        $rows = $DB->get_records_sql($sql);
+        $camels = array();
+        foreach($rows as $r){
+            $camel = new stdClass();
+
+            $camel->enrollmentId        = $r->enrollmentid;
+            $camel->studentId           = $r->studentid;
+            $camel->courseId            = $r->courseid;
+            $camel->sectionId           = $r->sectionid;
+            $camel->startDate           = $r->startdate;
+            $camel->endDate             = $r->enddate;
+            $camel->status              = $r->status;
+            $camel->lastCourseAccess    = $r->lastcourseacccess;
+            $camel->timeSpentInClass    = $r->timespentinclass;
+            $camel->extensions = "";
+            
+            $camels[] = $camel;
+        }
+        return $camels;
     }
     
     
@@ -151,7 +177,7 @@ class currentEnrollment extends lsuonlinereport{
         global $DB;
 
         $semSQL = "SELECT                 
-                *
+                id
                FROM
                 mdl_enrol_ues_semesters usem
                WHERE
@@ -194,7 +220,9 @@ class currentEnrollment extends lsuonlinereport{
             LIMIT %s", $limit);
 
             $raw = $DB->get_records_sql($sql);
+            
             $seamless = array();
+            
             foreach($raw as $r){
                 $new = new stdClass();
                 $new->enrollmentId        = implode('_', array($r->year, $r->name, $r->department, $r->cou_number, $r->sectionid, $r->studentid));
@@ -212,18 +240,92 @@ class currentEnrollment extends lsuonlinereport{
     }
 }
 
+class engagementReport extends lsuonlinereport{
+    public function buildXML($records) {
+        $doc  = new DOMDocument('1.0', 'UTF-8');
+        $root = $doc->createElement('lmsEnrollments');
+        $root->setAttribute('university', '002010');
+        
+        foreach($records as $rec){
+            $fields = array_diff(get_object_vars($rec), array('lmsEnrollments','lmsEnrollment'));
+            $lmsEnollment = $doc->createElement('lmsEnrollment');
 
-class currentEnrollmentRecord {
+            foreach($fields as $k => $v){
+                $node = $doc->createElement($k, $v);
+                $lmsEnollment->appendChild($node);
+            }
+            
+            $root->appendChild($lmsEnollment);
+        }
+        $doc->appendChild($root);
+        return $doc;
+    }
+
+    public function getData($limit = 0) {
+                global $DB;
+        
+        $sql = sprintf(
+            "SELECT 
+                u.id AS userid,
+                u.username,
+                from_unixtime(l.time) AS rvisit,
+                c.id AS rcourseid,
+                c.fullname AS rcourse,
+                agg.days AS days,
+                agg.numdates,
+                agg.numcourses,
+                agg.numlogs
+             FROM 
+                mdl_log l INNER JOIN mdl_user u
+                    ON l.userid = u.id
+                INNER JOIN mdl_course c
+                    ON l.course = c.id
+                INNER JOIN ( 
+                    SELECT
+                        days,
+                        userid,
+                        max(time) AS maxtime,
+                        count(DISTINCT date(from_unixtime(time))) AS 'numdates', 
+                        count(DISTINCT course) AS numcourses,
+                        count(*) AS numlogs
+                    FROM 
+                        mdl_log l INNER JOIN mdl_course c
+                            ON l.course = c.id
+                        INNER JOIN (
+                            SELECT 1 AS days
+                       ) var 
+                    WHERE 
+                        l.time > (unix_timestamp() - ((60*60*24)*days))
+                        AND c.format != 'site'
+                    GROUP BY userid) agg
+              ON l.userid = agg.userid
+              WHERE 
+                l.time = agg.maxtime 
+                AND c.format != 'site'
+              GROUP BY userid
+              ORDER BY l.time DESC");
+            
+        return $DB->get_records_sql($sql);
+    }
+
+    protected function saveData() {
+        
+    }
+}
+
+class lmsEnrollmentRecord {
     
     //see schema @ tests/enrollemnts.xsd for source of member names
-    public $enrollmentid;
-    public $studentid;
-    public $courseid;
-    public $sectionid;
-    public $startdate;
-    public $enddate;
+    public $enrollmentId;
+    public $studentId;
+    public $courseId;
+    public $sectionId;
+    public $startDate;
+    public $endDate;
     public $status;
-    public $uniquecoursesection;
+    public $lastCourseAccess;
+    public $timeSpentInClass;
+    public $extensions;
     
     public function __construct($record){
         
