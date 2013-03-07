@@ -87,8 +87,10 @@ class lmsEnrollment extends lsuonlinereport{
         $root = $doc->createElement('lmsEnrollments');
         $root->setAttribute('university', '002010');
         
-        foreach($records as $rec){
-            $fields = array_diff(get_object_vars($rec), array('lmsEnrollments','lmsEnrollment'));
+        foreach($records as $k=>$rec){
+            $obj = new lmsEnrollmentRecord($rec);
+            $obj->validate();
+            $fields = array_diff(get_object_vars($obj), array('lmsEnrollments','lmsEnrollment'));
             $lmsEnollment = $doc->createElement('lmsEnrollment');
 
             foreach($fields as $k => $v){
@@ -195,6 +197,7 @@ class lmsEnrollment extends lsuonlinereport{
         
         $sql = sprintf(
             "SELECT
+                CONCAT(usem.year,usem.name, uc.department, uc.cou_number, u.id, us.sec_number) AS 'key',
                 usem.year, 
                 usem.name, 
                 uc.department, 
@@ -220,7 +223,7 @@ class lmsEnrollment extends lsuonlinereport{
             LIMIT %s", $limit);
 
             $raw = $DB->get_records_sql($sql);
-            
+
             $seamless = array();
             
             foreach($raw as $r){
@@ -235,8 +238,9 @@ class lmsEnrollment extends lsuonlinereport{
                 $new->uniqueCourseSection = implode('_', array($r->year, $r->name, $r->department, $r->cou_number, $r->sectionid));
 
                 $seamless[] = $new;
+                $records[] = $seamless;
             }
-            return $seamless;
+            return $records;
     }
 }
 
@@ -329,6 +333,10 @@ class lmsEnrollmentRecord {
     
     public function __construct($record){
         
+        if(!is_array($record)){
+            $record = (array)$record;
+        }
+        
         $fields = get_object_vars($this);
         
         foreach($fields as $field => $value){
@@ -337,6 +345,14 @@ class lmsEnrollmentRecord {
             }
         }
   
+    }
+    
+    public function validate(){
+        $this->enrollmentId     = (int)$this->enrollmentId;
+        $this->studentId        = (int)$this->studentId;
+        $this->sectionId        = (int)$this->sectionId;
+        $this->timeSpentInClass = (int)$this->timeSpentInClass;
+        
     }
 }
 

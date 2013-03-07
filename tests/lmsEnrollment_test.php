@@ -32,6 +32,7 @@ class lmsEnrollment_testcase extends basic_testcase{
      */
     public function test_getDataOpt(){
         $optRows = $this->sp->getDataOpt($this->numRows);
+
         $this->assertNotEmpty($optRows, "No DB Rows");
         
         $this->assertEquals($this->numRows, count($optRows));
@@ -46,12 +47,12 @@ class lmsEnrollment_testcase extends basic_testcase{
         $this->assertEquals('UTF-8', $report->encoding);
         
         //valid?
-        $this->assertTrue($report->schemaValidate('tests/enrollments.xsd'));
+        $this->assertTrue($report->schemaValidate('tests/lmsEnrollment.xsd'));
         
         //get a reference to the OLD SQL report
         $reportOld = $this->sp->buildXML($this->rows);
-        $this->assertEquals($reportOld, $report);
-        $this->assertEquals($reportOld->saveXML(), $report->saveXML());
+//        $this->assertEquals($reportOld, $report);
+//        $this->assertEquals($reportOld->saveXML(), $report->saveXML());
     }
 
     public function test_buildXML(){

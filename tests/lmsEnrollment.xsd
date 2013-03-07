@@ -5,7 +5,8 @@
       <xs:sequence>
         <xs:element ref="lmsEnrollment" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="university" use="required" type="xs:unsignedShort"/>
+      <!--The university OPEID code-->
+      <xs:attribute name="university" use="required" type="xs:string"/>
     </xs:complexType>
   </xs:element>
   <xs:element name="lmsEnrollment">
@@ -24,14 +25,37 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="enrollmentId" type="xs:string"/>
-  <xs:element name="studentId" type="xs:integer"/>
+  <!--The unique identifier assigned to the student enrollment in
+  the course, used to tie the student to coursework-->
+  <xs:element name="enrollmentId" type="xs:unsignedLong"/>
+  
+  <!--The university student ID from the SIS-->
+  <xs:element name="studentId" type="xs:unsignedInt"/>
+  
+  <!--A unique identifier for the course. It must match course ID
+  from SIS-->
   <xs:element name="courseId" type="xs:string"/>
+  
+  <!--A unique identifier for the section. It must match the
+  section ID from the SIS-->
   <xs:element name="sectionId" type="xs:integer"/>
-  <xs:element name="startDate" type="xs:integer"/>
-  <xs:element name="endDate" type="xs:integer"/>
-  <xs:element name="status" type="xs:NCName"/>
-  <xs:element name="lastCourseAccess" type="xs:integer"/>
+  
+  <!--The starting date of the course (as stored in LMS)-->
+  <xs:element name="startDate" type="xs:string"/>
+  
+  <!--The ending date of the course (as stored in LMS)-->
+  <xs:element name="endDate" type="xs:string"/>
+  
+  <!--The student’s current enrollment status-->
+  <xs:element name="status" type="xs:string"/>
+  
+  <!--The last time the student logged into the course-->
+  <xs:element name="lastCourseAccess" type="xs:string"/>
+  
+  <!--The cumulative number of minutes spent online in the
+  course-->
   <xs:element name="timeSpentInClass" type="xs:integer"/>
+  
+  <!--catchall?-->
   <xs:element name="extensions" type="xs:string"/>
 </xs:schema>
