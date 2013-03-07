@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="lmsEnrollments">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="lmsEnrollment" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="university" use="required" type="xs:unsignedShort"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="lmsEnrollment">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="enrollmentId"/>
+        <xs:element ref="studentId"/>
+        <xs:element ref="courseId"/>
+        <xs:element ref="sectionId"/>
+        <xs:element ref="startDate"/>
+        <xs:element ref="endDate"/>
+        <xs:element ref="status"/>
+        <xs:element ref="lastCourseAccess"/>
+        <xs:element ref="timeSpentInClass"/>
+        <xs:element ref="extensions"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="enrollmentId" type="xs:string"/>
+  <xs:element name="studentId" type="xs:integer"/>
+  <xs:element name="courseId" type="xs:string"/>
+  <xs:element name="sectionId" type="xs:integer"/>
+  <xs:element name="startDate" type="xs:integer"/>
+  <xs:element name="endDate" type="xs:integer"/>
+  <xs:element name="status" type="xs:NCName"/>
+  <xs:element name="lastCourseAccess" type="xs:integer"/>
+  <xs:element name="timeSpentInClass" type="xs:integer"/>
+  <xs:element name="extensions" type="xs:string"/>
+</xs:schema>

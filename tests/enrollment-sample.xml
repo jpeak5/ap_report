@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<enrollments university="university_opeid">
+    <enrollment>
+        <sectionId></sectionId>
+        <courseId></courseId>
+        <enrollmentId></enrollmentId>
+        <studentId></studentId>
+        <startDate></startDate>
+        <endDate></endDate>
+        <role></role>
+        <statusCode></statusCode>
+        <statusDesc></statusDesc>
+        <statusReasonCode></statusReasonCode>
+        <statusReasonDesc></statusReasonDesc>
+        <effectiveDate></effectiveDate>
+        <program></program>
+        <finalGrade></finalGrade>
+        <finalProgressStatus></finalProgressStatus>
+        <completionStatusCode></completionStatusCode>
+        <completionStatusDesc></completionStatusDesc>
+        <creditHoursForCourse></creditHoursForCourse>
+        <billable></billable>
+        <baseCourseTuition></baseCourseTuition>
+        <billableTuition></billableTuition>
+        <billableFees></billableFees>
+        <waivers>
+            <waiver>
+                <waiverTypeCode></waiverTypeCode>
+                <waiverTypeDesc></waiverTypeDesc>
+                <waiverAmount></waiverAmount>
+            </waiver>
+        </waivers>
+        <extensions></extensions>
+    </enrollment>
+</enrollments>
+

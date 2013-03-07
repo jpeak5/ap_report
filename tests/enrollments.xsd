@@ -17,11 +17,6 @@
                             <xs:element name="enddate"              type="xs:string"/>
                             <xs:element name="status"               type="xs:string"/>
                             <xs:element name="uniquecoursesection"  type="xs:string"/>
-                            <!--
-                            <xs:element name="lastcourseaccess" type="xs:string"/>
-                            <xs:element name="timespentinclass" type="xs:string"/>
-                            <xs:element name="extensions" type="xs:string"/>
-                            -->
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
@@ -31,19 +26,3 @@
     </xs:element>
 </xs:schema>
 
-
-<!--<?xml version="1.0" encoding="utf-8"?>
-<lmsEnrollments university=“002010”>
-        <lmsEnrollment>
-                <enrollmentId></enrollmentId>
-                <studentId></studentId>
-                <courseId></courseId>
-                <sectionId></sectionId>
-                <startDate></startDate>
-                <endDate></endDate>
-                <status></status>
-                <lastCourseAccess></lastCourseAccess>
-                <timeSpentInClass></timeSpentInClass>
-                <extensions></extensions>
-        </lmsEnrollment>
-</lmsEnrollments>-->

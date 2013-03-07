@@ -1,10 +1,10 @@
 <?php
 global $CFG;
-require_once $CFG->dirroot.'/local/lsuonlinereports/lib.php';
+require_once $CFG->dirroot.'/local/lsuonlinereport/lib.php';
 
 
 
-class currentEnrollment_testcase extends basic_testcase{
+class engagementReport_testcase extends basic_testcase{
     
     public $sp;
     public $rows;
@@ -15,7 +15,7 @@ class currentEnrollment_testcase extends basic_testcase{
     }
     
     public function setUp(){
-        $this->sp = new currentEnrollment();
+        $this->sp = new engagementReport();
         $this->numRows = 10;
         $this->rows = $this->sp->getData($this->numRows);
         
