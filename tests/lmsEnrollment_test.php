@@ -22,10 +22,20 @@ class lmsEnrollment_testcase extends basic_testcase{
     }
     
     
+
+
     
+    
+    
+    
+    public function test_getData(){
+        $this->assertNotEmpty($this->rows, "No DB Rows");
+        $this->assertEquals($this->numRows, count($this->rows));
+
+    }
     
 
- 
+
     public function test_buildXML(){
         
         //get a reference to the report

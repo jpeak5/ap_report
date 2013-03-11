@@ -322,64 +322,8 @@ class lmsEnrollment extends lsuonlinereport{
     
 
     
-    public function get_semesters(){
-        global $DB;
-        //get active semesters and their significant dates
-        $time = time();
-        $semesters = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_semesters WHERE classes_start < ? AND grades_due > ?', array($time, $time));
-        
-        //build an array of semester IDs for use in subsequent queries
-        $ids = array();
-        foreach($semesters as $s){
-            $sids[] = $s->id;
-        }
 
-        return array($semesters, $sids);
-        
-    }
 
-    /**
-     * 
-     * @param type $sids array of semester ids
-     */
-    public function get_sections($sids) {
-        global $DB;
-        $sections = array();
-        foreach($sids as $sid){
-            //this should be rewrtten to take advantage of the moodle API call: get_records_list
-            $c = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_sections WHERE semesterid = ?', array($sid));
-            $sections = array_merge($sections, $c);
-        }
-        $sec_ids = array();
-        foreach($sections as $section){
-            $sec_ids[] = $section->id;
-        }
-        
-        return !empty($sections) ? array($sections,$sec_ids) : false;
-    }
-    
-    /**
-     * 
-     * @global type $DB
-     * @param array $sections section rows 
-     * @return array returns a 2-element array: objects and their ids
-     */
-    public function get_courses($sections){
-        global $DB;
-        $courses = array();
-        
-        foreach($sections as $s){
-            //this can't be efficient
-            $c_tmp = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_courses WHERE id = ?', array($s->courseid));
-            $courses = array_merge($courses, $c_tmp);
-        }
-        $cids = array();
-        assert(!empty($courses));
-        foreach($courses as $c){
-            $cids = $c->id;
-        }
-        return !empty($courses) ? array($courses, $cids) : false;
-    }
 }
 
 class engagementReport extends lsuonlinereport{
