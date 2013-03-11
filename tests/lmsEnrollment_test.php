@@ -25,35 +25,7 @@ class lmsEnrollment_testcase extends basic_testcase{
     
     
 
-    
-    /**
-     * This test only exists to verify the refactoring of getData()
-     */
-    public function test_getDataOpt(){
-        $optRows = $this->sp->getDataOpt($this->numRows);
-
-        $this->assertNotEmpty($optRows, "No DB Rows");
-        
-        $this->assertEquals($this->numRows, count($optRows));
-        
-        //get a reference to the report
-        $report = $this->sp->buildXML($optRows);
-        
-        //are we getting xml
-        $this->assertInstanceOf('DOMDocument', $report);
-        
-        //right encoding?
-        $this->assertEquals('UTF-8', $report->encoding);
-        
-        //valid?
-        $this->assertTrue($report->schemaValidate('tests/lmsEnrollment.xsd'));
-        
-        //get a reference to the OLD SQL report
-        $reportOld = $this->sp->buildXML($this->rows);
-//        $this->assertEquals($reportOld, $report);
-//        $this->assertEquals($reportOld->saveXML(), $report->saveXML());
-    }
-
+ 
     public function test_buildXML(){
         
         //get a reference to the report

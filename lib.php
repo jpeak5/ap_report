@@ -320,76 +320,7 @@ class lmsEnrollment extends lsuonlinereport{
         return $camels;
     }
     
-    
-    /**
-     * @TODO finish refactoring the query into bite-sized, optimizable parts
-     * @global type $DB
-     * @param type $limit
-     * @return type
-     */
-    public function getDataOpt($limit = 10) {
-        global $DB;
 
-        //get semester objects from the enrolment system;
-        
-        //get the valid semesters
-        list($semesters, $sids)   = $this->get_semesters();
-        
-        //get sections in the valid semesters
-        list($sections, $sec_ids) = $this->get_sections($sids);
-        
-        //list of current semester ids
-        $inSems = sprintf("(%s)", implode(',',$sids));
-        
-        list($ues_courses, $ues_course_ids) = $this->get_courses($sections);
-        
-        $sql = sprintf(
-            "SELECT
-                CONCAT(usem.year,usem.name, uc.department, uc.cou_number, u.id, us.sec_number) AS 'key',
-                usem.year, 
-                usem.name, 
-                uc.department, 
-                uc.cou_number, 
-                u.idnumber AS studentId,
-                us.sec_number AS sectionId,
-                usem.classes_start AS startDate,
-                usem.grades_due AS endDate
-            FROM mdl_course AS c
-                INNER JOIN mdl_context AS           ctx  ON c.id            = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS  ra   ON ra.contextid    = ctx.id
-                INNER JOIN mdl_user                 u    ON u.id            = ra.userid
-                INNER JOIN mdl_enrol_ues_sections   us   ON c.idnumber      = us.idnumber
-                INNER JOIN mdl_enrol_ues_students   ustu ON u.id            = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters  usem ON usem.id         = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses    uc   ON uc.id           = us.courseid
-            WHERE 
-            ra.roleid IN (5)
-            AND usem.id IN {$inSems}
-            AND 
-            ustu.status = 'enrolled'
-            ORDER BY usem.year, usem.name, uc.department, uc.cou_number, sectionId
-            LIMIT %s", $limit);
-
-            $raw = $DB->get_records_sql($sql);
-
-            $seamless = array();
-            
-            foreach($raw as $r){
-                $new = new stdClass();
-                $new->enrollmentId        = implode('_', array($r->year, $r->name, $r->department, $r->cou_number, $r->sectionid, $r->studentid));
-                $new->studentId           = $r->studentid;
-                $new->courseId            = implode(' ', array($r->department, $r->cou_number));
-                $new->sectionId           = $r->sectionid;
-                $new->startdate           = $r->startdate;    //@TODO we can get this elsewhere
-                $new->enddate             = $r->enddate;      //@TODO we can get this elsewhere
-                $new->status              = 'A';
-                $new->uniqueCourseSection = implode('_', array($r->year, $r->name, $r->department, $r->cou_number, $r->sectionid));
-
-                $seamless[] = $new;
-                $records[] = $seamless;
-            }
-            return $records;
-    }
     
     public function get_semesters(){
         global $DB;
