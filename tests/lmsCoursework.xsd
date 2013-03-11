@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="lmsCourseworkItems">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="lmsCourseworkItem"/>
+      </xs:sequence>
+      <xs:attribute name="university" use="required" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="lmsCourseworkItem">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="enrollmentId"/>
+        <xs:element ref="studentId"/>
+        <xs:element ref="courseId"/>
+        <xs:element ref="sectionId"/>
+        <xs:element ref="itemType"/>
+        <xs:element ref="itemId"/>
+        <xs:element ref="itemName"/>
+        <xs:element ref="dueDate"/>
+        <xs:element ref="dateSubmitted"/>
+        <xs:element ref="pointsPossible"/>
+        <xs:element ref="pointsReceived"/>
+        <xs:element ref="gradeCategory"/>
+        <xs:element ref="categoryWeight"/>
+        <xs:element ref="extensions"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="enrollmentId" type="xs:unsignedLong"/>
+  <xs:element name="studentId" type="xs:string"/>
+  <xs:element name="courseId" type="xs:string"/>
+  <xs:element name="sectionId" type="xs:string"/>
+  <xs:element name="itemType" type="xs:string"/>
+  <xs:element name="itemId" type="xs:string"/>
+  <xs:element name="itemName" type="xs:string"/>
+  
+  <!--@TODO investigate whether a pattern can be applied to legalize an xs:date formatted as a US date: dd/mm/yyyy-->
+  <xs:element name="dueDate" type="xs:string"/>
+  
+  <!--@TODO investigate whether a pattern can be applied to legalize an xs:date formatted as a US date: dd/mm/yyyy-->
+  <xs:element name="dateSubmitted" type="xs:string"/>
+  <xs:element name="pointsPossible" type="xs:integer"/>
+  <xs:element name="pointsReceived" type="xs:integer"/>
+  <xs:element name="gradeCategory" type="xs:string"/>
+  <xs:element name="categoryWeight" type="xs:integer"/>
+  <xs:element name="extensions">
+    <xs:complexType/>
+  </xs:element>
+</xs:schema>

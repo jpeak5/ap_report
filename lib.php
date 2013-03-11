@@ -67,6 +67,7 @@ abstract class lsuonlinereport {
 
 class lmsEnrollment extends lsuonlinereport{
 
+    
     /**
      * The enrollment status should accurately reflect the status of the student’s enrollment in the section. If
         the student enrolls and the enrollment is accepted, a new enrollment record should reflect that the
@@ -74,6 +75,157 @@ class lmsEnrollment extends lsuonlinereport{
         access to the class, i.e., they drop the course, do not fulfill their financial obligation, etc., then the
         enrollment status should reflect this.
      */
+    
+    
+    public $semesterids;
+    public $sectionids;
+    public $studentids;
+    public $courseids;
+    
+    
+    /**
+     * 
+     * @return array integer ids of active semesters
+     */
+    public function get_active_ues_semester_ids(){
+        global $DB;
+        $time = time();
+        $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
+
+        return $semesterids;
+    }
+    
+    /**
+     * 
+     * @param int $semesterid semester id
+     * @return array section ids for the given semester
+     */
+    public function get_active_section_ids(array $semesterid){
+        global $DB;
+        $sectionids = $DB->get_records_list('enrol_ues_sections','semesterid', $semesterid,'','id');
+        return array_keys($sectionids);
+    }
+    
+    /**
+     * 
+     * @param int $sectionid section id
+     * @return array student ids for a given section
+     */
+    public function get_studentids_per_section($sectionid){
+        global $DB;
+        $studentids = $DB->get_records_select('enrol_ues_students','sectionid = ? and status = ?', array($sectionid, 'enrolled'),'','userid');
+        return array_keys($studentids);
+    }
+    
+    /**
+     * 
+     * @param int $sectionid a ues section id 
+     * @return array moodle course id numbers
+     */
+    public function get_moodle_course_id($sectionid){
+        global $DB;
+        $sql = "select 
+                    c.id moodle_courseid 
+                from 
+                    mdl_enrol_ues_sections usect 
+                    join 
+                        mdl_course c on c.idnumber = usect.idnumber 
+                where usect.id = {$sectionid};";
+
+        $courseids = $DB->get_records_sql($sql);
+        $key = array_keys($courseids);
+                
+        return array_pop($key);
+    }
+    
+    function get_time_spent_today_section($userid, $courseid, $last){
+        global $DB;
+        $sql = "select 
+                    time 
+                from 
+                    mdl_log 
+                where 
+                    userid = ? and course = ? and time > ? order by time desc;";
+        $params = array($userid,$courseid, $last);
+        $times = array_keys($DB->get_records_sql($sql, $params));
+        
+        if(empty($times)){
+            return -1;
+        }
+        $last = array_shift($times);
+        $duration = $last - array_pop($times);
+        
+
+        return array('last'=>$last, 'duration'=>$duration);
+    }
+    
+
+    
+    public function saveTimeSpent($uid, $sec, $time, $last){
+        global $DB;
+
+        
+        $record = new stdClass();
+        $record->userid = $uid;
+        $record->sectionid = $sec;
+        $record->timespent = $time;
+        $record->lastaccess = $last;
+        $record->timestamp = time();
+        if($DB->insert_record('lsureports_lmsenrollment', $record)){
+            return true;
+        }else{
+            return false;
+            mtrace("failure updating database;");
+        }
+        
+    }
+    
+    public function calculateTimeSpent(){
+        global $DB;
+        $this->semesterids = $this->get_active_ues_semester_ids();
+        $this->sections = $this->get_active_section_ids($this->semesterids);
+        $start = time();
+        $inner = 0;
+        mtrace(sprintf("got %s sections", count($this->sections)));
+        $section_count = 0;
+        foreach($this->sections as $s){
+            $section_count++;
+            $students = $this->get_studentids_per_section($s);
+            $courseuid = $this->get_moodle_course_id($s);
+            foreach($students as $st){
+                
+                $today      = strtotime('today'); //12am this morning
+
+                $last_sql = 'Select timestamp from {lsureports_lmsenrollment} where userid = ? and sectionid = ? order by timestamp desc limit 1';
+                $params = array($st, $s);
+
+                $last_update = array_keys($DB->get_records_sql($last_sql, $params));
+                $last_update_ts = empty($last_update) ? $today : array_pop($last_update);
+                
+                
+                $time = $this->get_time_spent_today_section($st, $courseuid, $last_update_ts);
+
+                $inner++;
+                if($time['duration'] > 0){
+                    
+                    $this->saveTimeSpent($st, $s, $time['duration'], $time['last']);
+ 
+                }
+            }
+            if(time() - $start > 120){
+                die(sprintf("one minute has elapsed; we have processed %d", $inner));
+            }
+        }
+        echo sprintf("that took %f seconds and we processed %d students in %d sections", time() - $start, $inner, $section_count);
+        
+        
+    }
+    
+    
+    
+    
+    
+    
     public function saveData() {
         
     }
@@ -179,10 +331,18 @@ class lmsEnrollment extends lsuonlinereport{
         global $DB;
 
         //get semester objects from the enrolment system;
-        //for convenience, store a list of semester ids in inSems for use in DB query
         
-        list($semesters, $inSems) = $this->get_semesters();
- 
+        //get the valid semesters
+        list($semesters, $sids)   = $this->get_semesters();
+        
+        //get sections in the valid semesters
+        list($sections, $sec_ids) = $this->get_sections($sids);
+        
+        //list of current semester ids
+        $inSems = sprintf("(%s)", implode(',',$sids));
+        
+        list($ues_courses, $ues_course_ids) = $this->get_courses($sections);
+        
         $sql = sprintf(
             "SELECT
                 CONCAT(usem.year,usem.name, uc.department, uc.cou_number, u.id, us.sec_number) AS 'key',
@@ -195,13 +355,13 @@ class lmsEnrollment extends lsuonlinereport{
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate
             FROM mdl_course AS c
-                INNER JOIN mdl_context AS           ctx ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS  ra ON ra.contextid = ctx.id
-                INNER JOIN mdl_user                 u ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections   us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students   ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters  usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses    uc ON uc.id = us.courseid
+                INNER JOIN mdl_context AS           ctx  ON c.id            = ctx.instanceid
+                INNER JOIN mdl_role_assignments AS  ra   ON ra.contextid    = ctx.id
+                INNER JOIN mdl_user                 u    ON u.id            = ra.userid
+                INNER JOIN mdl_enrol_ues_sections   us   ON c.idnumber      = us.idnumber
+                INNER JOIN mdl_enrol_ues_students   ustu ON u.id            = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN mdl_enrol_ues_semesters  usem ON usem.id         = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses    uc   ON uc.id           = us.courseid
             WHERE 
             ra.roleid IN (5)
             AND usem.id IN {$inSems}
@@ -242,10 +402,52 @@ class lmsEnrollment extends lsuonlinereport{
         foreach($semesters as $s){
             $sids[] = $s->id;
         }
+
+        return array($semesters, $sids);
         
-        $inSems = sprintf("(%s)", implode(',',$sems));
-        return array($semesters, $inSems);
+    }
+
+    /**
+     * 
+     * @param type $sids array of semester ids
+     */
+    public function get_sections($sids) {
+        global $DB;
+        $sections = array();
+        foreach($sids as $sid){
+            //this should be rewrtten to take advantage of the moodle API call: get_records_list
+            $c = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_sections WHERE semesterid = ?', array($sid));
+            $sections = array_merge($sections, $c);
+        }
+        $sec_ids = array();
+        foreach($sections as $section){
+            $sec_ids[] = $section->id;
+        }
         
+        return !empty($sections) ? array($sections,$sec_ids) : false;
+    }
+    
+    /**
+     * 
+     * @global type $DB
+     * @param array $sections section rows 
+     * @return array returns a 2-element array: objects and their ids
+     */
+    public function get_courses($sections){
+        global $DB;
+        $courses = array();
+        
+        foreach($sections as $s){
+            //this can't be efficient
+            $c_tmp = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_courses WHERE id = ?', array($s->courseid));
+            $courses = array_merge($courses, $c_tmp);
+        }
+        $cids = array();
+        assert(!empty($courses));
+        foreach($courses as $c){
+            $cids = $c->id;
+        }
+        return !empty($courses) ? array($courses, $cids) : false;
     }
 }
 
