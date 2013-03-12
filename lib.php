@@ -77,10 +77,7 @@ class lmsEnrollment extends lsuonlinereport{
      */
     
     
-    public $semesterids;
-    public $sectionids;
-    public $studentids;
-    public $courseids;
+    public $tree; //tree of enrollment data
     
     
     /**
@@ -90,9 +87,21 @@ class lmsEnrollment extends lsuonlinereport{
     public function get_active_ues_semester_ids(){
         global $DB;
         $time = time();
-        $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
-
+        //moodle data api calls are not testable without generating test data
+//        $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
+$semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
         return $semesterids;
+    }
+    /**
+     * 
+     * @return array integer ids of active semesters
+     */
+    public function get_active_ues_semesters(){
+        global $DB;
+        $time = time();
+        $semesters = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_semesters WHERE classes_start < ? and grades_due > ?', array($time,$time));
+
+        return $semesters;
     }
     
     /**
@@ -154,7 +163,6 @@ class lmsEnrollment extends lsuonlinereport{
         }
         $last = array_shift($times);
         $duration = $last - array_pop($times);
-        
 
         return array('last'=>$last, 'duration'=>$duration);
     }
@@ -274,7 +282,12 @@ class lmsEnrollment extends lsuonlinereport{
             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
                 u.idnumber AS studentId,  
-                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                usem.year,
+                usem.name,
+                usem.session_key,
+                uc.department,
+                c.id as mdl_courseid,
+                uc.cou_number,
                 us.sec_number AS sectionId,
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,
@@ -300,30 +313,194 @@ class lmsEnrollment extends lsuonlinereport{
             LIMIT %s", $limit);
             
         $rows = $DB->get_records_sql($sql);
-        $camels = array();
-        foreach($rows as $r){
-            $camel = new stdClass();
+//        $camels = array();
+//        foreach($rows as $r){
+//            $camel = new stdClass();
+//
+//            $camel->enrollmentId        = $r->enrollmentid;
+//            $camel->studentId           = $r->studentid;
+//            $camel->courseId            = $r->courseid;
+//            $camel->sectionId           = $r->sectionid;
+//            $camel->startDate           = $r->startdate;
+//            $camel->endDate             = $r->enddate;
+//            $camel->status              = $r->status;
+//            $camel->lastCourseAccess    = $r->lastcourseacccess;
+//            $camel->timeSpentInClass    = $r->timespentinclass;
+//            $camel->extensions = "";
+//            
+//            $camels[] = $camel;
+//        }
+        return $rows;
+    }
+    
+    public function get_semester_data($semesterids){
+        global $DB;
+        
+        //use the idnumbers of the active users to reduce the number of rows we're working with;
+        //this could be done at several steps in the process
+        //ie: alter the query
+        //@TODO alter the query to only pull data for people who have recent activity
+        $active_users = $this->get_active_user_ids();
 
-            $camel->enrollmentId        = $r->enrollmentid;
-            $camel->studentId           = $r->studentid;
-            $camel->courseId            = $r->courseid;
-            $camel->sectionId           = $r->sectionid;
-            $camel->startDate           = $r->startdate;
-            $camel->endDate             = $r->enddate;
-            $camel->status              = $r->status;
-            $camel->lastCourseAccess    = $r->lastcourseacccess;
-            $camel->timeSpentInClass    = $r->timespentinclass;
-            $camel->extensions = "";
+        
+        $sql = sprintf(
+            "SELECT
+                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
+                u.idnumber AS studentId, 
+                usem.id semesterid,
+                usem.year,
+                usem.name,
+                uc.department,
+                uc.cou_number,
+                us.sec_number AS sectionId,
+                c.id as mdl_courseid,
+                us.id AS ues_sectionid,
+                'A' AS status,
+                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
+            FROM mdl_course AS c
+                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
+                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
+                INNER JOIN mdl_user AS u ON u.id = ra.userid
+                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+            WHERE 
+                ra.roleid IN (5)
+                AND usem.id in(%s)
+                AND ustu.status = 'enrolled'
+                AND u.idnumber IN(%s)
+            ORDER BY uniqueCourseSection"
+                , implode(',',$semesterids), implode(',', $active_users));
             
-            $camels[] = $camel;
+        $rows = $DB->get_records_sql($sql);
+//        die(print_r($rows));
+        return $rows;
+    }
+    
+    /**
+     * this function is a utility method that helps optimize the overall 
+     * routine by limiting the number of people we check
+     */
+    public function get_active_user_ids(){
+       global $DB;
+      
+       $sql = "select distinct u.idnumber
+                    FROM 
+                        mdl_log log 
+                            join 
+                        mdl_user u 
+                            on log.userid = u.id 
+                    where 
+                        log.action = 'login';";
+       $active_users = $DB->get_records_sql($sql, array(0));
+       $active_ids = array();
+       foreach($active_users as $au){
+           $active_ids[] = (int)$au->idnumber;
+       }
+
+       return $active_ids;
+    }
+    
+    /**
+     * 
+     * @param $semesters 
+     */
+    public function build_enrollment_tree($semesters){
+        
+        
+        $enrollments = $this->get_semester_data(array_keys($semesters));
+        
+        $enrollment = array();
+        
+        //populate the first level of the tree
+        foreach($semesters as $s){
+        
+            $o = new semester($s);
+            $enrollment[$o->id] = $o;
         }
-        return $camels;
+        
+        //put enrollment records into semester arrays
+        foreach($enrollments as $row => $e){
+
+            assert(array_key_exists($e->semesterid, $enrollment));
+            
+                $semester = $enrollment[$e->semesterid];
+                if(!array_key_exists($e->sectionid, $semester->sections)){
+                    $section = new section();
+                    $semester->sections[$e->ues_sectionid] = $section;
+                    $section->cou_num    = $e->cou_number;
+                    $section->department = $e->department;
+                    $section->sec_num    = $e->sectionid;
+                    $section->id         = $e->ues_sectionid;
+                    $section->mdlid      = $e->mdl_courseid;
+                    
+                    $user     = new user();
+                    $user->id = $e->studentid;
+                    $section->users[$e->studentid] = $user;
+                }else{
+                    
+                    $user = new user();
+                    $user->id = $e->studentid;
+                    $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
+                }
+         
+        }
+        
+        return $this->tree = $enrollment;
     }
     
 
     
+    public function record_activity(){
+        $errors = array();
+        foreach($this->tree as $semester){
+            $success = $this->record_semester_activity($semester);
+            if(!$success){
+                $errors[$semester->id] = $semester;
+            }
+        }
+        
+        if(!empty($errors)){
+            $this->print_errors($errors);
+            return false;
+        }
+        return true;
+    }
+    
+
+}
 
 
+class semester{
+    public $year; //int
+    public $name; //string
+    public $sections; //array of section
+    
+    public function  __construct($obj){
+        $this->year = $obj->year;
+        $this->name = $obj->name;
+        $this->id   = $obj->id;
+        $this->sections = array();
+    }
+
+}
+
+class section{
+    public $id; //int
+    public $mdlid; //the moodle course id
+    public $department; //string
+    public $cou_num; //int
+    public $sec_num; //int
+    public $users; //array  of user
+}
+
+class user{
+    public $id;
+    public $lastAccess; //timest
+    public $timeSpent; //int
+    public $lastUpdate; //timest - last time we calculated...
+            
 }
 
 class engagementReport extends lsuonlinereport{
@@ -348,50 +525,7 @@ class engagementReport extends lsuonlinereport{
     }
 
     public function getData($limit = 0) {
-                global $DB;
         
-        $sql = sprintf(
-            "SELECT 
-                u.id AS userid,
-                u.username,
-                from_unixtime(l.time) AS rvisit,
-                c.id AS rcourseid,
-                c.fullname AS rcourse,
-                agg.days AS days,
-                agg.numdates,
-                agg.numcourses,
-                agg.numlogs
-             FROM 
-                mdl_log l INNER JOIN mdl_user u
-                    ON l.userid = u.id
-                INNER JOIN mdl_course c
-                    ON l.course = c.id
-                INNER JOIN ( 
-                    SELECT
-                        days,
-                        userid,
-                        max(time) AS maxtime,
-                        count(DISTINCT date(from_unixtime(time))) AS 'numdates', 
-                        count(DISTINCT course) AS numcourses,
-                        count(*) AS numlogs
-                    FROM 
-                        mdl_log l INNER JOIN mdl_course c
-                            ON l.course = c.id
-                        INNER JOIN (
-                            SELECT 1 AS days
-                       ) var 
-                    WHERE 
-                        l.time > (unix_timestamp() - ((60*60*24)*days))
-                        AND c.format != 'site'
-                    GROUP BY userid) agg
-              ON l.userid = agg.userid
-              WHERE 
-                l.time = agg.maxtime 
-                AND c.format != 'site'
-              GROUP BY userid
-              ORDER BY l.time DESC");
-            
-        return $DB->get_records_sql($sql);
     }
 
     protected function saveData() {
@@ -436,6 +570,7 @@ class lmsEnrollmentRecord {
         $this->timeSpentInClass = (int)$this->timeSpentInClass;
         $this->startDate        = strftime('%m/%d/%Y', $this->startDate);
         $this->endDate          = strftime('%m/%d/%Y',$this->endDate);
+        $this->courseId         = (int)$this->courseId;
         
     }
 }

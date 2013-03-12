@@ -34,20 +34,44 @@
   
   <!--A unique identifier for the course. It must match course ID
   from SIS-->
-  <xs:element name="courseId" type="xs:string"/>
+  <xs:element name="courseId">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:minLength value="1"></xs:minLength>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
   
   <!--A unique identifier for the section. It must match the
   section ID from the SIS-->
   <xs:element name="sectionId" type="xs:integer"/>
   
   <!--The starting date of the course (as stored in LMS)-->
-  <xs:element name="startDate" type="xs:string"/>
+  <xs:element name="startDate">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:minLength value="1"></xs:minLength>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
   
   <!--The ending date of the course (as stored in LMS)-->
-  <xs:element name="endDate" type="xs:string"/>
+  <xs:element name="endDate">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:minLength value="1"></xs:minLength>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
   
   <!--The student’s current enrollment status-->
-  <xs:element name="status" type="xs:string"/>
+  <xs:element name="status">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:minLength value="1"></xs:minLength>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
   
   <!--The last time the student logged into the course-->
   <xs:element name="lastCourseAccess" type="xs:string"/>
