@@ -4,7 +4,7 @@ require_once $CFG->dirroot.'/local/lsuonlinereport/lib.php';
 
 
 
-class lmsEnrollment_testcase extends basic_testcase{
+class lmsEnrollment_testcase extends advanced_testcase{
     
     public $sp;
     public $numRows;
@@ -18,21 +18,8 @@ class lmsEnrollment_testcase extends basic_testcase{
         $this->numRows = 10;  
     }
   
-    public function test_get_active_users(){
-//        die('got here');
-        $u = $this->sp->get_active_user_ids();
-        $this->assertNotEmpty($u);
-        $this->assertTrue(is_int($u[0]));
-  
-    }
-    
-    public function test_getData(){
-//        die('got here');
-        $rows = $this->sp->getData($this->numRows);
-        $this->assertNotEmpty($rows, "No DB Rows");
-        $this->assertEquals($this->numRows, count($rows));
-        return $rows;
-    }
+
+
     
     /**
      * 
@@ -129,48 +116,40 @@ class lmsEnrollment_testcase extends basic_testcase{
     }
     
 
-    public function test_get_active_user_ids(){
-        $units = $this->sp->get_active_user_ids();
+    public function test_record_activity(){
+        $semesters = $this->sp->get_active_ues_semesters();
+        $this->sp->build_enrollment_tree($semesters);
+        $records = $this->sp->prepare_activity_records();
+        $this->assertTrue(is_array($records));
+        $this->assertNotEmpty($records);
+        $keys = array_keys($records);
+        $this->assertInstanceOf('lsureports_lusenrollment_record', $records[$keys[0]]);
+        return $records;
+    }
+    
+    /**
+     * @depends test_record_activity
+     */
+    public function test_save_activity_records($records){
+        $this->resetAfterTest(true);
+        $result = $this->sp->save_activity_records($records);
+        $this->assertEmpty($result);
+    }
+    
+    public function test_get_active_users(){
+        $units = $this->sp->get_active_users();
         $this->assertTrue(is_array($units));
         $this->assertNotEmpty($units);
-        
-        $this->assertTrue(is_string(implode(',',$units)));
-        $unit = array_pop($units);
+        $keys = array_keys($units);
+        $vals = array_values($units);
+        $unit = array_pop($keys);
         $this->assertTrue(is_int($unit));
     }
     
     
-    /**
-     * @depends test_getData
-     * 
-     */
-    public function test_buildXML($rows){
-        
-        //get a reference to the report
-        $report = $this->sp->buildXML($rows);
-        
-        //are we getting xml
-        $this->assertInstanceOf('DOMDocument', $report);
-        
-        //right encoding?
-        $this->assertEquals('UTF-8', $report->encoding);
-        
-        //valid?
-        $this->assertTrue($report->schemaValidate('tests/lmsEnrollment.xsd'));
-    }
-    
-    public function test_getReport(){
-        $report = $this->sp->getReport('XML', 10);
-        
-        $doc = new DOMDocument();
-        $doc->loadXML($report);
-        
-        //valid?
-        $this->assertTrue($doc->schemaValidate('tests/lmsEnrollment.xsd'));
 
-        
-    }
     
+
     
 }
 

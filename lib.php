@@ -89,7 +89,7 @@ class lmsEnrollment extends lsuonlinereport{
         $time = time();
         //moodle data api calls are not testable without generating test data
 //        $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
-$semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
+            $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
         return $semesterids;
     }
     /**
@@ -147,46 +147,7 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
         return array_pop($key);
     }
     
-    function get_time_spent_today_section($userid, $courseid, $last){
-        global $DB;
-        $sql = "select 
-                    time 
-                from 
-                    mdl_log 
-                where 
-                    userid = ? and course = ? and time > ? order by time desc;";
-        $params = array($userid,$courseid, $last);
-        $times = array_keys($DB->get_records_sql($sql, $params));
-        
-        if(empty($times)){
-            return -1;
-        }
-        $last = array_shift($times);
-        $duration = $last - array_pop($times);
 
-        return array('last'=>$last, 'duration'=>$duration);
-    }
-    
-
-    
-    public function saveTimeSpent($uid, $sec, $time, $last){
-        global $DB;
-
-        
-        $record = new stdClass();
-        $record->userid = $uid;
-        $record->sectionid = $sec;
-        $record->timespent = $time;
-        $record->lastaccess = $last;
-        $record->timestamp = time();
-        if($DB->insert_record('lsureports_lmsenrollment', $record)){
-            return true;
-        }else{
-            return false;
-            mtrace("failure updating database;");
-        }
-        
-    }
     
     public function calculateTimeSpent(){
         global $DB;
@@ -231,7 +192,9 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
     
     
     
-    
+    protected function getData($limit = 0) {
+        
+    }
     
     
     public function saveData() {
@@ -264,75 +227,16 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
         return $doc;
     }
 
-    /**
-     * 
-     * @TODO make use of the start/end timestamps
-     * @TODO replace this query with one that leaves the concatenation to the script
-     * @global type $DB the global moodle db
-     * @param int $start smallest timestamp to return
-     * @param int $end   latest timestamp to return 
-     * @param int $limit how many records
-     * @return array of record objects with fieds conformant to the schema
-     * located in tests/lmsEnrollment.xsd
-     */
-    public function getData($limit = 0) {
-        global $DB;
+    
+    public function get_activity_records($earliest, $latest=null){
+        $latest = isset($latest) ? $latest : time();
         
-        $sql = sprintf(
-            "SELECT
-                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
-                u.idnumber AS studentId,  
-                usem.year,
-                usem.name,
-                usem.session_key,
-                uc.department,
-                c.id as mdl_courseid,
-                uc.cou_number,
-                us.sec_number AS sectionId,
-                usem.classes_start AS startDate,
-                usem.grades_due AS endDate,
-                123 as lastcourseacccess,
-                789 as timespentinclass,
-                'A' AS status,
-                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
-            FROM mdl_course AS c
-                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
-                INNER JOIN mdl_user AS u ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-            WHERE 
-                ra.roleid IN (5)
-                AND usem.classes_start < UNIX_TIMESTAMP(NOW())
-                AND usem.grades_due > UNIX_TIMESTAMP(NOW())
-                AND 
-                ustu.status = 'enrolled'
-            ORDER BY uniqueCourseSection
-            LIMIT %s", $limit);
-            
-        $rows = $DB->get_records_sql($sql);
-//        $camels = array();
-//        foreach($rows as $r){
-//            $camel = new stdClass();
-//
-//            $camel->enrollmentId        = $r->enrollmentid;
-//            $camel->studentId           = $r->studentid;
-//            $camel->courseId            = $r->courseid;
-//            $camel->sectionId           = $r->sectionid;
-//            $camel->startDate           = $r->startdate;
-//            $camel->endDate             = $r->enddate;
-//            $camel->status              = $r->status;
-//            $camel->lastCourseAccess    = $r->lastcourseacccess;
-//            $camel->timeSpentInClass    = $r->timespentinclass;
-//            $camel->extensions = "";
-//            
-//            $camels[] = $camel;
-//        }
-        return $rows;
+//        $last_up_sql = 'SELECT max(timestamp) FROM mdl_lsureports_lmsenrollment WHERE'
+        $earliest = isset($earliest) ? $earliest : $lastUpdate;
+        
     }
     
+
     public function get_semester_data($semesterids){
         global $DB;
         
@@ -340,13 +244,15 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
         //this could be done at several steps in the process
         //ie: alter the query
         //@TODO alter the query to only pull data for people who have recent activity
-        $active_users = $this->get_active_user_ids();
+        $active_users = $this->get_active_users();
+//        print_r($active_users);
+        $active_ids = array_keys($active_users);
 
         
         $sql = sprintf(
             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
-                u.idnumber AS studentId, 
+                u.id AS studentId, 
                 usem.id semesterid,
                 usem.year,
                 usem.name,
@@ -369,12 +275,13 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
                 ra.roleid IN (5)
                 AND usem.id in(%s)
                 AND ustu.status = 'enrolled'
-                AND u.idnumber IN(%s)
+                AND u.id IN(%s)
             ORDER BY uniqueCourseSection"
-                , implode(',',$semesterids), implode(',', $active_users));
+                , implode(',',$semesterids)
+                , implode(',', $active_ids)
+                );
             
         $rows = $DB->get_records_sql($sql);
-//        die(print_r($rows));
         return $rows;
     }
     
@@ -382,24 +289,29 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
      * this function is a utility method that helps optimize the overall 
      * routine by limiting the number of people we check
      */
-    public function get_active_user_ids(){
+    public function get_active_users(){
        global $DB;
       
-       $sql = "select distinct u.idnumber
-                    FROM 
-                        mdl_log log 
-                            join 
-                        mdl_user u 
-                            on log.userid = u.id 
-                    where 
-                        log.action = 'login';";
+       //get one userid for anyonein the mdl_log table that has done anything
+       //in the temporal bounds
+       //get, also, the timestamp of the last time they were included in this 
+       //scan (so we keep a contiguous record of their activity)
+       $sql =  "select distinct u.id
+                    , max(len.timestamp)
+                FROM 
+                    mdl_log log 
+                        join 
+                    mdl_user u 
+                        on log.userid = u.id 
+                LEFT JOIN
+                    mdl_lsureports_lmsenrollment len
+                ON
+                    log.userid = len.userid
+                where 
+                    log.action = 'login';";
        $active_users = $DB->get_records_sql($sql, array(0));
-       $active_ids = array();
-       foreach($active_users as $au){
-           $active_ids[] = (int)$au->idnumber;
-       }
 
-       return $active_ids;
+       return $this->active_users = $active_users;
     }
     
     /**
@@ -446,29 +358,62 @@ $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_st
                 }
          
         }
-        
+//        print_r($enrollment);
         return $this->tree = $enrollment;
     }
     
 
     
-    public function record_activity(){
+    public function prepare_activity_records(){
+        global $DB;
         $errors = array();
-        foreach($this->tree as $semester){
-            $success = $this->record_semester_activity($semester);
-            if(!$success){
-                $errors[$semester->id] = $semester;
+        $records = array();
+        foreach($this->tree as $semester){  
+            foreach($semester->sections as $sec){
+                $sql = sprintf("select 
+                            userid 
+                            , max(time) - min(time) spent
+                            , max(time) as last
+                        from 
+                            mdl_log 
+                        where 
+                            course = %d group by userid;"
+                        ,$sec->mdlid);
+                $results = $DB->get_records_sql($sql);
+                
+                foreach($sec->users as $u){
+                    if(array_key_exists($u->id, $results)){
+                        $activity = $results[$u->id];
+                        $rec = new lsureports_lusenrollment_record();
+                        $rec->lastaccess = $activity->last;
+                        $rec->timespent  = $activity->spent;
+                        $rec->sectionid  = $sec->id;
+                        $rec->userid     = $activity->userid;
+//                        die(print_r($rec));
+                        $records[] = $rec;
+                    }
+                }
             }
-        }
         
-        if(!empty($errors)){
-            $this->print_errors($errors);
-            return false;
         }
-        return true;
+    return $records;
+
     }
     
-
+    
+    public function save_activity_records($records){
+        global $DB;
+        $errors = array();
+        foreach($records as $record){
+            $record->timestamp = time();
+            $result = $DB->insert_record('lsureports_lmsenrollment', $record, true, true);
+            if(false == $result){
+                $errors[] = $record->id;
+            }
+        }
+        return $errors;
+    }
+    
 }
 
 
@@ -496,11 +441,17 @@ class section{
 }
 
 class user{
-    public $id;
-    public $lastAccess; //timest
-    public $timeSpent; //int
-    public $lastUpdate; //timest - last time we calculated...
-            
+    public $id;        
+}
+
+class lsureports_lusenrollment_record{
+//    public $user; //a user isntance
+    public $lastaccess; //timest
+    public $timespent; //int
+    public $lastupdate; //timest - last time we calculated...  
+    public $sectionid; //unique ues section id
+    public $userid; //mdl user id
+    public $timestamp; //mdl user id
 }
 
 class engagementReport extends lsuonlinereport{
