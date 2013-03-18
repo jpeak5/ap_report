@@ -10,22 +10,7 @@ abstract class lsuonlinereport {
     public $start;
     public $end;
     
-    /**
-     * 
-     * @param string $format type of output to return ('xml')
-     * @param int $limit
-     * @return string
-     */
-    public function getReport($format='XML', $limit=0){
-        $records = $this->getData($limit);
-        
-        $report="build".$format;
-        $doc = $this->$report($records);
-        
-        $post = "postProcess".$format;
-        $string = $this->$post($doc);
-        return $string;
-    }
+
     
 
 
@@ -55,215 +40,149 @@ class lmsEnrollment extends lsuonlinereport{
     
     
     public $tree; //tree of enrollment data
-    public $start;
+    
+    /**
+     *
+     * @var int unix time for the min time bound to report on
+     */
+    public $report_start;
+    
+    /**
+     *
+     * @var int unix time for the max time bound to report on
+     */
+    public $report_end;
+    
+    
+    
+/*----------------------------------------------------------------------------*/    
+/*                  Enrollment calculations                                   */    
+/*----------------------------------------------------------------------------*/    
     
     public function __construct(){
-        $this->start = strtotime('-1 day');
+        $this->report_start = strtotime('-3 day');
     }
-    
+
     /**
+     * Get a list of all semesters 
+     * where {classes_start < time() < grades_due}
+     * @TODO this probably should be made inclusive,  
+     * lest we lose stats for the actual first and 
+     * last days of the semester
      * 
-     * @return array integer ids of active semesters
-     */
-    public function get_active_ues_semester_ids(){
-        global $DB;
-        $time = time();
-        //moodle data api calls are not testable without generating test data
-//        $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
-            $semesterids = $DB->get_fieldset_select('enrol_ues_semesters', 'id', 'classes_start < ? and grades_due > ?', array($time,$time));
-        return $semesterids;
-    }
-    /**
-     * 
-     * @return array integer ids of active semesters
+     * @return array stdClass of active semesters
      */
     public function get_active_ues_semesters(){
         global $DB;
         $time = time();
-        $semesters = $DB->get_records_sql('SELECT * FROM mdl_enrol_ues_semesters WHERE classes_start < ? and grades_due > ?', array($time,$time));
+        $semesters = $DB->get_records_sql('SELECT 
+                                                * 
+                                            FROM 
+                                                mdl_enrol_ues_semesters 
+                                            WHERE 
+                                                classes_start < ? 
+                                            AND 
+                                                grades_due > ?'
+                                        , array($time,$time));
 
         return $semesters;
     }
     
+
     /**
+     * looks up the last timestamp for the last 
+     * record inserted into the lmsenrollments table
+     * Knowing this timestamp allows us to run this 
+     * script arbitrarily without creating false data.
      * 
-     * @param int $semesterid semester id
-     * @return array section ids for the given semester
+     * @global type $DB
+     * @return int unixtimestamp |false
      */
-    public function get_active_section_ids(array $semesterid){
-        global $DB;
-        $sectionids = $DB->get_records_list('enrol_ues_sections','semesterid', $semesterid,'','id');
-        return array_keys($sectionids);
-    }
-    
-    /**
-     * 
-     * @param int $sectionid section id
-     * @return array student ids for a given section
-     */
-    public function get_studentids_per_section($sectionid){
-        global $DB;
-        $studentids = $DB->get_records_select('enrol_ues_students','sectionid = ? and status = ?', array($sectionid, 'enrolled'),'','userid');
-        return array_keys($studentids);
-    }
-    
-    /**
-     * 
-     * @param int $sectionid a ues section id 
-     * @return array moodle course id numbers
-     */
-    public function get_moodle_course_id($sectionid){
-        global $DB;
-        $sql = "select 
-                    c.id moodle_courseid 
-                from 
-                    mdl_enrol_ues_sections usect 
-                    join 
-                        mdl_course c on c.idnumber = usect.idnumber 
-                where usect.id = {$sectionid};";
-
-        $courseids = $DB->get_records_sql($sql);
-        $key = array_keys($courseids);
-                
-        return array_pop($key);
-    }
-    
-
-    
-    public function calculateTimeSpent(){
-        global $DB;
-        $this->semesterids = $this->get_active_ues_semester_ids();
-        $this->sections = $this->get_active_section_ids($this->semesterids);
-        $start = time();
-        $inner = 0;
-        mtrace(sprintf("got %s sections", count($this->sections)));
-        $section_count = 0;
-        foreach($this->sections as $s){
-            $section_count++;
-            $students = $this->get_studentids_per_section($s);
-            $courseuid = $this->get_moodle_course_id($s);
-            foreach($students as $st){
-                
-                $today      = strtotime('today'); //12am this morning
-
-                $last_sql = 'Select timestamp from {lsureports_lmsenrollment} where userid = ? and sectionid = ? order by timestamp desc limit 1';
-                $params = array($st, $s);
-
-                $last_update = array_keys($DB->get_records_sql($last_sql, $params));
-                $last_update_ts = empty($last_update) ? $today : array_pop($last_update);
-                
-                
-                $time = $this->get_time_spent_today_section($st, $courseuid, $last_update_ts);
-
-                $inner++;
-                if($time['duration'] > 0){
-                    
-                    $this->saveTimeSpent($st, $s, $time['duration'], $time['last']);
- 
-                }
-            }
-            if(time() - $start > 120){
-                die(sprintf("one minute has elapsed; we have processed %d", $inner));
-            }
-        }
-        echo sprintf("that took %f seconds and we processed %d students in %d sections", time() - $start, $inner, $section_count);
-        
-        
-    }
-    
-    
-    
-    protected function getData($limit = 0) {
-        
-    }
-    
     public static function get_last_run_time(){
         global $DB;
-        $sql = "SELECT MAX(timestamp) AS time FROM mdl_lsureports_lmsenrollment";
+        $sql = "SELECT 
+                    MAX(timestamp) AS time 
+                FROM 
+                    mdl_lsureports_lmsenrollment";
         $last = $DB->get_record_sql($sql);
-        return $last->time;
-    }
-    
-    /**
-     * @TODO learn how to do this the Moodle way
-     * NOTE: this is a destructive operation in the 
-     * sense that the old file, if exists, will be overwritten WITHOUT
-     * warning. This is by design, as we never want more than 
-     * one disk copy of this data around.
-     */
-    public function create_file($contents)  {
         
-        global $CFG;
-        $file = $CFG->dataroot.'/test.txt';
-        $handle = fopen($file, 'w');
-        assert($handle !=false);
-        $success = fwrite($handle, $contents);
-        fclose($handle);
-        return $success ? true : false;
-   
+        return empty($last) ? false : (int)$last->time   ;
     }
 
     /**
-     * @TODO include schema definition
-     * @return DOMDocument
+     * This function is executed at the start of this script to determine 
+     * whether or not we need to continue with the rest. It checks mdl_log for
+     * the existence of a single course activity record. If it finds one, we 
+     * assume that there has been activity since last run, and we can proceed; 
+     * otherwise, there has been no activity, and there is no need to run.
+     * It's sole dependency is the static method @see get_last_run_time
+     * 
+     * @global type $DB
+     * @return boolean 
      */
-    public function buildXML($records) {
-        $internal2xml = array(
-            'enrollmentid'  =>  'enrollmentId',
-            'studentid'     =>  'studentId',
-            'courseid'      =>  'courseId',
-            'sectionid'     =>  'sectionId',
-            'startdate'     =>  'startDate',
-            'enddate'       =>  'endDate',
-            'status'        =>  'status',
-            'lastaccess'    =>  'lastCourseAccess',
-            'timespent'     =>  'timeSpentInClass',
-            'extensions'    =>  'extensions'
-            
-        );
-        $doc  = new DOMDocument('1.0', 'UTF-8');
-        $root = $doc->createElement('lmsEnrollments');
-        $root->setAttribute('university', '002010');
-        
-        foreach($records as $k=>$rec){
-            
-            $rec = new lmsEnrollmentRecord($rec);
-
-            $rec->validate();
-
-//            $fields = array_diff(get_object_vars($rec), array('lmsEnrollments','lmsEnrollment'));
-            $lmsEnollment = $doc->createElement('lmsEnrollment');
-
-            foreach($internal2xml as $k => $v){
-                $node = $doc->createElement($v, $rec->$k);
-                $lmsEnollment->appendChild($node);
-            }
-            
-            $root->appendChild($lmsEnollment);
+    public function activity_check(){
+        global $DB;
+        $sql = "SELECT id FROM mdl_log WHERE course > 1 AND time > ? LIMIT 2";
+        $start = self::get_last_run_time();
+        assert(is_int($start));
+        $activity = $DB->get_records_sql($sql, array($start));
+        if(count($activity) > 0){
+            return true;
         }
-        $doc->appendChild($root);
-        return $doc;
+        return false;
+    }    
+
+
+    /**
+     * this function is a utility method that helps optimize the overall 
+     * routine by limiting the number of people we check
+     * 
+     * @param int $since unix timestamp for the minimum mdl_log.time value to check
+     * this should usually be the time this service was last run
+     * 
+     */
+    public function get_active_users($since){
+       global $DB;
+      assert(is_int($since));
+       //get one userid for anyone in the mdl_log table that has done anything
+       //in the temporal bounds
+       //get, also, the timestamp of the last time they were included in this 
+       //scan (so we keep a contiguous record of their activity)
+       $sql =  "SELECT DISTINCT u.id
+                FROM 
+                    mdl_log log 
+                        join 
+                    mdl_user u 
+                        on log.userid = u.id 
+                WHERE 
+                    log.time > ?;";
+       $active_users = $DB->get_records_sql($sql, array($since));
+       $this->active_users = $active_users;
+       return count($this->active_users) > 0 ? $this->active_users : false;
     }
-
-
     
 
+    /**
+     * utility function that takes in an array of [active] semesterids and queries
+     * the db for enrollment records on a per-[ues]section basis;
+     * The result set of this query is limited by the return value of 
+     * @see get_active_users
+     * @global type  $DB
+     * @param  array $semesterids  integer semester ids, presumably for active semesters
+     * @return array stdClass | false
+     */
     public function get_semester_data($semesterids){
         global $DB;
         
         //use the idnumbers of the active users to reduce the number of rows we're working with;
-        //this could be done at several steps in the process
-        //ie: alter the query
-        //@TODO alter the query to only pull data for people who have recent activity
         $active_users = $this->get_active_users(self::get_last_run_time());
         
         if(!$active_users){
             return false;
         }
-//        print_r($active_users);
+
         $active_ids = array_keys($active_users);
 
-        
         $sql = sprintf(
             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
@@ -279,13 +198,13 @@ class lmsEnrollment extends lsuonlinereport{
                 'A' AS status,
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
             FROM mdl_course AS c
-                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
-                INNER JOIN mdl_user AS u ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+                INNER JOIN mdl_context              AS ctx  ON c.id = ctx.instanceid
+                INNER JOIN mdl_role_assignments     AS ra   ON ra.contextid = ctx.id
+                INNER JOIN mdl_user                 AS u    ON u.id = ra.userid
+                INNER JOIN mdl_enrol_ues_sections   AS us   ON c.idnumber = us.idnumber
+                INNER JOIN mdl_enrol_ues_students   AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN mdl_enrol_ues_semesters  AS usem ON usem.id = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses    AS uc   ON uc.id = us.courseid
             WHERE 
                 ra.roleid IN (5)
                 AND usem.id in(%s)
@@ -296,59 +215,46 @@ class lmsEnrollment extends lsuonlinereport{
                 , implode(',', $active_ids)
                 );
         $rows = $DB->get_records_sql($sql);
-//        die(print_r($rows));
         return count($rows) > 0 ? $rows : false;
     }
     
-    /**
-     * this function is a utility method that helps optimize the overall 
-     * routine by limiting the number of people we check
-     */
-    public function get_active_users($since){
-       global $DB;
-      
-       //get one userid for anyonein the mdl_log table that has done anything
-       //in the temporal bounds
-       //get, also, the timestamp of the last time they were included in this 
-       //scan (so we keep a contiguous record of their activity)
-       $sql =  "select distinct u.id
-                FROM 
-                    mdl_log log 
-                        join 
-                    mdl_user u 
-                        on log.userid = u.id 
-                where 
-                    log.time > ?;";
-       $active_users = $DB->get_records_sql($sql, array($since));
-       $this->active_users = $active_users;
-       return count($this->active_users) > 0 ? $this->active_users : false;
-    }
     
     /**
+     * for the input semesters, this method builds an 
+     * internal tree-like data structure composed of 
+     * nodes of type semester, section, user
      * 
-     * @param $semesters 
+     * @param $semesters an array of active semesters, likely returned from 
+     * @see get_active_ues_semesters
      */
     public function build_enrollment_tree($semesters){
-        
-        
-        $enrollments = $this->get_semester_data(array_keys($semesters));
-        
-        $enrollment = array();
+        assert(!empty($semesters));
+
+        //define the root of the tree
+        $tree = array();
         
         //populate the first level of the tree
         foreach($semesters as $s){
         
             $o = new semester($s);
-            $enrollment[$o->id] = $o;
+            $tree[$o->id] = $o;
         }
         
         //put enrollment records into semester arrays
+        $enrollments = $this->get_semester_data(array_keys($semesters));
+        //@TODO what hapens if this is empty???
+        assert(!empty($enrollments));
+        
+        //walk through each row returned from the db @see get_semester_data
         foreach($enrollments as $row => $e){
 
-            assert(array_key_exists($e->semesterid, $enrollment));
+            //in populating the first level, above, we should have already 
+            //allocated an array slot for every possible value here
+            assert(array_key_exists($e->semesterid, $tree));
             
-                $semester = $enrollment[$e->semesterid];
+                $semester = $tree[$e->semesterid];
                 if(!array_key_exists($e->sectionid, $semester->sections)){
+                    //add a new section to the semester node's sections array
                     $section = new section();
                     $semester->sections[$e->ues_sectionid] = $section;
                     $section->cou_num    = $e->cou_number;
@@ -356,32 +262,38 @@ class lmsEnrollment extends lsuonlinereport{
                     $section->sec_num    = $e->sectionid;
                     $section->id         = $e->ues_sectionid;
                     $section->mdlid      = $e->mdl_courseid;
-                    
+                    //add this row's student as the next element 
+                    //of the current section's users array
                     $user     = new user();
                     $user->id = $e->studentid;
                     $section->users[$e->studentid] = $user;
                 }else{
-                    
+                    //the section already exists, so just add the user 
+                    //to the semester->section->users array
                     $user = new user();
                     $user->id = $e->studentid;
                     $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
                 }
-         
         }
-//        print_r($enrollment);
-        return $this->tree = $enrollment;
-    }
+        return $this->tree = $tree;
+    }    
+
     
+/*----------------------------------------------------------------------------*/    
+/*                              Persist Data                                  */    
+/*----------------------------------------------------------------------------*/    
 
     /**
      * Relies on $this->tree having already been populated
      * @global type $DB
-     * @return \lsureports_lusenrollment_record
+     * @return \lsureports_lmsenrollment_record
      */
     public function prepare_activity_records(){
         global $DB;
         $errors = array();
         $records = array();
+        assert(!empty($this->tree));
+        assert(count($this->tree)>0);
         foreach($this->tree as $semester){  
             foreach($semester->sections as $sec){
                 $sql = sprintf("select 
@@ -400,7 +312,7 @@ class lmsEnrollment extends lsuonlinereport{
                                 AND
                                     time > %d;"
                         ,$sec->mdlid
-                        ,$this->start);
+                        ,$this->report_start);
 //                print_r($sql);
                 $results = $DB->get_records_sql($sql);
                 
@@ -409,25 +321,12 @@ class lmsEnrollment extends lsuonlinereport{
                         $activity = $results[$u->id];
                         $rec = new lsureports_lusenrollment_record();
                         
-                        $already_ran    = $activity->lastupdate  > $this->start  ? true : false;
+                        $already_ran    = $activity->lastupdate  > $this->report_start  ? true : false;
                         $do_nothing     = $activity->lastupdate      > $activity->latest_action ? true : false;
-                        $active_today   = $activity->earliest_action > $this->start ? true : false;
+                        $active_today   = $activity->earliest_action > $this->report_start ? true : false;
                         
                         if($already_ran){
-//                            echo sprintf('already ran is true; last update %s is greater than today start %s'
-//                                    , strftime('%F %T', $activity->lastupdate)
-//                                    , strftime('%F %T', $this->start)
-//                                    );
                             $spent = $activity->latest_action - $activity->lastupdate;
-//                            echo sprintf("\n'latest_action' (%s) - 'last_update' (%s) =  %d - %d = %d"
-//                                    
-//                                    , strftime('%F %T',$activity->latest_action)
-//                                    , strftime('%F %T',$activity->lastupdate)
-//                                    , $activity->latest_action
-//                                    , $activity->lastupdate
-//                                    
-//                                    , $activity->latest_action - $activity->lastupdate
-//                                    );
                         }else{
                             
                             $spent = $active_today ? $activity->latest_action - $activity->earliest_action : 0;
@@ -439,20 +338,55 @@ class lmsEnrollment extends lsuonlinereport{
                         $rec->semesterid = $semester->id;
                         $rec->userid     = $activity->userid;
                         $rec->timestamp  = time();
-//                        echo sprintf('last update = %s', strftime('%F %T', $activity->lastupdate));
-//                        print_r($rec);
                         $records[] = $rec;
                     }
                 }
             }
         
         }
+        assert(count($records)>0);
     return $records;
 
     }
     
+    
+    
+    /**
+     * save enrollment data, prepared from the enrollment tree, to the database
+     * in our dedicated table. This is the last step in the creation of enrollment data.
+     * @see prepare_enrollment_records
+     * @global type $DB
+     * @param array $records of type lmsEnrollmentRecord
+     * @return array errors
+     */
+    public function save_activity_records($records){
+        global $DB;
+        $errors = array();
+        foreach($records as $record){
+            $record->timestamp = time();
+            $result = $DB->insert_record('lsureports_lmsenrollment', $record, true, true);
+            if(false == $result){
+                $errors[] = $record->id;
+            }
+        }
+        return $errors;
+    }
+    
+/*----------------------------------------------------------------------------*/    
+/*                              Fetch/report-building methods                 */    
+/*----------------------------------------------------------------------------*/
+    
+    /**
+     * fetches time spent from the lsuonlinreports_lmsenrollments 
+     * table for a given time range
+     * 
+     * @global type $DB
+     * @param int $start min time boundary
+     * @param int $end   max time boundary
+     * @return array stdClass | false if no rows are returned
+     */
     public function get_activity_records($start=null, $end=null){
-        $start  = is_null($start) ? strtotime('-2 day') : $start;
+        $start  = is_null($start) ? strtotime('-3 day') : $start;
         $end    = is_null($end)   ? time()              : $end;
         global $DB;
         $sql = "SELECT len.id AS enrollmentid
@@ -494,32 +428,75 @@ class lmsEnrollment extends lsuonlinereport{
         return count($enrollments) > 0 ? $enrollments : false;
     }
     
-    public function prepare_xml_enrollment_records($start=null, $end=null){
+
+    /**
+     * Defines an array of caseSensitive mappings from 
+     * internal class member names to XSD-required names.
+     * Using these, we build a document of activity records
+     * @param $records array of lmsenrollmentRecords
+     * @TODO include schema definition
+     * @return DOMDocument
+     */
+    public function buildXML($records) {
+        $internal2xml = array(
+            'enrollmentid'  =>  'enrollmentId',
+            'studentid'     =>  'studentId',
+            'courseid'      =>  'courseId',
+            'sectionid'     =>  'sectionId',
+            'startdate'     =>  'startDate',
+            'enddate'       =>  'endDate',
+            'status'        =>  'status',
+            'lastaccess'    =>  'lastCourseAccess',
+            'timespent'     =>  'timeSpentInClass',
+            'extensions'    =>  'extensions'
+            
+        );
+        $doc  = new DOMDocument('1.0', 'UTF-8');
+        $root = $doc->createElement('lmsEnrollments');
+        $root->setAttribute('university', '002010');
         
-        
-        
+        foreach($records as $k=>$rec){
+            $rec = new lmsEnrollmentRecord($rec);
+            $rec->validate();
+
+            $lmsEnollment = $doc->createElement('lmsEnrollment');
+
+            foreach($internal2xml as $k => $v){
+                $node = $doc->createElement($v, $rec->$k);
+                $lmsEnollment->appendChild($node);
+            }
+            
+            $root->appendChild($lmsEnollment);
+        }
+        $doc->appendChild($root);
+        return $doc;
     }
+    
+    
+    
+    
+/*----------------------------------------------------------------------------*/    
+/*               WRAPPER / CONVENIENCE METHODS                                */
+/*----------------------------------------------------------------------------*/
     
     /**
-     * 
-     * @global type $DB
-     * @param array $records of type lmsEnrollmentRecord
-     * @return array errors
+     * main getter for enrollment data as xml
+     * @return string
      */
-    public function save_activity_records($records){
-        global $DB;
-        $errors = array();
-        foreach($records as $record){
-            $record->timestamp = time();
-            $result = $DB->insert_record('lsureports_lmsenrollment', $record, true, true);
-            if(false == $result){
-                $errors[] = $record->id;
-            }
-        }
-        return $errors;
+    public static function get_enrollment_xml(){
+        $report = new lmsEnrollment();
+        $records = $report->get_activity_records();
+        $xml = $report->buildXML($records);
+        return $xml->saveXML();
     }
+
+
     
-    
+    /**
+     * this is a convenience wrapper method that strings together method calls 
+     * into what may be the common use case. Further, this method invokes a 
+     * re-scanning of mdl_log and the calculation of latest data
+     */
     public static function survey_enrollment(){
         $report = new lmsEnrollment();
         $semesters = $report->get_active_ues_semesters();
@@ -533,15 +510,25 @@ class lmsEnrollment extends lsuonlinereport{
     }
     
     /**
-     * main getter for enrollment data as xml
-     * @return DOMDocument
+     * @TODO learn how to do this the Moodle way
+     * NOTE: this is a destructive operation in the 
+     * sense that the old file, if exists, will be overwritten WITHOUT
+     * warning. This is by design, as we never want more than 
+     * one disk copy of this data around.
      */
-    public static function get_enrollment_xml(){
-        $report = new lmsEnrollment();
-        $records = $report->get_activity_records();
-        $xml = $report->buildXML($records);
-        return $xml;
+    public function create_file($contents)  {
+        
+        global $CFG;
+        $file = $CFG->dataroot.'/test.txt';
+        $handle = fopen($file, 'w');
+        assert($handle !=false);
+        $success = fwrite($handle, $contents);
+        fclose($handle);
+        return $success ? true : false;
+   
     }
+    
+
 }
 
 
@@ -572,7 +559,10 @@ class user{
     public $id;        
 }
 
-class lsureports_lusenrollment_record{
+/**
+ * models the structure of the corresponding db table
+ */
+class lsureports_lmsenrollment_record{
 //    public $user; //a user isntance
     public $lastaccess; //timest
     public $timespent; //int
@@ -613,6 +603,10 @@ class engagementReport extends lsuonlinereport{
     }
 }
 
+/**
+ * parent class for all user-facing data records.
+ * Contains formatting methods that ensure adherence to the end-user XML schema
+ */
 class reportRecord{
     public $enrollmentid;
     public $studentid;

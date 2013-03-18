@@ -19,7 +19,7 @@ if(is_siteadmin($USER)){
 //    echo html_writer::tag('a', );
     $report->survey_enrollment();
     echo html_writer::tag('textarea', $report->get_enrollment_xml()->saveXML(),array('cols'=>80, 'rows'=>120));
-    if($report->create_file($report->get_enrollment_xml()->saveXML())){
+    if($report->create_file($report->get_enrollment_xml())){
         redirect('/admin/settings.php?section=local_lsuonlinereport_settings_page', 'File saved successfuly');
     }
 }else{
