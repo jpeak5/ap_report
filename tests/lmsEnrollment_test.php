@@ -15,15 +15,14 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     public function setUp(){
-        $this->sp = new lmsEnrollment();
+        $this->sp = new lmsEnrollment(strtotime('-5 day'));
         $this->numRows = 10;  
         $this->start = strtotime('-1 day');
     }
     
     
     public function test_get_last_run_time(){
-        
-        $unit = lmsEnrollment::get_last_run_time();
+        $unit = lmsEnrollment::get_last_save_time();
         $this->assertTrue(is_numeric($unit));
         $this->assertGreaterThan(0,$unit);
     }
@@ -43,8 +42,8 @@ class lmsEnrollment_testcase extends advanced_testcase{
     
     public function test_get_active_users(){
   
-        $units = $this->sp->get_active_users(lmsEnrollment::get_last_run_time());
-        $this->assertTrue((false !== $units),sprintf("empty set of active users returned from sp->get_active_users(%d)", lmsEnrollment::get_last_run_time()));
+        $units = $this->sp->get_active_users(lmsEnrollment::get_last_save_time());
+        $this->assertTrue((false !== $units),sprintf("empty set of active users returned from sp->get_active_users(%d)", lmsEnrollment::get_last_save_time()));
         $this->assertTrue(is_array($units));
         $this->assertNotEmpty($units);
         $keys = array_keys($units);
@@ -162,33 +161,51 @@ class lmsEnrollment_testcase extends advanced_testcase{
 
     }
     
+    
+    public function test_get_activity_logs(){
+        $units = $this->sp->get_activity_logs();
+        $this->assertTrue($units!=false);
+        $this->assertTrue(is_array($units));
+        $this->assertNotEmpty($units);
+        return $units;
+    }
 
     /**
+     * @depends test_get_activity_logs
+     */
+    public function test_sort_activity_logs($logs){
+        $units = $this->sp->sort_activity_logs($logs);
+//        print_r($units);
+    }
+    
+
+        /**
      * @depends test_get_active_ues_semesters
      * 
      * @return type
      */
-    public function test_prepare_activity_records($semesters){
+    public function test_prepare_enrollment_activity_records($semesters){
 //die('git here');
 
     //        $semesters = $this->sp->get_active_ues_semesters();
             $this->sp->build_enrollment_tree($semesters);
-            $records = $this->sp->prepare_activity_records();
+//            print_r($this->sp->tree);
+            $records = $this->sp->prepare_enrollment_activity_records();
             $this->assertTrue(is_array($records));
-            $this->assertNotEmpty($records."no records returned from 'prepare_activity_records");
+            $this->assertNotEmpty($records,"no records returned from 'prepare_activity_records");
             $keys = array_keys($records);
             $this->assertGreaterThanOrEqual(1, count($keys));
-            $this->assertInstanceOf('lsureports_lusenrollment_record', $records[$keys[0]]);
+            $this->assertInstanceOf('lsureports_lmsenrollment_record', $records[$keys[0]]);
             return $records;
 
     }
     
     /**
-     * @depends test_prepare_activity_records
+     * @depends test_prepare_enrollment_activity_records
      */
-    public function test_save_activity_records($records){
+    public function test_save_enrollment_activity_records($records){
         $this->resetAfterTest(true);
-        $result = $this->sp->save_activity_records($records);
+        $result = $this->sp->save_enrollment_activity_records($records);
         $this->assertEmpty($result);
     }
     
@@ -200,13 +217,13 @@ class lmsEnrollment_testcase extends advanced_testcase{
      * 
      * @return type
      */
-    public function test_get_activity_records(){
+    public function test_get_enrollment_activity_records(){
         
         
 //        die('git here');
         
         
-            $units = $this->sp->get_activity_records();
+            $units = $this->sp->get_enrollment_activity_records();
             $this->assertTrue($units != false, sprintf("No activity records were returned; check to be sure that someone has done something in some course..."));
             $this->assertTrue(is_array($units));
             $this->assertNotEmpty($units);
@@ -227,7 +244,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     /**
-     * @depends test_get_activity_records
+     * @depends test_get_enrollment_activity_records
      */
     public function test_get_enrollment_xml($records){
 
@@ -239,7 +256,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     /**
-     * @depends test_get_activity_records
+     * @depends test_get_enrollment_activity_records
      */
     public function test_transform_year($records){
 
