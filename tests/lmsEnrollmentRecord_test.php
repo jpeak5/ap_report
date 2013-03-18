@@ -33,12 +33,11 @@ class lmsEnrollmentRecord_testcase extends basic_testcase{
             $courseId   = $string(10);
             $section    = $num(0,999);
             $rec        = array(
-                'enrollmentId' => $courseId,
-                'studentId' => $num(69000000, 69999999),
-                'courseId' => 'C_ID '.$num(1000, 9999),
-                'sectionId' => $section,
-                'startDate' => $start,
-                'endDate' => $start + $num(1, 43200),
+                'enrollmentid' => $courseId,
+                'studentid' => $num(69000000, 69999999),
+                'courseid' => 'C_ID '.$num(1000, 9999),
+                'sectionid' => $section,
+                'semesterid' => 5,
                 'status' => 'A',
 //                'uniquecoursesection' => $courseId.'_'.$section
             );

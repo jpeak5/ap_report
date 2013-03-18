@@ -1,24 +1,25 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/lsuonlinereports/db" VERSION="20130308" COMMENT="XMLDB file for lsuonlinereporting local plugin"
+<XMLDB PATH="local/lsuonlinereports/db" VERSION="2013031218" COMMENT="XMLDB file for lsuonlinereporting local plugin"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
->
-  <TABLES>
-    <TABLE NAME="lsureports_lmsenrollment" COMMENT="holds daily activty metrics for retention management">
-      <FIELDS>
-        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" NEXT="userid"/>
-        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" PREVIOUS="id" NEXT="sectionid"/>
-        <FIELD NAME="sectionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" PREVIOUS="userid" NEXT="timespent"/>
-        <FIELD NAME="timespent" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" PREVIOUS="sectionid" NEXT="lastaccess"/>
-        <FIELD NAME="lastaccess" TYPE="int" LENGTH="16" NOTNULL="true" SEQUENCE="false" PREVIOUS="timespent" NEXT="timestamp"/>
-        <FIELD NAME="timestamp" TYPE="int" LENGTH="16" NOTNULL="true" SEQUENCE="false" PREVIOUS="lastaccess"/>
-      </FIELDS>
-      <KEYS>
-        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-      </KEYS>
-      <INDEXES>
-        <INDEX NAME="usersect" UNIQUE="false" FIELDS="userid, sectionid"/>
-      </INDEXES>
-    </TABLE>
-  </TABLES>
+    >
+    <TABLES>
+        <TABLE NAME="lsureports_lmsenrollment" COMMENT="holds daily activty metrics for retention management">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="userid"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="id" NEXT="sectionid"/>
+                <FIELD NAME="sectionid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="userid" NEXT="semesterid"/>
+                <FIELD NAME="semesterid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="sectionid" NEXT="timespent"/>
+                <FIELD NAME="timespent" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="semesterid" NEXT="lastaccess"/>
+                <FIELD NAME="lastaccess" TYPE="int" LENGTH="16" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="timespent" NEXT="timestamp"/>
+                <FIELD NAME="timestamp" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="lastaccess"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="usersect" UNIQUE="false" FIELDS="userid, sectionid"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
 </XMLDB>
