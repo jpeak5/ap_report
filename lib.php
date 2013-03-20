@@ -59,18 +59,28 @@ class lmsEnrollment extends lsuonlinereport{
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
     
-    public function __construct($r_start=null, $r_end=null, $survey_start=null, $survey_end=null){
-        //initialize the outer time boundaries for the output
-        $this->report_start = isset($r_start) ? $r_start : self::get_last_save_time();
-        $this->report_end   = isset($r_end)   ? $r_end   : time();
-        
-        //init otuer time bounds for the scan
-        $this->survey_start = isset($survey_start) ? $survey_start : self::get_last_save_time();
-        $this->survey_end   = isset($survey_end)   ? $survey_end   : time();
-        
-//        print_r($this);
-//        die();
+    public function __construct(){
+
+
     }
+    
+    /**
+     * This method derives timestamps for the beginning and end of yesterday
+     * @return array int contains the start and end timestamps
+     */
+    public function get_yesterday(){
+        $today = new DateTime();
+        $midnight = new DateTime($today->format('Y-m-d'));
+        $this->end = $midnight->getTimestamp();
+        
+        //now subtract one day from today's first second
+        $today->sub(new DateInterval('P1D'));
+        $yesterday = new DateTime($today->format('Y-m-d'));
+        $this->start = $yesterday->getTimestamp();
+
+        return array($this->start, $this->end);
+    }
+    
 
     /**
      * Get a list of all semesters 
@@ -119,40 +129,7 @@ class lmsEnrollment extends lsuonlinereport{
         return empty($last) ? false : (int)$last->time   ;
     }
 
-    /**
-     * This function is executed at the start of this script to determine 
-     * whether or not we need to continue with the rest. It checks mdl_log for
-     * the existence of a single course activity record. If it finds one, we 
-     * assume that there has been activity since last run, and we can proceed; 
-     * otherwise, there has been no activity, and there is no need to run.
-     * 
-     * TIME CONSIDERATIONS: this method returns true or false based on whether 
-     * some activity record occurs in the logs between the survey start and stop 
-     * object attributes
-     * 
-     * @global type $DB
-     * @return boolean 
-     */
-    public function activity_check(){
-        global $DB;
-        $sql = "SELECT id, time 
-                FROM mdl_log 
-                WHERE 
-                    course > 1 
-                    AND
-                    time > ?
-                    AND 
-                    time < ?
-                ORDER BY time DESC 
-                LIMIT 1";
 
-        $activity = $DB->get_records_sql($sql, array($this->survey_start, $this->survey_end));
-        $last = array_pop($activity);
-        if(!empty($last)){
-            return true;
-        }
-        return false;
-    }    
 
 
     /**
@@ -165,7 +142,8 @@ class lmsEnrollment extends lsuonlinereport{
      */
     public function get_active_users(){
        global $DB;
-      assert(is_int($this->survey_start));
+       mtrace("START = ".$this->start);
+      assert(is_numeric($this->start));
        //get one userid for anyone in the mdl_log table that has done anything
        //in the temporal bounds
        //get, also, the timestamp of the last time they were included in this 
@@ -178,7 +156,7 @@ class lmsEnrollment extends lsuonlinereport{
                         on log.userid = u.id 
                 WHERE 
                     log.time > ?;";
-       $active_users = $DB->get_records_sql($sql, array($this->survey_start));
+       $active_users = $DB->get_records_sql($sql, array($this->start));
        $this->active_users = $active_users;
        return count($this->active_users) > 0 ? $this->active_users : false;
     }
@@ -205,7 +183,7 @@ class lmsEnrollment extends lsuonlinereport{
 
         $active_ids = array_keys($active_users);
 
-        $sql = sprintf(
+        $sql = vsprintf(
             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
                 u.id AS studentId, 
@@ -234,9 +212,10 @@ class lmsEnrollment extends lsuonlinereport{
                 AND ustu.status = 'enrolled'
                 AND u.id IN(%s)
             ORDER BY uniqueCourseSection"
-                , implode(',',$semesterids)
-                , implode(',', $active_ids)
+                , array(implode(',',$semesterids)
+                        , implode(',', $active_ids))
                 );
+        
         $rows = $DB->get_records_sql($sql);
 //        print_r($rows);
         return count($rows) > 0 ? $rows : false;
@@ -335,7 +314,7 @@ class lmsEnrollment extends lsuonlinereport{
                     log.time > %s 
                     AND 
                     log.time < %s AND (log.course > 1 OR log.action = 'login')
-                ORDER BY sectionid, log.time ASC;",array($this->report_start, $this->report_end));
+                ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
         $activity_records = $DB->get_records_sql($sql);
 //        die($sql);
         return empty($activity_records) ? false : $activity_records;
@@ -376,9 +355,9 @@ class lmsEnrollment extends lsuonlinereport{
                             mdl_lsureports_lmsenrollment
                          WHERE lastaccess >= %s;"
                 ,array(time() - $CFG->sessiontimeout));
-        die($sql);
+//        die($sql);
         $active_sessions = $DB->get_records_sql($sql);
-        print_r($active_sessions);
+//        print_r($active_sessions);
         foreach($tree as $semester){
                 foreach($semester->sections as $section){
                     /**
@@ -543,11 +522,11 @@ class lmsEnrollment extends lsuonlinereport{
                 GROUP BY len.sectionid"
                 ,array($this->report_start, $this->report_end)
                 );
-        
+//        die($sql);
         $enrollments = $DB->get_records_sql($sql);
 //        die(strftime('%F %T',$start)."--".strftime('%F %T',$end));
 //        echo sprintf("using %s and %s as start and end", $start, $end);
-        print_r($enrollments);
+//        print_r($enrollments);
         return count($enrollments) > 0 ? $enrollments : false;
     }
     
@@ -675,6 +654,40 @@ class lmsEnrollment extends lsuonlinereport{
         fclose($handle);
         return $success ? true : false;
    
+    }
+    
+    
+    
+    
+    public function update_reset_db(){
+        return true;
+    }
+    
+    public function calculate_ts(){
+        return true;
+    }
+    
+    public function make_output(){
+        return true;
+    }
+    
+    public static function run(){
+        $enrol = new lmsEnrollment();
+        $db_ok = $enrol->update_reset_db();
+        if(!$db_ok){
+            die("db update not ok");
+        }
+        
+        $calc_ok = $enrol->calculate_ts();
+        if(!$calc_ok){
+            die("calc not ok!");
+        }
+        
+        $make_out = $enrol->make_output();
+        if(!$make_out){
+            die("error making output file");
+        }
+        return true;
     }
     
 

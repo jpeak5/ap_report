@@ -1,157 +1,174 @@
-##lmsEnrolment
-1. calculate time spent (daily)
-	1. get active ues semesters
-	1. get sections for each semester
-	1. get students per section
-	1. calculate time spent per user per course and save it in `mdl_lsureports_lmsenrollment`
+#lmsEnrolment
+##Executive Summary
+This application will calculate student time spent in class,hereafter _timespent_, on a daily basis using the activity records stored in `mdl_log`. A single DB table, `mdl_lsureports_lmsenrollment`, will store this information. Summary reports can be constructed at any time, with the understanding that the freshest data will always be, at most, 24 hours old. 
+
+Realtime aggregate data is not available, rather, the application will only be concerned with events occurring up until the first minute of the current day, exclusive. Generally, we will only concern ourselves with the 24 hours ending at the beginning of the first minute of the current day.
+
+At application run time, latest `timespent` and `last_access` information will be written to the file system under the Moodle Dataroot as XML in a file called `lmsEnrollments.xml`
+
+An outline of the proceedure is as follows. This outline alludes to the existence of globally available data points, in Moodle called `$CFG->lmsenrollment_start` and `$CFG->lmsenrollment_finish`. These actions cycle continuously on a daily basis unless an error condition is detected. In case of error, the cycle halts, and an error flag is set for the administrator on the plugin settings page.
+
+1. Update db
+	1. add yesterday total to cumulative total
+	1. reset yesterday total to 0
+	1. set success or failure
+1. calculate time spent for yesterday
+	1. check error, halt if error
+	1. set $CFG->lmenrollment-start
+	1. using the _Comprehensive Enrollment Query_ (below) build a logical structure, a tree or multidimensional array, call it the _Enrollments Tree_ data structure, in memory
+	1. calculate time spent per user per course at the leaves of the _Enrollments Tree_ 
+	1. traverse the tree and save timespent/lastaccess data `mdl_lsureports_lmsenrollment`
+	1. set $CFG->lmsenrollment-finish
 1. build xml (at any time after time-spent calculation has been performed)
-	1. get userid, sectionid, lastaccesstime spent from enrolment table
-	1. get semesters details: year, name
-	1. get sections for each semester
-	1. get students per course:
-	1. get section/course details:
+	1. if not(CFG->lmsenrollment_start > CFG->lmsenrollment->finish), complain and stop
+	1. otherwise, JOIN `mdl_lsureports_lmsenrollment` with appropriate tables to hydrate sparse enrollment records into full AP-spec records for serialization to XML
+	1. iterate through rows fetched in previous step, appending new lmsEnrollment nodes to a new DOMDocument
+	1. save the DOMDoc to file
+	1. set error, if appropriate
+
+
+
+##Update DB
+###DB table Structure
+In this step, we will add yesterday's activity totals to the cumulative activity total for each user. Assuming this query does not return false, we proceed and set the accumulator column, `yesterday_ts` to 0.  
+__NB__ that a 0 in this column means that there has been no activity for the user in the given section for yesterday.
+Assuming this does not return false, do not set any error flags (or we just return true).
+
+
+##Calculate Time Spent
+In this step, we begin by setting `lmsEnrollment-start`. We build a data structure, _Enrollments Tree_, from enrollment data returned from the _Comprehensive Enrollment Query_. The leaves of this data structure are user activity records retrieved from a separate, similarly time-constrained, query on `mdl_log`. 
+
+Traversing the tree in a left-right manner, we build an array of `lmsEnrollment_record` objects representing timespent per user per section for the timeframe (yesterday).
+
+This process finishes by updating the `mdl_lsureports_lmsenrollment` table with the data stored in the just-created `lmsEnrollment_reocrd`s array. If there are no errors, set `$CFG->lmsenrollment-finish`. 
+
+##Build XML
+For this step to occur, we require that no errors are present in the cycle, especially, that `$CFG->lmsEnrollment-start < $CFG->lmsEnrollment-finish`.
+If all is well, we use the the _Get Enrollment Data_ query to get data to be serialized into the output XML.
+
+---
+
+#APPENDIX
+
+##Comprehensive Enrollment Query
+
+This query constructs a unique id through the concatenation of fields, required by Moodle for unique indexing in the returned rows array. Each field of each row will become a node in the _Enrollments Tree_ data structure, and student activity will be calculated at the leaves. 
+There are two optimizations to the overall algorithm introduced in this query:
+
+1. the `WHERE` condition: `AND usem.id in(current semester ids)` narrows the scope of the query. See _get active ues semesters_ (below) for the query and method signature
+1. the `WHERE` clause `AND u.id IN(<active user ids>)` further restricts the resultset to only those studentids that have appeared in the logs during the time window in question.
+If required, further optimizations would be possible by limiting the sections checked.  
+
 	
+		SELECT
+		    CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
+		    u.id AS studentId, 
+		    usem.id AS semesterid,
+		    usem.year,
+		    usem.name,
+		    uc.department,
+		    uc.cou_number,
+		    us.sec_number AS sectionId,
+		    c.id AS mdl_courseid,
+		    us.id AS ues_sectionid,
+		    'A' AS status,
+		    CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
+		FROM mdl_course AS c
+		    INNER JOIN mdl_context                  AS ctx  ON c.id = ctx.instanceid
+		    INNER JOIN mdl_role_assignments         AS ra   ON ra.contextid = ctx.id
+		    INNER JOIN mdl_user                     AS u    ON u.id = ra.userid
+		    INNER JOIN mdl_enrol_ues_sections       AS us   ON c.idnumber = us.idnumber
+		    INNER JOIN mdl_enrol_ues_students       AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+		    INNER JOIN mdl_enrol_ues_semesters      AS usem ON usem.id = us.semesterid
+		    INNER JOIN mdl_enrol_ues_courses        AS uc   ON uc.id = us.courseid
+		    
+		WHERE 
+		    ra.roleid IN (5)
+		    AND usem.id in(5,6,7,15)
+		    AND ustu.status = 'enrolled'
+		    AND u.id IN(3)
+		ORDER BY uniqueCourseSection
 
-##get active ues semester ids
 
-	`array int function get_active_ues_semester_ids()`
+##get active ues semesters
+
+	`array stdClass function get_active_ues_semesters()`
 	
-	mysql> select id from mdl_enrol_ues_semesters where classes_start < UNIX_TIMESTAMP(NOW()) and grades_due > UNIX_TIMESTAMP(NOW());                                              
-	+----+
-	| id |
-	+----+
-	|  5 |
-	|  6 |
-	| 15 |
-	+----+
-	3 rows in set (0.05 sec)
-
-##Get active sections
-	
-	array int function get_active_section_ids(int $semesterid);
-
-	mysql> select id from mdl_enrol_ues_sections where semesterid IN(5,6,15) limit 10;                                                                                                 
-	+------+
-	| id   |
-	+------+
-	| 5558 |
-	| 5559 |
-	| 5560 |
-	| 5561 |
-	| 5562 |
-
-	...
-
-	| 5564 |
-	| 5565 |
-	| 5566 |
-	| 8805 |
-	+------+
-	?? rows in set (0.00 sec)
+	mysql> select * from mdl_enrol_ues_semesters where classes_start < UNIX_TIMESTAMP(NOW()) and grades_due > UNIX_TIMESTAMP(NOW());                                              
+	+----+------+--------+--------+-------------+---------------+------------+
+	| id | year | name   | campus | session_key | classes_start | grades_due |
+	+----+------+--------+--------+-------------+---------------+------------+
+	|  5 | 2013 | Spring | LSU    |             |    1358143200 | 1369458000 |
+	|  6 | 2013 | Spring | LSU    | B           |    1358143200 | 1364277600 |
+	|  7 | 2013 | Spring | LSU    | C           |    1362978000 | 1369371600 |
+	| 15 | 2013 | Spring | LAW    |             |    1358143200 | 1370926800 |
+	+----+------+--------+--------+-------------+---------------+------------+
+	4 rows in set (0.00 sec)
 
 
-##get students per section:
-Using the `sectionid` retrieved previously, get a list of userids enrolled in a given section.
-
-	array int function get_studentids_per_section(int $sectionid);
-
-	mysql> select ustu.userid moodle_uid  from mdl_enrol_ues_students ustu where sectionid = 8805 and status = 'enrolled';                                                             
-	+------------+
-	| moodle_uid |
-	+------------+
-	|      27574 |
-	|      27591 |
-	|      27604 |
-	|      27622 |
-	|      27629 |
-	|      25718 |
-	|      27637 |
-	|          3 |
-	|      27645 |
-	|      27655 |
-	|      27657 |
-	|      27676 |
-	|      27689 |
-	|      27692 |
-	|      27710 |
-	|      27721 |
-	|      27723 |
-	|      27724 |
-	+------------+
-	18 rows in set (0.00 sec)
-
-##get moodle course `id` numbers for use in `mdl_log` query:
-
-	array int function get_moodle_course_id(int $sectionid);
-
-	mysql> select  c.id moodle_courseid from mdl_enrol_ues_sections usect join mdl_course c on c.idnumber = usect.idnumber where usect.id = 8805;                                      
-	+-----------------+
-	| moodle_courseid |
-	+-----------------+
-	|            5594 |
-	+-----------------+
-	1 row in set (0.00 sec)
 
 
-##get time spent per user per course:
-With a student userid and moodle courseid in hand, calculate time spent using `mdl_log` data.
-Trivial calculation algorithm shown here.
 
-	array int function get_time_spent_today_section(int $courseid, int $userid);
-(returns a keyed array of the form `array('timespent'=>x, 'lastaccess'=>y)`).
 
-	mysql> select max(time) - min(time) duration from mdl_log where userid = 10282 and cmid = 88 order by time desc limit 10;                                                          
-	+----------+
-	| duration |
-	+----------+
-	|      315 |
-	+----------+
-	1 row in set (0.00 sec)
-
-1. Save this data in a new lms table called `mdl_lsureports_lmsenrollment`
-	1. table has the following fields: `id (priamry key),userid, ues_sectionid, timespent, lastAccess`
-
-`bool function save_daily_enrollment_record(int $userid, int $sectionid, int $timespent, int $lastaccess);`
 
 
 ##build xml
 
+###Get Enrollment Data for output
+Returns records ready for formatting to final XML output.
+
+	SELECT len.id AS enrollmentid
+    , len.userid
+    , u.idnumber AS studentid
+    , len.sectionid AS ues_sectionid
+    , c.id AS courseid
+    , len.semesterid AS semesterid
+    , usem.year
+    , usem.name
+    , usem.session_key
+    , usem.classes_start AS startdate
+    , usem.grades_due AS enddate
+    , (len.timespent + len.yesterday_timespent) AS timespent
+    , len.lastaccess 
+    , ucourse.department AS department
+    , ucourse.cou_number AS coursenumber
+    , usect.sec_number AS sectionid
+    , 'A' as status
+    , NULL AS extensions
+    FROM mdl_lsureports_lmsenrollment len
+        LEFT JOIN mdl_user u
+            on len.userid = u.id
+        LEFT JOIN mdl_enrol_ues_sections usect
+            on len.sectionid = usect.id
+        LEFT JOIN mdl_course c
+            on usect.idnumber = c.idnumber
+        LEFT JOIN mdl_enrol_ues_courses ucourse
+            on usect.courseid = ucourse.id
+        LEFT JOIN mdl_enrol_ues_semesters usem
+            on usect.semesterid = usem.id
+    WHERE 
+        len.timestamp > %s and len.timestamp <= %s
+    GROUP BY len.sectionid
+
+
 ##get details for active semesters:
 The results of this query establish a basis on which we can establish the following mapping from lms db fields => the AP xml spec
 
-	| LMS Field 		|	XML element	|
-	-------------------------------------
-	| year				|	enrollmentId[0-1]
-	| classes_start		|	startDate
-	| grades_due		|	endDate
+	| LMS Field 								|	XML element	|
+	-------------------------------------------------------------------
+	| usem.year									|	enrollmentId[0-1]
+	| len.userid 								|	enrollmentId[2-10]
+	| coursenumber								|	enrollmentId[11-16]
+	| sectionid									|	enrollmentId[17-19]
+	| len.userid	 							| 	studentId
+	| ucourse.department + ucourse.coursenumber | 	courseId
+	| sectionId 								| 	sectionId
+	| startDate 								|	startDate
+	| enddate									|	endDate
+	| status									| 	status
+	| len.lastaccess 							|	lastCourseAccess 	
+	| timespent 								|	timeSpentInClass
 
-The query for this is as follows:
 
-	array int function get_active_ues_semester_details()
 
-	mysql> select year, classes_start, grades_due from mdl_enrol_ues_semesters where classes_start < UNIX_TIMESTAMP(NOW()) and grades_due > UNIX_TIMESTAMP(NOW());                     
-	+------+---------------+------------+
-	| year | classes_start | grades_due |
-	+------+---------------+------------+
-	| 2013 |    1358143200 | 1369458000 |
-	| 2013 |    1358143200 | 1364277600 |
-	| 2013 |    1358143200 | 1370926800 |
-	+------+---------------+------------+
-	3 rows in set (0.00 sec)
-
-These values will be valid for all `lmsEnrollment` elements.
-Now fill in the rest of the required XML elements using the values in the `mdl_lsureports_lmsenrollment` table as keys into queries for course information.
-
-###get section/course details:
-for each in-bounds record in `mdl_lsureports_lmsenrollment`, get the required course and section details:
-
-	array int function get_active_section_details(int $semesterid);
-
-	mysql> select  ucourse.department, ucourse.cou_number, usect.sec_number,usect.id ues_sectionid, c.id moodle_courseid from mdl_enrol_ues_sections usect join mdl_enrol_ues_courses ucourse on ucourse.id = usect.courseid join mdl_course c on c.idnumber = usect.idnumber where usect.id in(8805);                                                                    
-	+------------+------------+------------+---------------+-----------------+
-	| department | cou_number | sec_number | ues_sectionid | moodle_courseid |
-	+------------+------------+------------+---------------+-----------------+
-	| LIS        | 7505       | 001        |          8805 |            5594 |
-	+------------+------------+------------+---------------+-----------------+
-	1 row in set (0.00 sec)
 
