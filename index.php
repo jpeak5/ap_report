@@ -25,13 +25,19 @@ echo $OUTPUT->header();
 
 if(is_siteadmin($USER)){
     
-    $limit = 100;
+    $report_since = strtotime('-5 days');
     $report = new lmsEnrollment();
-    
-    echo html_writer::tag('h2', 'Current Enrollment');
-//    echo html_writer::tag('a', );
-    echo html_writer::tag('textarea', $report->get_enrollment_xml()->saveXML(),array('cols'=>80, 'rows'=>120));
-    $report->create_file($report->get_enrollment_xml()->saveXML(),$context);
+    if($report->activity_check()){
+        
+        $data = $report->survey_enrollment();
+        
+        echo html_writer::tag('h2', 'Current Enrollment');
+    //    echo html_writer::tag('a', );
+        echo html_writer::tag('textarea', $data,array('cols'=>80, 'rows'=>120));
+        
+    }else{
+        mtrace(sprintf("no new activity to report"));
+    }
 }else{
     /**
      * @TODO fix the link to point at site root
