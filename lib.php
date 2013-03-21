@@ -40,45 +40,34 @@ class lmsEnrollment extends lsuonlinereport{
     
     
 //    public $tree; //tree of enrollment data
+
     
-    /**
-     *
-     * @var int unix time for the min time bound to report on
-     */
-    public $report_start;
-    
-    /**
-     *
-     * @var int unix time for the max time bound to report on
-     */
-    public $report_end;
-    
-    
+        public $active_semesters;
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
     
     public function __construct(){
-
-
+        
+        list($this->start, $this->end) = self::get_yesterday();
     }
     
     /**
      * This method derives timestamps for the beginning and end of yesterday
      * @return array int contains the start and end timestamps
      */
-    public function get_yesterday(){
+    public static function get_yesterday(){
         $today = new DateTime();
         $midnight = new DateTime($today->format('Y-m-d'));
-        $this->end = $midnight->getTimestamp();
+        $end = $midnight->getTimestamp();
         
         //now subtract one day from today's first second
         $today->sub(new DateInterval('P1D'));
         $yesterday = new DateTime($today->format('Y-m-d'));
-        $this->start = $yesterday->getTimestamp();
+        $start = $yesterday->getTimestamp();
 
-        return array($this->start, $this->end);
+        return array($start, $end);
     }
     
 
@@ -97,44 +86,25 @@ class lmsEnrollment extends lsuonlinereport{
         $semesters = $DB->get_records_sql('SELECT 
                                                 * 
                                             FROM 
-                                                mdl_enrol_ues_semesters 
+                                                {enrol_ues_semesters}
                                             WHERE 
                                                 classes_start < ? 
                                             AND 
                                                 grades_due > ?'
                                         , array($time,$time));
 
-        return $semesters;
+        return $this->active_semesters = $semesters;
     }
     
-
-    /**
-     * looks up the last timestamp for the last 
-     * record inserted into the lmsenrollments table
-     * Knowing this timestamp allows us to run this 
-     * script arbitrarily without creating false data 
-     * through repeated calculations.
-     * 
-     * @global type $DB
-     * @return int unixtimestamp |false
-     */
-    public static function get_last_save_time(){
-        global $DB;
-        $sql = "SELECT 
-                    MAX(timestamp) AS time 
-                FROM 
-                    mdl_lsureports_lmsenrollment";
-        $last = $DB->get_record_sql($sql);
-        
-        return empty($last) ? false : (int)$last->time   ;
-    }
-
 
 
 
     /**
      * this function is a utility method that helps optimize the overall 
-     * routine by limiting the number of people we check
+     * routine by limiting the number of people we check;
+     * 
+     * We do this by first getting a collection of potential users from current enrollment;
+     * Then, limit that collection to include only those users who have registered activity in the logs
      * 
      * @param int $since unix timestamp for the minimum mdl_log.time value to check
      * this should usually be the time this service was last run
@@ -142,21 +112,25 @@ class lmsEnrollment extends lsuonlinereport{
      */
     public function get_active_users(){
        global $DB;
-       mtrace("START = ".$this->start);
+       
+//       mtrace("START = ".$this->start);
       assert(is_numeric($this->start));
        //get one userid for anyone in the mdl_log table that has done anything
        //in the temporal bounds
        //get, also, the timestamp of the last time they were included in this 
        //scan (so we keep a contiguous record of their activity)
-       $sql =  "SELECT DISTINCT u.id
+       $sql =  vsprintf("SELECT DISTINCT u.id
                 FROM 
-                    mdl_log log 
+                    {log} log 
                         join 
-                    mdl_user u 
+                    {user} u 
                         on log.userid = u.id 
                 WHERE 
-                    log.time > ?;";
-       $active_users = $DB->get_records_sql($sql, array($this->start));
+                    log.time > %s
+                AND 
+                    log.time < %s;",array($this->start,$this->end));
+       $active_users = $DB->get_records_sql($sql);
+//       mtrace($sql);
        $this->active_users = $active_users;
        return count($this->active_users) > 0 ? $this->active_users : false;
     }
@@ -175,14 +149,14 @@ class lmsEnrollment extends lsuonlinereport{
         global $DB;
         
         //use the idnumbers of the active users to reduce the number of rows we're working with;
-        $active_users = $this->get_active_users(self::get_last_save_time());
+        $active_users = $this->get_active_users();
         
         if(!$active_users){
             return false;
         }
-
+        
         $active_ids = array_keys($active_users);
-
+        
         $sql = vsprintf(
             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
@@ -196,15 +170,17 @@ class lmsEnrollment extends lsuonlinereport{
                 c.id AS mdl_courseid,
                 us.id AS ues_sectionid,
                 'A' AS status,
+                apen.id AS apid,
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
-            FROM mdl_course AS c
-                INNER JOIN mdl_context                  AS ctx  ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments         AS ra   ON ra.contextid = ctx.id
-                INNER JOIN mdl_user                     AS u    ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections       AS us   ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students       AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters      AS usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses        AS uc   ON uc.id = us.courseid
+            FROM {course} AS c
+                INNER JOIN {context}                  AS ctx  ON c.id = ctx.instanceid
+                INNER JOIN {role_assignments}         AS ra   ON ra.contextid = ctx.id
+                INNER JOIN {user}                     AS u    ON u.id = ra.userid
+                INNER JOIN {enrol_ues_sections}       AS us   ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students}       AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN {enrol_ues_semesters}      AS usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses}        AS uc   ON uc.id = us.courseid
+                LEFT  JOIN {apreport_enrol}           AS apen ON apen.userid = u.id
                 
             WHERE 
                 ra.roleid IN (5)
@@ -216,8 +192,12 @@ class lmsEnrollment extends lsuonlinereport{
                         , implode(',', $active_ids))
                 );
         
+        
         $rows = $DB->get_records_sql($sql);
+        
+        mtrace("dumping semester data sql");
 //        print_r($rows);
+//        die();
         return count($rows) > 0 ? $rows : false;
     }
     
@@ -232,6 +212,8 @@ class lmsEnrollment extends lsuonlinereport{
      * @see get_active_ues_semesters
      */
     public function build_enrollment_tree($semesters){
+        
+        
         assert(!empty($semesters));
 
         //define the root of the tree
@@ -273,6 +255,7 @@ class lmsEnrollment extends lsuonlinereport{
                     //of the current section's users array
                     $user     = new user();
                     $user->id = $e->studentid;
+                    $user->apid = $e->apid;
 //                    $user->last_update = $e->last_update;
                     $section->users[$e->studentid] = $user;
                 }else{
@@ -280,6 +263,7 @@ class lmsEnrollment extends lsuonlinereport{
                     //to the semester->section->users array
                     $user = new user();
                     $user->id = $e->studentid;
+                    $user->apid = $e->apid;
 //                    $user->last_update = $e->last_update;
                     $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
                 }
@@ -298,18 +282,18 @@ class lmsEnrollment extends lsuonlinereport{
         $sql = vsprintf(
                "SELECT 
                    log.id AS logid
+                   ,usect.id AS sectionid
+                   ,usect.semesterid AS semesterid
                    ,log.time AS time
                    ,log.userid
                    ,log.course
                    ,log.action
-                   ,usect.id AS sectionid
-                   ,usect.semesterid AS semesterid
                 FROM 
-                    mdl_log log
-                INNER JOIN 
-                    mdl_course course on course.id = log.course
+                    {enrol_ues_sections} usect
                 LEFT JOIN
-                    mdl_enrol_ues_sections usect on usect.idnumber = course.idnumber
+                    {course} course ON course.idnumber = usect.idnumber
+                LEFT JOIN
+                    {log} log on course.id = log.course
                 WHERE 
                     log.time > %s 
                     AND 
@@ -325,10 +309,20 @@ class lmsEnrollment extends lsuonlinereport{
      * @param array stdClass $logs
      */
     public function populate_activity_tree($logs, $tree){
-        
+        /**
+         * unless we filter again now, we will clutter the tree with
+         * unwanted section data from the log table
+         */
         foreach($logs as $log){
-            $tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]->activity[] = $log;
+            if(isset($tree[$log->semesterid]) and (get_class($tree[$log->semesterid]) == 'semester')){
+                if(isset($tree[$log->semesterid]->sections[$log->sectionid]) and get_class($tree[$log->semesterid]->sections[$log->sectionid]) == 'section'){
+                    if(isset($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) and (get_class($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) == 'user')){
+                        $tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]->activity[] = $log;
+                    }
+                }
+            }
         }
+        
         return $tree;
     }
     
@@ -339,32 +333,19 @@ class lmsEnrollment extends lsuonlinereport{
         $enrollment = array();
         assert(!empty($tree));
         
-        //get last access information from previous run
-        //only if it falls within the time period
-        // now() - $CFG->sessiontimeout
-        //any activity before this cutoff does not need to be included
-        //if the time of last access is greater than $CFG->sessiontimeout,
-        //we should expect that the first activity may be a login event
-        //this will not be true in the case where: 
-        //a student has multiple courses AND this is not the first course they visit
-        $sql = vsprintf("SELECT 
-                            CONCAT(userid,'-',sectionid)
-                            , max(lastaccess) lastaccess 
-                            , timestamp
-                         FROM 
-                            mdl_lsureports_lmsenrollment
-                         WHERE lastaccess >= %s;"
-                ,array(time() - $CFG->sessiontimeout));
-//        die($sql);
-        $active_sessions = $DB->get_records_sql($sql);
-//        print_r($active_sessions);
+
         foreach($tree as $semester){
+            assert(!empty($tree));
+            
                 foreach($semester->sections as $section){
+                    assert(get_class($section) == 'section');
                     /**
                      * begin per-user section timespent calculation
                      * 
                      */
                     foreach($section->users as $user){
+//                        assert(get_class($section) == 'section');
+//                        assert(get_class($user) == 'user');
                         if(empty($user->activity)){
                             continue;
                         }else{
@@ -375,12 +356,7 @@ class lmsEnrollment extends lsuonlinereport{
                              */
                             sort($user->activity);
                             $accumulator = 0;
-                            
-                            $prior_session = $active_sessions[$user->id.'-'.$section->id];
-                            if(isset($prior_session)){
-                                print_r($prior_session);
-                                $user->last_access = $prior_session->lastaccess;
-                            }
+
                             
                             foreach($user->activity as $act){
                                 
@@ -399,13 +375,14 @@ class lmsEnrollment extends lsuonlinereport{
                                 
                             }
                             $user->time_spent += $accumulator;
-                            $e= new lsureports_lmsenrollment_record();
+                            $e= new ap_report_table();
                             $e->lastaccess = $user->last_access;
                             $e->sectionid  = $section->id;
                             $e->semesterid = $semester->id;
-                            $e->timespent  = $user->time_spent;
+                            $e->agg_timespent  = $user->time_spent;
                             $e->timestamp  = time();
                             $e->userid     = $user->id;
+                            $e->id         = $user->apid;
                             
                             $enrollment[]  = $e;
                             
@@ -464,7 +441,11 @@ class lmsEnrollment extends lsuonlinereport{
             if(!isset($record->semesterid) or !isset($record->sectionid)){
                 continue;
             }
-            $result = $DB->insert_record('lsureports_lmsenrollment', $record, true, true);
+            if(!isset($record->id)){
+                $result = $DB->insert_record('apreport_enrol', $record, true, true);
+            }else{
+                $result = $DB->update_record('apreport_enrol', $record, true, true);
+            }
             if(false == $result){
                 $errors[] = $record->id;
             }
@@ -506,7 +487,7 @@ class lmsEnrollment extends lsuonlinereport{
                 , usect.sec_number AS sectionid
                 , 'A' as status
                 , NULL AS extensions
-                FROM mdl_lsureports_lmsenrollment len
+                FROM mdl_apreport_enrol len
                     LEFT JOIN mdl_user u
                         on len.userid = u.id
                     LEFT JOIN mdl_enrol_ues_sections usect
@@ -657,10 +638,35 @@ class lmsEnrollment extends lsuonlinereport{
     }
     
     
+    public function update_timespent($record){
+        $record->cum_timespent += $record->agg_timespent;
+        return $record;
+    }
     
+    public function reset_agg_timespent($record){
+        $record->agg_timespent = 0;
+        return $record;
+    }
     
     public function update_reset_db(){
-        return true;
+        global $DB;
+        $timespent_records = $DB->get_records('apreport_enrol');
+        $error = 0;
+        foreach($timespent_records as $record){
+            $updated = $this->update_timespent($record);
+            $reset   = $this->reset_agg_timespent($updated);
+            $success = $DB->update_record('apreport_enrol', $reset, false);
+            if($success != true){
+                $error++;
+            }
+            return $error > 0 ? false : true;
+        }
+        
+        
+        
+        
+        
+        return $error == 0 ? true : false;
     }
     
     public function calculate_ts(){
@@ -719,6 +725,7 @@ class section{
 
 class user{
     public $id;    
+    public $apid; //FK into apreports_enrol table
     public $last_update;
     public $time_spent;
     public $activity;//log records
@@ -727,14 +734,15 @@ class user{
 /**
  * models the structure of the corresponding db table
  */
-class lsureports_lmsenrollment_record{
+class ap_report_table{
 //    public $user; //a user isntance
-    public $lastaccess; //timest
-    public $timespent; //int
-    public $semesterid; //ues semester id
-    public $sectionid; //unique ues section id
-    public $userid; //mdl user id
-    public $timestamp; //mdl user id
+    public $lastaccess;     //timest
+    public $agg_timespent;  //int
+    public $cum_timespent;  //int
+    public $semesterid;     //ues semester id
+    public $sectionid;      //unique ues section id
+    public $userid;         //mdl user id
+    public $timestamp;      //time()
     
 }
 
