@@ -744,6 +744,15 @@ class ap_report_table{
     public $userid;         //mdl user id
     public $timestamp;      //time()
     
+    public function __construct($id, $sid, $ats, $cts, $last, $ts, $sem){
+        $this->userid = $id;
+        $this->sectionid = $sid;
+        $this->agg_timespent = $ats;
+        $this->cum_timespent = $cts;
+        $this->lastaccess = $last;
+        $this->timestamp = $ts;
+        $this->semesterid = $sem;
+    }
 }
 
 class engagementReport extends lsuonlinereport{

@@ -3,12 +3,356 @@ global $CFG;
 require_once $CFG->dirroot.'/local/ap_report/lib.php';
 
 
+class user_activity_segment{
+    public $userid;
+    public $apreport_enrol_record;  //current timespent record for user
+    public $enrollment_record;      //ues details
+    public $logs;
+    
+    
+    
+    public function __contstruct($id, $ap, $en, $ts, $evct){
+        $this->userid = $id;
+        $this->apreport_enrol_record = $ap;
+        $this->enrollment_record = $en;
+        $this->logs = lmsEnrollment_testcase::generate_user_activity_segment($this->userid, $ts, $evct, $this->enrollment_record->courseid);
+    }
+}
+
+
+class ues_sectiontest{
+    public $id;
+    public $courseid;
+    public $semesterid;
+    public $idnumber;
+    public $sec_number;
+    public $status;
+}
+class ues_coursetest{
+    public $id;
+    public $department;
+    public $cou_number;
+    public $fullname;
+}
+class ues_semestertest{
+    public $id;
+    public $year;
+    public $name;
+    public $campus;
+    public $session_key;
+    public $classes_start;
+    public $grades_due;
+    
+    public function __construct($i, $y, $n, $c, $s=null, $cl=null, $gd=null){
+        $this->id = $i;
+        $this->year = $y;
+        $this->name = $n;
+        $this->campus = $c;
+        $this->session_key   = isset($s)    ? $s    : null;
+        $this->grades_due    = isset($gd)   ? $gd   : strtotime("+7 days", time());
+        $this->classes_start = isset($cl)   ? $cl   : strtotime("-7 days", time());
+
+    }
+}
+
+class ues_studenttest{
+    public $id;
+    public $userid;
+    public $sectionid;
+    public $credit_hours;
+    public $status;
+}
+class mdl_course{
+    public $id;
+    public $idnumber;
+
+}
+class mdl_context{
+    public $id;
+    public $instanceid;
+    
+    public function __construct($mdl_course_id){
+        $this->instanceid = $mdl_course_id;
+        $this->id = rand(0,9999);
+    }
+    
+}
+class mdl_role_assignment{
+    public $id;
+    public $roleid;
+    public $contextid;
+    public $userid;
+    
+    public function __construct($roleid, $contextid, $userid){
+        $this->id = lmsEnrollment_testcase::gen_id();
+        $this->contextid = $contextid;
+        $this->userid = $userid;
+        $this->roleid = $roleid;
+    }
+}
+
+class mdl_user{
+    public $id;
+    public $username;
+    public $idnumber;
+    public $email;
+}
+
+
+
+class student {
+    public $ues_studenttest;
+    public $mdl_user;
+    public $activity; //array of activity logs
+    
+    public function __construct($username){
+        $this->mdl_user = new mdl_user();
+        $this->mdl_user->username = $username;
+        $this->mdl_user->email = $username.'@example.com';
+        $this->mdl_user->idnumber = lmsEnrollment_testcase::gen_idnumber();
+        $this->mdl_user->id = lmsEnrollment_testcase::gen_id();
+    }
+}
+
+class course{
+    public $mdl_course;
+    public $ues_sectiontest;
+    public $ues_coursetest;
+    public $ues_students;
+    public $students;
+    public $role_assignments;
+    public $contexts;
+    
+    public function __construct($dept, $cou_num){
+        $this->ues_sectiontest = new ues_sectiontest();
+        $this->mdl_course = new mdl_course();
+        $this->mdl_course->id = lmsEnrollment_testcase::gen_id();
+        
+        $this->ues_sectiontest->sec_number = "00".rand(0,9);
+        
+        $this->ues_coursetest = new ues_coursetest();
+        $this->ues_coursetest->department = $dept;
+        $this->ues_coursetest->cou_number = $cou_num;
+        $this->ues_coursetest->fullname = $dept.$cou_num.$this->ues_sectiontest->sec_number;
+        
+        $this->ues_sectiontest->idnumber = $this->mdl_course->idnumber = $this->ues_coursetest->fullname.lmsEnrollment_testcase::gen_id();
+        $this->ues_sectiontest->courseid = $this->ues_coursetest->id = lmsEnrollment_testcase::gen_id();
+        $this->ues_sectiontest->id = lmsEnrollment_testcase::gen_id();
+        
+        $ctx = new mdl_context($this->mdl_course->id);
+        $this->contexts = $ctx;
+    }
+    
+    /**
+     * 
+     * @param array $students of type student
+     */
+    public function enrol_student(student $student){
+            $s = new ues_studenttest();
+            $s->id = lmsEnrollment_testcase::gen_id();
+            $s->credit_hours = rand(0,6);
+            $s->sectionid = $this->ues_sectiontest->id;
+            $s->userid = $student->mdl_user->id;
+            $s->status = 'enrolled';
+            $this->ues_students[] = $s;
+
+            $this->students[] = $student;
+            
+            
+            
+            $this->role_assignments[] = new mdl_role_assignment(5, $this->contexts->id, $student->mdl_user->id);
+        
+    }
+    
+}
+
+
+class semestertest{
+    public $ues_semestertest;   //ues record
+    public $courses;        //array of courses
+    
+    public function __construct($sem, $courses){
+        $this->courses = $courses;
+        $this->ues_semestertest = $sem;
+        foreach($this->courses as $c){
+            $c->ues_sectiontest->semesterid = $sem->id;
+        }
+    }
+    
+}
+
+class enrollment{
+    public $semestertests;
+    public $verify;
+    
+    public function __construct($semestertests){
+        $this->semestertests = $semestertests;
+    }
+}
+
+class verification{
+    public $enrollmentid;
+    public $studentid;
+    public $courseid;
+    public $sectionid;
+    public $start_date;
+    public $end_date;
+    public $status;
+    public $lastcourseaccess;
+    public $timespentinclass;
+}
+
+class enrollment_generator{
+    public $enrollment;
+    public $ues_sections;
+    public $ues_courses;
+    public $ues_students;
+    public $ues_semesters;
+    public $mdl_courses;
+    public $mdl_contexts;
+    public $mdl_role_ass;
+    public $mdl_logs;
+    public $mdl_users;
+    
+    private function populate_constituent_arrays(){
+        
+        
+        //semester loop
+        foreach($this->enrollment->semestertests as $semester){
+            $this->ues_semesters[] = array(
+                    'id' =>$semester->ues_semestertest->id,
+                    'year'=>$semester->ues_semestertest->year,
+                    'name'=>$semester->ues_semestertest->name,
+                    'campus'=>$semester->ues_semestertest->campus,
+                    'classes_start'=> $semester->ues_semestertest->classes_start,
+                    'grades_due'=>$semester->ues_semestertest->grades_due);
+            //course/section loop
+            foreach($semester->courses as $c){
+                $this->ues_courses[] = array(
+                    'id'=>$c->ues_coursetest->id,
+                    'department'=>$c->ues_coursetest->department,
+                    'cou_number'=>$c->ues_coursetest->cou_number,
+                    'fullname'=>$c->ues_coursetest->fullname);
+                
+                $this->mdl_courses[] = array(
+                    'id'=>$c->mdl_course->id, 
+                    'idnumber'=>$c->mdl_course->idnumber);
+                
+                $this->ues_sections[] = array(
+                    'id'=>$c->ues_sectiontest->id,
+                    'courseid'=>$c->ues_sectiontest->courseid,
+                    'semesterid'=>$c->ues_sectiontest->semesterid,
+                    'idnumber'=>$c->ues_sectiontest->idnumber, 
+                    'sec_number'=>$c->ues_sectiontest->sec_number);  //jdoe1
+                
+                $this->mdl_contexts[] = array('id'=>$c->contexts->id,'instanceid'=>$c->contexts->instanceid);
+                //user loop
+                foreach($c->students as $s){
+                    $this->mdl_logs = empty($this->mdl_logs) ? $s->activity : array_merge($this->mdl_logs,$s->activity);        
+                }
+                
+                foreach($c->ues_students as $ustu){
+                    $this->ues_students[] = array(
+                        'userid'=>$ustu->userid, 
+                        'sectionid'=>$ustu->sectionid,
+                        'status'=>$ustu->status,
+                        'id'=>$ustu->id,
+                        'credit_hours'=>$ustu->credit_hours
+                    );
+                }
+                
+                foreach($c->role_assignments as $ra){
+                    $this->mdl_role_ass[] = array(
+                        'contextid'=>$ra->contextid, 
+                        'id'=>$ra->id, 
+                        'roleid'=>$ra->roleid, 
+                        'userid'=>$ra->userid
+                            );
+                }
+            }
+        }
+        
+    }
+    
+
+    
+    private function generate_courses($students){
+        $sem = new ues_semestertest(5, 2013, 'Spring', 'LSU');
+        $c1  = new course('BIOL', 1335);
+        $c2  = new course('AGRI', 4009);
+        $courses = array($c1, $c2);
+        foreach($courses as $c){
+            $i=0;
+            while($i< rand(1,count($students))){
+                $c->enrol_student($students[$i]);
+                $i++;
+            }
+        }
+        $semestertest   = new semestertest($sem, $courses);
+        $enrollment = new enrollment(array($semestertest));
+        return $enrollment;
+    }
+    
+    public function generate($activity=false){
+        $students = $this->generate_students();
+        $this->enrollment = $this->generate_courses($students);
+        if($activity){
+            $this->generate_activity();
+        }
+        $this->populate_constituent_arrays();
+        return $this->enrollment;
+    }
+    
+    private function generate_students(){
+        $users = array();
+        $i=0;
+        while($i<10){
+            $u = new student('student-'.$i);
+            $users[] = $u;
+            $this->mdl_users[] = array(
+                'id'=>$u->mdl_user->id, 
+                'email'=>$u->mdl_user->email,
+                'idnumber'=>$u->mdl_user->idnumber,
+                'username'=>$u->mdl_user->username
+                );
+            $i++;
+        }
+        return $users;
+    }
+    
+    public function generate_activity(){
+        foreach($this->enrollment->semestertests as $s){
+            foreach($s->courses as $c){
+                foreach($c->students as $stu){
+                    $timespent = rand(0,30000);
+                    $stu->activity = lmsEnrollment_testcase::generate_user_activity_segment($stu->mdl_user->id, $timespent, rand(1,99), $c->mdl_course->id);
+                    $v = new verification();
+                    $v->timespentinclass = $timespent;
+                    $v->end_date = $s->ues_semestertest->grades_due;
+                    $v->start_date = $s->ues_semestertest->classes_start;
+                    $v->courseid = $c->ues_coursetest->department." ".$c->ues_coursetest->cou_number;
+                    $v->sectionid = $c->ues_sectiontest->sec_number;
+                    $v->status = 'A';
+                    $v->studentid = $stu->mdl_user->idnumber;
+                    $last = $stu->activity[count($stu->activity) - 1];
+                    $v->lastcourseaccess = $last['time'];
+                    $this->enrollment->verify[] = $v;
+                }
+            }
+        }
+    }
+}
+
+
 
 class lmsEnrollment_testcase extends advanced_testcase{
     
     public $sp;
     public $numRows;
     public $start;
+    public $eight_am_yesterday;
+    public $zero_hour_yesterday;
+    public $enrollment;
 
     public static function strf($arg){
         return strftime('%F %T',$arg);
@@ -32,17 +376,101 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     public function setUp(){
+        $this->midnight_this_morning = strtotime(strftime('%F', time()));
+        $this->zero_hour_yesterday = $this->midnight_this_morning -86400;
+        $this->eight_am_yesterday = strtotime("+8 hours", $this->zero_hour_yesterday);
+//        $dump = vsprintf("time now is %d (%s)\nmidnight last night was %d (%s)\neight am yesterday was %d (%s)",array(time(), $this->toTime(time()), $midnight_this_morning, $this->toTime($midnight_this_morning), $eight_am, $this->toTime($eight_am)));
+//        die($dump);
         $this->start = strtotime('-5 day');
         $this->sp = new lmsEnrollment();
         $this->numRows = 10;  
         
+        $this->enrollment = new enrollment_generator();
+        print_r($this->enrollment->generate(true));
+        print_r($this->enrollment->enrollment->verify);
+//        die();
     }
     
-    private function make_dummy_data(){
-                global $DB;
+    public static function gen_id(){
+        return rand(1,9999);
+    }
+    
+    public static function gen_idnumber(){
+        return rand(111111111,999999999);
+    }
+    
+    
+    private static function get_workhours_activity_timestamps_for_yesterday($total_time, $count, $start=null, $end=null){
+        $times = array();
+        $zero = strtotime(strftime('%F', time())) - 86400;
+        $start = isset($start) ? $start : strtotime("+8 hours",$zero); //yesterday 0:00
         
+        
+        
+        $random_start_time = rand($start, strtotime(strftime('%F', time())) - $total_time);
+        $times[0] = $random_start_time;
+        $avg = (int)$total_time/$count;
+        $i=1;
+        $cum =0;
+        assert($count > 0);
+        
+        $lcount = $count;
+        while($lcount >1 and $cum <= $total_time){
+            $cum += (int)$avg;
+            $times[$i] = $times[$i-1]+(int)$avg;
+            $lcount--;
+            $i++;
+        }
+        if($cum < $total_time){
+            $diff = $total_time-$cum;
+            $cum+=$diff;
+            $times[$count -1] = $times[$i-1]+($diff);
+        }
+        assert(count($times) == $count);
+        print_r($times);
+        assert($cum == $total_time);
+        assert($times[$count-1] - $times[0] == $total_time);
+        return $times;
+    }
+    
+    private function generate_lastaccess(){
+        return rand($this->zero_hour_yesterday-86400, $this->zero_hour_yesterday);
+    }
+    
+    private function generate_previous_cum_timespent(){
+        return rand(0, 1000000);
+    }
+    
+    public static function generate_log_event($time, $userid, $courseid, $is_login=false){
+        $action = $is_login ? 'login' : 'view';
+        return array('time'=>$time, 'userid'=>$userid,'course'=>$courseid, 'action'=>$action);
+    }
+    
+    public static function generate_user_activity_segment($userid, $cum_time_spent, $event_count, $courseid){
+        
+        $ts=  self::get_workhours_activity_timestamps_for_yesterday($cum_time_spent, $event_count);
+        
+        //log the user in such that we don't take away from the known time spent
+        $usr_logs = array(self::generate_log_event($ts[0]-10, $userid, $courseid, true));
+        foreach($ts as $usr1_act){
+            $usr_logs[] = self::generate_log_event($usr1_act, $userid, $courseid);
+        }
+        return $usr_logs;
+    }
+    
+    private function create_ues_semester($id, $year, $name, $campus, $start=null, $grades_due=null){
+        $start = isset($start) ? $start : strtotime("-7 days", time());
+        $end   = isset($end)   ? $end   : strtotime("+7 days", time());
+        return array('id' =>$id, 'year'=>$year,'name'=>$name, 'campus'=>$campus,'classes_start'=> $start, 'grades_due'=>$end);
+    }
+    
+    
+    
+    private function make_dummy_data(){
+        global $DB;
         
         $this->resetAfterTest();
+//        $DB->delete_records('mdl_user');
         $DB->delete_records('log');
         
         $logs = $DB->get_records('log');
@@ -50,88 +478,66 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $user1 = 354;
         $user2 = 654;
+        
+        $usr1_timespent = 700;
+        $usr2_timespent = 450;
+        
+        $usr1_evt_ct = 40;
+        $usr2_evt_ct = 20;
+        
         $ues_sectionid1 = 6666;
         $ues_sectionid2 = 3445;
+        
+        $ues_courseid1 = 55;
+        $ues_courseid2 = 66;
         
         $courseid1 = 6545;
         $courseid2 = 7798;
         
+        $course1_ctx_id = 77;
+        $course2_ctx_id = 88;
+        
         $semesterid = 5;
         
+        $usr1_activity_logs = $this->generate_user_activity_segment($user1, $usr1_timespent, $usr1_evt_ct, $courseid1);
+        $usr2_activity_logs = $this->generate_user_activity_segment($user1, $usr2_timespent, $usr2_evt_ct, $courseid1);
+        $logs = array_merge($usr1_activity_logs,$usr2_activity_logs);
+        
+
+        $semester = $this->create_ues_semester('5', '2013', 'Spring', 'LSU');
+        print_r($this->enrollment->ues_semesters);
+//                die();
+                
+                
         $data = array(
-                    'enrol_ues_courses' => array(
-                        array('id'=>55,'department'=>'CSC','cou_number'=>'7404','fullname'=>'fullnameof_CSC  7404'),
-                        array('id'=>66,'department'=>'BIOL','cou_number'=>'1001','fullname'=>'fullnameof_BIOL 1001'),
-                    ),
-                    'user' => array(
-                        array('username'=>'jdoe1', 'email'=>'jdoe1@example.com', 'id'=>$user1, 'idnumber'=>87687324),
-                        array('username'=>'jdoe2', 'email'=>'jdoe2@example.com', 'id'=>$user2, 'idnumber'=>87684545),
-                    ),
-                    'enrol_ues_students' => array(
-                        array('userid'=>$user1, 'sectionid'=>$ues_sectionid1,'status'=>'enrolled'), //jdoe1
-                        array('userid'=>$user2, 'sectionid'=>$ues_sectionid2,'status'=>'enrolled'),  //jdoe2
-                        array('userid'=>$user2, 'sectionid'=>$ues_sectionid1,'status'=>'enrolled')  //jdoe2
-                    ),
-                    'enrol_ues_semesters' => array(
-                        array('id' =>$semesterid, 'year'=>2013,'name'=>'Spring', 'campus'=>'LSU','classes_start'=> 1358143200, 'grades_due'=>1369458000),
-                    ),
-                    'enrol_ues_sections' => array(
-                        array('id'=>$ues_sectionid1,'courseid'=>55,'semesterid'=>$semesterid,'idnumber'=>'2013SPRINGCSC7404', 'sec_number'=>'001'),  //jdoe1
-                        array('id'=>$ues_sectionid2,'courseid'=>66,'semesterid'=>$semesterid,'idnumber'=>'2013SPRINGBIOL1001', 'sec_number'=>'002'), //jdoe2
-                    ),
-                    'course' => array(
-                        array('id'=>$courseid1,'idnumber'=>'2013SPRINGCSC7404'),  //jdoe1
-                        array('id'=>$courseid2,'idnumber'=>'2013SPRINGBIOL1001'), //jdoe2
-                    ),
-                    'context' => array(
-                        array('id'=>77,'instanceid'=>$courseid1), //jdoe1
-                        array('id'=>88,'instanceid'=>$courseid2)  //jdoe2
-                    ),
-                    'role_assignments' => array(
-                        array('contextid'=>77,'userid'=>$user1, 'roleid'=>5), //jdoe1
-                        array('contextid'=>77,'userid'=>$user2, 'roleid'=>5), //jdoe2
-                        array('contextid'=>88,'userid'=>$user2, 'roleid'=>5)  //jdoe2
-                    ),
-                    'log' => array(
-                        array('time'=>1363791600, 'userid'=>$user1,'course'=>$courseid1, 'action'=>'login'),
-                        array('time'=>1363791610, 'userid'=>$user1,'course'=>$courseid1, 'action'=>'view'),
-                        array('time'=>1363791620, 'userid'=>$user1,'course'=>$courseid1, 'action'=>'view'),
-//                        array('time'=>1363791630, 'userid'=>$user1,'course'=>$courseid1, 'action'=>'view'),
-                        //jdoe1 has spent 20 seconds in course $courseid1
-                        array('time'=>1363791700, 'userid'=>$user2,'course'=>$courseid2, 'action'=>'login'),
-                        array('time'=>1363791710, 'userid'=>$user2,'course'=>$courseid2, 'action'=>'view'),
-                        array('time'=>1363791720, 'userid'=>$user2,'course'=>$courseid2, 'action'=>'view'),
-                        array('time'=>1363791740, 'userid'=>$user2,'course'=>$courseid2, 'action'=>'view'),
-                        //jdoe1 has spent 30 seconds in course $ues_sectionid2
-                        
-                    ),
+                    'enrol_ues_courses' => $this->enrollment->ues_courses,
+                    'user' => $this->enrollment->mdl_users,
+                    'enrol_ues_students' => $this->enrollment->ues_students,
+                    'enrol_ues_semesters' => $this->enrollment->ues_semesters,
+                    'enrol_ues_sections' => $this->enrollment->ues_sections,
+                    'course' => $this->enrollment->mdl_courses,
+                    'context' => $this->enrollment->mdl_contexts,
+                    'role_assignments' => $this->enrollment->mdl_role_ass,
+                    'log' => $this->enrollment->mdl_logs,
                     'apreport_enrol' => array(
-                        array('timestamp'=>1363791920,'lastaccess' => 1363791620,'agg_timespent'=>456, 'cum_timespent'=>1515,'userid'=>$user1, 'sectionid'=>$ues_sectionid1, 'semesterid'=>$semesterid)
+                        array('timestamp'=> $this->zero_hour_yesterday,'lastaccess' => $this->generate_lastaccess(),'agg_timespent'=>456, 'cum_timespent'=>1515,'userid'=>$user1, 'sectionid'=>$ues_sectionid1, 'semesterid'=>$semesterid)
                     )
 
                 );
+        
         $dataset = $this->createArrayDataSet($data);
         $this->loadDataSet($dataset);
 
-
+        $semesters_rows = $DB->get_records('enrol_ues_semesters');
+        print_r($semesters_rows);
+//        echo strftime('%F %T', $semesters_rows[5]->classes_start);
+////        die();
+        $this->assertNotEmpty($semesters_rows);
         
-        $this->assertTrue($DB->record_exists('user', array('username'=>'jdoe1')));
-        $this->assertTrue($DB->record_exists('user', array('username'=>'jdoe2')));
-        $this->assertTrue($DB->record_exists('enrol_ues_students', array('userid'=>$user1)));
-        $this->assertTrue($DB->record_exists('enrol_ues_students', array('userid'=>'654')));
-        $this->assertTrue($DB->record_exists('enrol_ues_semesters', array('id'=>'5')));
-        $this->assertTrue($DB->record_exists('enrol_ues_courses', array('id'=>55)));
-        $this->assertTrue($DB->record_exists('enrol_ues_courses', array('id'=>66)));
-        $this->assertTrue($DB->record_exists('enrol_ues_sections', array('id'=>$ues_sectionid1)));
-        $this->assertTrue($DB->record_exists('enrol_ues_sections', array('id'=>$ues_sectionid2)));
-        $this->assertTrue($DB->record_exists('enrol_ues_sections', array('idnumber'=>'2013SPRINGCSC7404')));
-        $this->assertTrue($DB->record_exists('course', array('id'=>$courseid1)));
-        $this->assertTrue($DB->record_exists('course', array('id'=>$courseid2)));
-        $this->assertTrue($DB->record_exists('role', array('id'=>5)));
-        $this->assertTrue($DB->record_exists('context', array('id'=>77)));
-        $this->assertTrue($DB->record_exists('context', array('id'=>88)));
-        $this->assertTrue($DB->record_exists('role_assignments', array('contextid'=>77)));
-        $this->assertTrue($DB->record_exists('role_assignments', array('contextid'=>88)));
+
+        $logs_check = $DB->get_records('log');
+        $this->assertNotEmpty($logs_check);
+//        print_r($logs_check);
     }
     
     public function test_make_dummy_data(){
@@ -144,9 +550,10 @@ class lmsEnrollment_testcase extends advanced_testcase{
         //check log activity exists
         $log_sql = "SELECT * FROM {log} WHERE time > ? and time < ?";
         $logs = $DB->get_records_sql($log_sql, array($this->sp->start, $this->sp->end));
-        $this->assertNotEmpty($logs);
         mtrace("dumping logs");
-//        print_r($logs);
+        print_r($logs);
+        $this->assertNotEmpty($logs);
+
 
         $ues_course= "SELECT 
                         CONCAT(usect.id,'-',ustu.userid) AS id
@@ -194,10 +601,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         mtrace("dumping users");
 //        print_r($users);        
         
-        $all_roles_sql = 'SELECT * from {role_assignments}';
-        $all_roles = $DB->get_records_sql($all_roles_sql);
-        $this->assertNotEmpty($all_roles);
-        $this->assertEquals(3,count($all_roles));
+
         
         $all_contexts_sql = 'SELECT * FROM {context};';
         $all_contexts = $DB->get_records_sql($all_contexts_sql);
@@ -218,10 +622,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $roles = $DB->get_records_sql($check_course_context_sql);
         $this->assertNotEmpty($roles);
-        
-        //check that count matches
-        $ct_roles = $DB->count_records('role_assignments');
-        $this->assertEquals(3, $ct_roles);
+
         
         mtrace("dumping roles");
 //        print_r($roles);
