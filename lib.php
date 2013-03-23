@@ -327,15 +327,16 @@ class lmsEnrollment extends lsuonlinereport{
     }
     
     public function calculate_time_spent($tree){
-        //walk the tree
+
         global $DB, $CFG;
         
         $enrollment = array();
         assert(!empty($tree));
         
-
+        //walk the tree
+        
         foreach($tree as $semester){
-            assert(!empty($tree));
+            assert(!empty($semester));
             
                 foreach($semester->sections as $section){
                     assert(get_class($section) == 'section');
