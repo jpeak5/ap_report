@@ -225,7 +225,7 @@ class lmsEnrollment extends lsuonlinereport{
         if(empty($enrollments)){
             return false;
         }
-        assert(!empty($enrollments));
+
         
         //walk through each row returned from the db @see get_semester_data
         foreach($enrollments as $row => $e){
@@ -294,6 +294,7 @@ class lmsEnrollment extends lsuonlinereport{
                 ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
         $activity_records = $DB->get_records_sql($sql);
 //        die($sql);
+//        die(print_r($activity_records));
         return empty($activity_records) ? false : $activity_records;
     }
     
@@ -307,16 +308,18 @@ class lmsEnrollment extends lsuonlinereport{
          * unwanted section data from the log table
          */
         foreach($logs as $log){
+            assert(isset($tree[$log->semesterid]));
             if(isset($tree[$log->semesterid]) and (get_class($tree[$log->semesterid]) == 'semester')){
                 if(isset($tree[$log->semesterid]->sections[$log->sectionid]) and get_class($tree[$log->semesterid]->sections[$log->sectionid]) == 'section'){
                     if(isset($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) and (get_class($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) == 'user')){
                         $tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]->activity[] = $log;
+                        mtrace(sprintf("adding log %s", print_r($log)));
                     }
                 }
             }
         }
-        
-        return $tree;
+//        die(print_r($tree));
+        return $logs;
     }
     
     public function calculate_time_spent($tree){
@@ -327,7 +330,8 @@ class lmsEnrollment extends lsuonlinereport{
         assert(!empty($tree));
         
         //walk the tree
-        
+        print_r($tree);
+//        die();
         foreach($tree as $semester){
             assert(!empty($semester));
             
@@ -339,7 +343,7 @@ class lmsEnrollment extends lsuonlinereport{
                      */
                     foreach($section->users as $user){
 //                        assert(get_class($section) == 'section');
-//                        assert(get_class($user) == 'user');
+                        assert(get_class($user) == 'user');
                         if(empty($user->activity)){
                             continue;
                         }else{

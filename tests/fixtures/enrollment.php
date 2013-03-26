@@ -190,16 +190,17 @@ class course{
     
     public function __construct($dept, $cou_num){
         $this->ues_sectiontest = new ues_sectiontest();
-        $this->mdl_course = new mdl_course();
+        $this->mdl_course      = new mdl_course();
         $this->mdl_course->id = lmsEnrollment_testcase::gen_id();
         
-        $this->ues_sectiontest->sec_number = "00".rand(0,9);
+        
         
         $this->ues_coursetest             = new ues_coursetest();
         $this->ues_coursetest->department = $dept;
         $this->ues_coursetest->cou_number = $cou_num;
         $this->ues_coursetest->fullname   = $dept.$cou_num.$this->ues_sectiontest->sec_number;
         
+        $this->ues_sectiontest->sec_number= "00".rand(0,9);
         $this->ues_sectiontest->idnumber  = $this->mdl_course->idnumber = $this->ues_coursetest->fullname.lmsEnrollment_testcase::gen_id();
         $this->ues_sectiontest->courseid  = $this->ues_coursetest->id = lmsEnrollment_testcase::gen_id();
         $this->ues_sectiontest->id        = lmsEnrollment_testcase::gen_id();
@@ -430,6 +431,7 @@ class enrollment_generator{
             while($i< rand(1,count($students))){
                 $c->enrol_student($students[$i]);
                 $i++;
+                mtrace(sprintf("adding student idnumber %d to course id %s", $students[$i]->mdl_user->idnumber,$c->mdl_course->id));
             }
         }
         

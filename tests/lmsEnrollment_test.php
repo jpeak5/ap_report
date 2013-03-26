@@ -46,7 +46,8 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $this->enrollment = new enrollment_generator();
         $this->enrollment->generate(true);
-        $this->enrollment->enrollment->verify;
+//        print_r($this->enrollment->enrollment->verify);
+        
     }
     
     public static function gen_id($low=null, $high=null){
@@ -154,18 +155,29 @@ class lmsEnrollment_testcase extends advanced_testcase{
 
                 );
         
+        
+        
         $dataset = $this->createArrayDataSet($data);
         $this->loadDataSet($dataset);
-
-        $semesters_rows = $DB->get_records('enrol_ues_semesters');
-        print_r($semesters_rows);
-//        echo strftime('%F %T', $semesters_rows[5]->classes_start);
-////        die();
-        $this->assertNotEmpty($semesters_rows);
-        
-
-        $logs_check = $DB->get_records('log');
-        $this->assertNotEmpty($logs_check);
+//
+//        $semesters_rows = $DB->get_records('enrol_ues_semesters');
+//        $this->assertNotEmpty($semesters_rows);
+//        foreach($semesters_rows as $sr){
+//            $this->assertTrue(!empty($sr->id));
+//        }
+//        
+//        $ues_section_rows = $DB->get_records('enrol_ues_sections');
+//        $this->assertNotEmpty($ues_section_rows);
+//        foreach($ues_section_rows as $usr){
+//            $this->assertTrue(isset($usr->id));
+//        }
+//        
+//        $ues_students_rows = $DB->get_records('enrol_ues_students');
+//        $this->assertNotEmpty($ues_students_rows);
+//        
+//
+//        $logs_check = $DB->get_records('log');
+//        $this->assertNotEmpty($logs_check);
 //        print_r($logs_check);
     }
     
@@ -275,7 +287,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertNotEmpty($users);
         
         mtrace("dumping users");
-//        print_r($users);        
+        print_r($users);        
         
 
         
@@ -301,7 +313,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
 
         
         mtrace("dumping roles");
-//        print_r($roles);
+        print_r($roles);
         
         
         $mondo_sql =             "SELECT
@@ -329,8 +341,10 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $mondo = $DB->get_records_sql($mondo_sql);
         $this->assertNotEmpty($mondo);
         mtrace("dumping mondo");
-//        print_r($mondo);
+        print_r($mondo);
 
+        
+        $this->assertEquals(count($mondo), count($users));
         
     }
     
@@ -424,14 +438,14 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $this->assertNotEmpty($active_users);
         $semesters = $this->sp->get_active_ues_semesters();
-        mtrace('dumping semesters');
-//        print_r($semesters);
+        
+        //make sure the test data matches what we expect
+        $this->assertEquals(count($this->enrollment->ues_semesters), count($semesters));
+
         $units = $this->sp->get_semester_data(array_keys($semesters));
-        mtrace('dumping semester data return');
-//        print_r($units);
+
         $this->assertTrue(($units !=false), 'no semester data returned; is there any data to return?');
         $this->assertNotEmpty($units);
-//        $this->assertEquals(10,count($units));
                 
         return $units;
 
@@ -445,10 +459,13 @@ class lmsEnrollment_testcase extends advanced_testcase{
     public function test_build_enrollment_tree($sem_data){
 
         $this->make_dummy_data();
+        $test_tree = $this->enrollment->enrollment;
         
         $this->assertTrue($sem_data != false);
         
         $semesters = $this->sp->get_active_ues_semesters();
+        //make sure the test data matches what we expect
+        $this->assertEquals(count($this->enrollment->ues_semesters), count($semesters));
         
         $tree = $this->sp->build_enrollment_tree($semesters);
         
@@ -463,10 +480,15 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertTrue(is_array($semester->sections));
         
         foreach($tree as $sem){
+            
             if(!empty($sem->sections)){
                 $index = array_keys($sem->sections);
                 $section = $sem->sections[$index[0]];
                 $this->assertInstanceOf('section', $section);
+                //ensure that test data has been recreated in production structure
+                foreach($this->enrollment->ues_sections as $usec){
+                    $this->assertTrue(array_key_exists($usec['id'], $sem->sections));
+                }
             }
         }
         
@@ -520,8 +542,9 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->make_dummy_data();
         
         $logs  = $this->sp->get_log_activity();
+
         $this->assertNotEmpty($logs);
-        $units = $this->sp->populate_activity_tree($logs, $tree);
+        $tree = $units = $this->sp->populate_activity_tree($logs, $tree);
         $this->assertTrue($units != false);
         $this->assertTrue(is_array($units));
         $this->assertNotEmpty($units);
@@ -534,6 +557,8 @@ class lmsEnrollment_testcase extends advanced_testcase{
     public function test_calculate_time_spent($tree){
         $this->make_dummy_data();
         $this->assertNotEmpty($tree);
+        print_r($tree);
+//        die();
         $units = $this->sp->calculate_time_spent($tree);
         $this->assertTrue($units!=false);
         $this->assertTrue(is_array($units));
