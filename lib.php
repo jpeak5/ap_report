@@ -9,10 +9,6 @@ abstract class lsuonlinereport {
     public $data;
     public $start;
     public $end;
-    
-
-    
-
 
     /**
      * 
@@ -20,9 +16,6 @@ abstract class lsuonlinereport {
      */
     abstract protected function buildXML($records);
 
-
-
-    
 }
 
 

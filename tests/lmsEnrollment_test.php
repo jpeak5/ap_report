@@ -36,27 +36,27 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     public function setUp(){
+        
         $this->midnight_this_morning = strtotime(strftime('%F', time()));
         $this->zero_hour_yesterday = $this->midnight_this_morning -86400;
         $this->eight_am_yesterday = strtotime("+8 hours", $this->zero_hour_yesterday);
-//        $dump = vsprintf("time now is %d (%s)\nmidnight last night was %d (%s)\neight am yesterday was %d (%s)",array(time(), $this->toTime(time()), $midnight_this_morning, $this->toTime($midnight_this_morning), $eight_am, $this->toTime($eight_am)));
-//        die($dump);
         $this->start = strtotime('-5 day');
         $this->sp = new lmsEnrollment();
         $this->numRows = 10;  
         
         $this->enrollment = new enrollment_generator();
-        print_r($this->enrollment->generate(true));
-        print_r($this->enrollment->enrollment->verify);
-//        die();
+        $this->enrollment->generate(true);
+        $this->enrollment->enrollment->verify;
     }
     
-    public static function gen_id(){
-        return rand(1,9999);
+    public static function gen_id($low=null, $high=null){
+        $low  = isset($low)  ? $low  : 1;
+        $high = isset($high) ? $high : 9999;
+        return rand($low, $high);
     }
     
     public static function gen_idnumber(){
-        return rand(111111111,999999999);
+        return rand(111111111,888999999);
     }
     
     
@@ -118,51 +118,18 @@ class lmsEnrollment_testcase extends advanced_testcase{
         return array('id' =>$id, 'year'=>$year,'name'=>$name, 'campus'=>$campus,'classes_start'=> $start, 'grades_due'=>$end);
     }
     
-    
+
     
     private function make_dummy_data(){
         global $DB;
         
-        $this->resetAfterTest();
+        $this->resetAfterTest(true);
 //        $DB->delete_records('mdl_user');
         $DB->delete_records('log');
         
         $logs = $DB->get_records('log');
         $this->assertEmpty($logs);
-        
-        $user1 = 354;
-        $user2 = 654;
-        
-        $usr1_timespent = 700;
-        $usr2_timespent = 450;
-        
-        $usr1_evt_ct = 40;
-        $usr2_evt_ct = 20;
-        
-        $ues_sectionid1 = 6666;
-        $ues_sectionid2 = 3445;
-        
-        $ues_courseid1 = 55;
-        $ues_courseid2 = 66;
-        
-        $courseid1 = 6545;
-        $courseid2 = 7798;
-        
-        $course1_ctx_id = 77;
-        $course2_ctx_id = 88;
-        
-        $semesterid = 5;
-        
-        $usr1_activity_logs = $this->generate_user_activity_segment($user1, $usr1_timespent, $usr1_evt_ct, $courseid1);
-        $usr2_activity_logs = $this->generate_user_activity_segment($user1, $usr2_timespent, $usr2_evt_ct, $courseid1);
-        $logs = array_merge($usr1_activity_logs,$usr2_activity_logs);
-        
 
-        $semester = $this->create_ues_semester('5', '2013', 'Spring', 'LSU');
-        print_r($this->enrollment->ues_semesters);
-//                die();
-                
-                
         $data = array(
                     'enrol_ues_courses' => $this->enrollment->ues_courses,
                     'user' => $this->enrollment->mdl_users,
@@ -174,7 +141,15 @@ class lmsEnrollment_testcase extends advanced_testcase{
                     'role_assignments' => $this->enrollment->mdl_role_ass,
                     'log' => $this->enrollment->mdl_logs,
                     'apreport_enrol' => array(
-                        array('timestamp'=> $this->zero_hour_yesterday,'lastaccess' => $this->generate_lastaccess(),'agg_timespent'=>456, 'cum_timespent'=>1515,'userid'=>$user1, 'sectionid'=>$ues_sectionid1, 'semesterid'=>$semesterid)
+                        array(
+                            'timestamp'=> $this->zero_hour_yesterday,
+                            'lastaccess' => $this->generate_lastaccess(),
+                            'agg_timespent'=>456, 
+                            'cum_timespent'=>1515,
+                            'userid'=>354, 
+                            'sectionid'=>6666, 
+                            'semesterid'=>5
+                            )
                     )
 
                 );
@@ -196,6 +171,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
     
     public function test_make_dummy_data(){
         
+        $this->resetAfterTest();
         global $DB;
         
         //unit does not, aparently blow away the default mdl contexts
