@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--The LMS coursework file contains data from the LMS system tracking each student’s progress with
+assigned tasks over the term of a course. A separate data record exists for each
+section/student/coursework item combination in the LMS. For each coursework item, It includes the id
+and name of the item, due date and submitted date, the number of points possible and points received,
+and the grade category and category weight.
+This data feed should include the coursework for all active students recruited by Academic Partnerships
+for the previous, current, and upcoming terms.-->
+
+<lmsCourseworkItems xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:noNamespaceSchemaLocation="lmsCoursework.xsd" university="university_opeid">
+    <lmsCourseworkItem>
+        <!--An ID that uniquely describes the enrollment; this could be manufactured or exported from the SIS-->
+        <!--looking at this number as an array x of char, we can encode information as follows-->
+        <!--x[0-1]   = the last two digits of the year-->
+        <!--x[2-10]  = the studentid-->
+        <!--x[11-15] = a fie-digit lms course id-->
+        <!--x[16-18] = 3-digit section number-->
+        <enrollmentId>1332132132108338001</enrollmentId>
+        
+        <!--A unique, static identifier for a student that is used to identify a user and match them to their enrollments-->
+        <studentId>321321321</studentId>
+        
+        <!--A unique identifier for the course. It must match course ID from SIS-->
+        <courseId>AAAS 2000</courseId>
+        
+        <!--A unique identifier for the section; it must match the section ID from the SIS-->
+        <sectionId>001</sectionId>
+        
+        <!--“Assignment”, “Assessment”, “Quiz”, “Posting”, or “Other”-->
+        <itemType>Assignment</itemType>
+        
+        <!--A unique identifier for the coursework item-->
+        <itemId>unique_identifier</itemId>
+        
+        <!--The name or description of the coursework item-->
+        <itemName>name or description of the coursework item</itemName>
+        
+        <!--Date assignment; if no due date for item type, then blank; format is MM/DD/YYYY-->
+        <dueDate>01/22/2013</dueDate>
+        
+        <!--Date assignment or quiz turned in, posting completed, or assessment done-->
+        <dateSubmitted>01//23/2013</dateSubmitted>
+        
+        <!--Number of possible points for assignment, posting, assessment, or quiz (blank if not graded)-->
+        <pointsPossible>100</pointsPossible>
+        
+        <!--Number of points received for assignment, posting, assessment, or quiz-->
+        <pointsReceived>98</pointsReceived>
+        
+        <!--moodle grade category; text-->
+        <gradeCategory>some category</gradeCategory>
+        
+        <!--Weight to be applied to this item when determining grade for course-->
+        <categoryWeight>1</categoryWeight>
+        <!--catch-all container?-->
+        <extensions></extensions>
+    </lmsCourseworkItem>
+</lmsCourseworkItems>
