@@ -1,4 +1,5 @@
 <?php
+require_once('classes.php');
 
 class user_activity_segment{
     public $userid;
@@ -8,7 +9,7 @@ class user_activity_segment{
     
     
     
-    public function __contstruct($id, $ap, $en, $ts, $evct){
+    public function __construct($id, $ap, $en, $ts, $evct){
         $this->userid = $id;
         $this->apreport_enrol_record = $ap;
         $this->enrollment_record = $en;
@@ -16,258 +17,9 @@ class user_activity_segment{
     }
 }
 
-/**
- * models the table definition of ues_sections
- */
-class ues_sectiontest{
-    public $id;
-    public $courseid;
-    public $semesterid;
-    public $idnumber;
-    public $sec_number;
-    public $status;
-}
-/**
- * models table definition for ues_courses
- */
-class ues_coursetest{
-    public $id;
-    public $department;
-    public $cou_number;
-    public $fullname;
-}
-/**
- * models the table definition for ues_semesters
- */
-class ues_semestertest{
-    public $id;
-    public $year;
-    public $name;
-    public $campus;
-    public $session_key;
-    public $classes_start;
-    public $grades_due;
-    
-    /**
-     * 
-     * @param int $i id
-     * @param int $y year
-     * @param string $n name, eg Spring, Fall
-     * @param string $c campus eg LSU, LAW
-     * @param string $s session_key, eg 'A', 'B', etc 
-     * The session key may be specified in testing cases specific to a given semester
-     * @param timestamp $cl classes_start for testing purposes, this value, 
-     * if not specified, is initialized to time() - 7 days
-     * @param timestamp $gd grades due for testing purposes, this value, 
-     * if not specified, is initialized to time() - 7 days
-     */
-    public function __construct($i, $y, $n, $c, $s=null, $cl=null, $gd=null){
-        $this->id = $i;
-        $this->year = $y;
-        $this->name = $n;
-        $this->campus = $c;
-        $this->session_key   = isset($s)    ? $s    : null;
-        $this->grades_due    = isset($gd)   ? $gd   : strtotime("+7 days", time());
-        $this->classes_start = isset($cl)   ? $cl   : strtotime("-7 days", time());
-
-    }
-}
-/**
- * models the table definition for ues_students
- */
-class ues_studenttest{
-    public $id;
-    public $userid;
-    public $sectionid;
-    public $credit_hours;
-    public $status;
-}
-/**
- * models the table definition of mdl_course
- */
-class mdl_course{
-    public $id;
-    public $idnumber;
-
-}
-/**
- * models the table definition of mdl_context
- */
-class mdl_context{
-    public $id;
-    public $instanceid;
-    
-    /**
-     * 
-     * @param int $mdl_course_id constructs a new mdl_context record
-     * bound to the course_id given as input parameter
-     */
-    public function __construct($mdl_course_id){
-        $this->instanceid = $mdl_course_id;
-        $this->id = rand(0,9999);
-    }
-    
-}
-/**
- * models the table definition of mdl_role_assignment
- */
-class mdl_role_assignment{
-    public $id;
-    public $roleid;
-    public $contextid;
-    public $userid;
-    
-    /**
-     * constructs a mdl_role_assignment record assigning a user to a role in a context
-     * @param int $roleid roleid, eg 5 (surely this is not always true?) for student
-     * @param int $contextid context id
-     * @param int $userid mkdl_user.id
-     */
-    public function __construct($roleid, $contextid, $userid){
-        $this->id = lmsEnrollment_testcase::gen_id();
-        $this->contextid = $contextid;
-        $this->userid = $userid;
-        $this->roleid = $roleid;
-    }
-}
-
-/**
- * models the table definition of mdl_user
- */
-class mdl_user{
-    public $id;
-    public $username;
-    public $idnumber;
-    public $email;
-}
 
 
-/**
- * @TODO repurpose/rename the ues_studenttest member 
- * to hold references to the corresponding recordsin ues_students
- * to enable bidirectional lookup
- * wrapper class composing mdl_user and ues_student
- */
-class student {
-    public $ues_studenttest;
-    public $mdl_user;
-    public $activity; //array of activity logs
-    
-    /**
-     * generates a mdl_user based on the input username
-     * input username should probably be auto generated
-     * @param int $username
-     */
-    public function __construct($username){
-        $this->mdl_user = new mdl_user();
-        $this->mdl_user->username = $username;
-        $this->mdl_user->email = $username.'@example.com';
-        $this->mdl_user->idnumber = lmsEnrollment_testcase::gen_idnumber();
-        $this->mdl_user->id = lmsEnrollment_testcase::gen_id(3);
-    }
-}
 
-/**
- * wrapper class composing 
- *  mdl_course
- *  ues_courses
- *  ues_students
- *  ues_sections
- *  mdl_user (as members of teh students array)
- *  mdl_role_assignments
- *  mdl_context (as members of the contexts array)
- * @TODO singularize contexts for clarity
- * 
- */
-class course{
-    public $mdl_course;
-    public $ues_sectiontest;
-    public $ues_coursetest;
-    public $ues_students;
-    public $students;
-    public $role_assignments;
-    public $contexts;
-    
-    public function __construct($dept, $cou_num){
-        $this->ues_sectiontest = new ues_sectiontest();
-        $this->mdl_course      = new mdl_course();
-        $this->mdl_course->id = lmsEnrollment_testcase::gen_id();
-        
-        
-        
-        $this->ues_coursetest             = new ues_coursetest();
-        $this->ues_coursetest->department = $dept;
-        $this->ues_coursetest->cou_number = $cou_num;
-        $this->ues_coursetest->fullname   = $dept.$cou_num.$this->ues_sectiontest->sec_number;
-        
-        $this->ues_sectiontest->sec_number= "00".rand(0,9);
-        $this->ues_sectiontest->idnumber  = $this->mdl_course->idnumber = $this->ues_coursetest->fullname.lmsEnrollment_testcase::gen_id();
-        $this->ues_sectiontest->courseid  = $this->ues_coursetest->id = lmsEnrollment_testcase::gen_id();
-        $this->ues_sectiontest->id        = lmsEnrollment_testcase::gen_id();
-        
-        $ctx = new mdl_context($this->mdl_course->id);
-        $this->contexts = $ctx;
-    }
-    
-    /**
-     * This function describes the proper arrangement of ues_students records as
-     * a component of ues_section and, by extension, @see mdl_course and @see course
-     * @param array $students of type student
-     * @TODO the assignment to $this->role_assignments[] assumes 
-     * that mdl_roleid = 5; this needs to be checked.
-     */
-    public function enrol_student(student $student){
-            $s     = new ues_studenttest();
-            $s->id = lmsEnrollment_testcase::gen_id();
-            $s->credit_hours = rand(0,6);
-            $s->sectionid = $this->ues_sectiontest->id;
-            $s->userid    = $student->mdl_user->id;
-            $s->status    = 'enrolled';
-            $this->ues_students[] = $s;
-
-            $this->students[] = $student;
- 
-            $this->role_assignments[] = new mdl_role_assignment(
-                    5, 
-                    $this->contexts->id, 
-                    $student->mdl_user->id
-                    );
-        
-    }
-    
-}
-
-/**
- * wrapper class around ues_semesters and a 
- * collection of courses for a given semester;
- * 
- */
-class semester_test{
-    /**
-     *
-     * @var ues_semestertest 
-     */
-    public $ues_semestertest;   //ues record
-    /**
-     *
-     * @var array course 
-     */
-    public $courses;        //array of courses
-    
-    /**
-     * 
-     * @param ues_semestertest $sem
-     * @param type $courses
-     */
-    public function __construct($sem, $courses){
-        $this->courses = $courses;
-        $this->ues_semestertest = $sem;
-        foreach($this->courses as $c){
-            $c->ues_sectiontest->semesterid = $sem->id;
-        }
-    }
-    
-}
 
 /**
  * top-level of this fixture data structure
@@ -337,6 +89,7 @@ class enrollment_generator{
      * @return enrollment
      */
     public function generate($activity=false){
+        global $DB;
         $students         = $this->generate_students();
         $this->enrollment = $this->generate_courses($students);
         
@@ -368,10 +121,10 @@ class enrollment_generator{
             //course/section loop
             foreach($semester->courses as $c){
                 $this->ues_courses[] = array(
-                    'id'        =>$c->ues_coursetest->id,
-                    'fullname'  =>$c->ues_coursetest->fullname,
-                    'department'=>$c->ues_coursetest->department,
-                    'cou_number'=>$c->ues_coursetest->cou_number,
+                    'id'        =>$c->ues_course->id,
+                    'fullname'  =>$c->ues_course->fullname,
+                    'department'=>$c->ues_course->department,
+                    'cou_number'=>$c->ues_course->cou_number,
                     );
                 
                 $this->mdl_courses[] = array(
@@ -379,11 +132,11 @@ class enrollment_generator{
                     'idnumber'  =>$c->mdl_course->idnumber);
                 
                 $this->ues_sections[] = array(
-                    'id'        =>$c->ues_sectiontest->id,
-                    'idnumber'  =>$c->ues_sectiontest->idnumber, 
-                    'courseid'  =>$c->ues_sectiontest->courseid,
-                    'semesterid'=>$c->ues_sectiontest->semesterid,
-                    'sec_number'=>$c->ues_sectiontest->sec_number);  //jdoe1
+                    'id'        =>$c->ues_section->id,
+                    'idnumber'  =>$c->ues_section->idnumber, 
+                    'courseid'  =>$c->ues_section->courseid,
+                    'semesterid'=>$c->ues_section->semesterid,
+                    'sec_number'=>$c->ues_section->sec_number);  //jdoe1
                 
                 $this->mdl_contexts[] = array('id'=>$c->contexts->id,'instanceid'=>$c->contexts->instanceid);
                 //user loop
@@ -421,9 +174,10 @@ class enrollment_generator{
      * @return \enrollment
      */
     private function generate_courses($students){
-        $sem     = new ues_semestertest(5, 2013, 'Spring', 'LSU');
-        $c1      = new course('BIOL', 1335);
-        $c2      = new course('AGRI', 4009);
+        
+        $sem     = ues_semester_tbl::make_test_instance(5, 2013, 'Spring', 'LSU');
+        $c1      = course::make_test_instance('BIOL', 1335);
+        $c2      = course::make_test_instance('AGRI', 4009);
         $courses = array($c1, $c2);
         
         foreach($courses as $c){
@@ -435,7 +189,7 @@ class enrollment_generator{
             }
         }
         
-        $semestertest = new semester_test($sem, $courses);
+        $semestertest = semester::make_test_instance($sem, $courses);
         $enrollment   = new enrollment(array($semestertest));
         
         return $enrollment;
@@ -450,7 +204,7 @@ class enrollment_generator{
         $users = array();
         $i=0;
         while($i<10){
-            $u = new student('student-'.$i);
+            $u = student::make_test_instance('student-'.$i);
             $users[] = $u;
             $this->mdl_users[] = array(
                 'id'=>$u->mdl_user->id, 
@@ -478,8 +232,8 @@ class enrollment_generator{
                     $v->timespentinclass = $timespent;
                     $v->end_date = $s->ues_semestertest->grades_due;
                     $v->start_date = $s->ues_semestertest->classes_start;
-                    $v->courseid = $c->ues_coursetest->department." ".$c->ues_coursetest->cou_number;
-                    $v->sectionid = $c->ues_sectiontest->sec_number;
+                    $v->courseid = $c->ues_course->department." ".$c->ues_course->cou_number;
+                    $v->sectionid = $c->ues_section->sec_number;
                     $v->status = 'A';
                     $v->studentid = $stu->mdl_user->idnumber;
                     $last = $stu->activity[count($stu->activity) - 1];

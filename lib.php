@@ -3,6 +3,7 @@
 //defined('MOODLE_INTERNAL') || die;
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
+require_once('classes.php');
 
 abstract class lsuonlinereport {
     
@@ -36,6 +37,7 @@ class lmsEnrollment extends lsuonlinereport{
 
     
         public $active_semesters;
+        public $active_users;
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
@@ -122,9 +124,8 @@ class lmsEnrollment extends lsuonlinereport{
                     log.time > %s
                 AND 
                     log.time < %s;",array($this->start,$this->end));
-       $active_users = $DB->get_records_sql($sql);
-//       mtrace($sql);
-       $this->active_users = $active_users;
+       $this->active_users = $DB->get_records_sql($sql);
+       assert($this->active_users);
        return count($this->active_users) > 0 ? $this->active_users : false;
     }
     
@@ -140,14 +141,12 @@ class lmsEnrollment extends lsuonlinereport{
      */
     public function get_semester_data($semesterids){
         global $DB;
-        
-        //use the idnumbers of the active users to reduce the number of rows we're working with;
         $active_users = $this->get_active_users();
-        
+        assert($active_users);
+        //use the idnumbers of the active users to reduce the number of rows we're working with;
         if(!$active_users){
             return false;
         }
-        
         $active_ids = array_keys($active_users);
         
         $sql = vsprintf(
@@ -189,8 +188,8 @@ class lmsEnrollment extends lsuonlinereport{
         $rows = $DB->get_records_sql($sql);
         
         mtrace("dumping semester data sql");
-//        print_r($rows);
-//        die();
+        print_r($rows);
+//        die($sql);
         return count($rows) > 0 ? $rows : false;
     }
     
@@ -201,22 +200,30 @@ class lmsEnrollment extends lsuonlinereport{
      * nodes of type semester, section, user.
      * Note that this tree contains only enrollment, no timespent data.
      * 
-     * @param $semesters an array of active semesters, likely returned from 
+     *  
      * @see get_active_ues_semesters
      */
-    public function build_enrollment_tree($semesters){
+    public function build_enrollment_tree(){
         
         
-        assert(!empty($semesters));
+        assert(!empty($this));
 
         //define the root of the tree
-        $tree = array();
+        $tree = new enrollment_model();
+        
+        $semesters = $this->get_active_ues_semesters();
         
         //populate the first level of the tree
-        foreach($semesters as $s){
-        
-            $o = new semester($s);
-            $tree[$o->id] = $o;
+        foreach($semesters as $semester){
+            
+            $usem = ues_semester_tbl::instantiate($semester);
+            //usually, there will be only one semester, 
+            //so there is no need for the check
+            if(is_array($tree->semesters)){
+                assert(!array_key_exists($usem->id, $tree->semesters));
+            }
+            $s = semester::instantiate(array('ues_semester'=>$usem));
+            $tree->semesters[$s->ues_semester->id] = $s;
         }
         
         //put enrollment records into semester arrays
@@ -229,21 +236,44 @@ class lmsEnrollment extends lsuonlinereport{
         
         //walk through each row returned from the db @see get_semester_data
         foreach($enrollments as $row => $e){
-
+            
             //in populating the first level, above, we should have already 
             //allocated an array slot for every possible value here
-            assert(array_key_exists($e->semesterid, $tree));
-            
-                $semester = $tree[$e->semesterid];
-                if(!array_key_exists($e->sectionid, $semester->sections)){
+            assert(array_key_exists($e->semesterid, $tree->semesters));
+
+                $semester = $tree->semesters[$e->semesterid];
+                if(empty($semester->courses)){
+                    $semester->courses = array();
+                }
+                
+                if(!array_key_exists($e->sectionid, $semester->courses)){
                     //add a new section to the semester node's sections array
-                    $section = new section();
-                    $semester->sections[$e->ues_sectionid] = $section;
-                    $section->cou_num    = $e->cou_number;
-                    $section->department = $e->department;
-                    $section->sec_num    = $e->sectionid;
-                    $section->id         = $e->ues_sectionid;
-                    $section->mdlid      = $e->mdl_courseid;
+                    
+                    $ues_course = new stdClass();
+                    $ues_course->cou_number     = $e->cou_number;
+                    $ues_course->department  = $e->department;
+                    
+                    $ues_section = new stdClass();
+                    $ues_section->sec_number = $e->sectionid;
+                    $ues_section->id         = $e->ues_sectionid;
+                    $ues_section->semesterid = $e->semesterid;
+
+                    $mdl_course = new stdClass();
+                    $mdl_course->id    = $e->mdl_courseid;
+
+                    $ucourse = ues_courses_tbl::instantiate($ues_course);
+                    
+                    $usect = ues_sections_tbl::instantiate($ues_section);
+                    $mdlc = mdl_course::instantiate($mdl_course);
+                    
+                    $course_params = array('ues_course' => $ucourse, 
+                        'ues_section' => $usect,
+                        'mdl_course' => $mdlc);
+                    
+                    $semester->courses[$e->ues_sectionid] = course::instantiate($course_params);
+                    
+                    
+                    
                     //add this row's student as the next element 
                     //of the current section's users array
                     $user     = new user();
@@ -261,7 +291,7 @@ class lmsEnrollment extends lsuonlinereport{
                     $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
                 }
         }
-//        print_r($tree);
+        print_r($tree);
         return $tree;
     }    
 
@@ -308,9 +338,11 @@ class lmsEnrollment extends lsuonlinereport{
          * unwanted section data from the log table
          */
         foreach($logs as $log){
-            assert(isset($tree[$log->semesterid]));
-            if(isset($tree[$log->semesterid]) and (get_class($tree[$log->semesterid]) == 'semester')){
-                if(isset($tree[$log->semesterid]->sections[$log->sectionid]) and get_class($tree[$log->semesterid]->sections[$log->sectionid]) == 'section'){
+            assert(isset($tree->semesters[$log->semesterid]));
+            if(isset($tree->semesters[$log->semesterid]) and (get_class($tree->semesters[$log->semesterid]) == 'semester')){
+                mtrace(sprintf("found semester %d\n", $log->semesterid));
+                if(isset($tree->semesters[$log->semesterid]->courses[$log->sectionid]) and get_class($tree->semesters[$log->semesterid]->courses[$log->sectionid]) == 'course'){
+                    mtrace(sprintf("found section %d\n", $log->sectionid));
                     if(isset($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) and (get_class($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) == 'user')){
                         $tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]->activity[] = $log;
                         mtrace(sprintf("adding log %s", print_r($log)));
@@ -319,7 +351,7 @@ class lmsEnrollment extends lsuonlinereport{
             }
         }
 //        die(print_r($tree));
-        return $logs;
+        return $tree;
     }
     
     public function calculate_time_spent($tree){
@@ -334,7 +366,7 @@ class lmsEnrollment extends lsuonlinereport{
 //        die();
         foreach($tree as $semester){
             assert(!empty($semester));
-            
+                assert(!empty($semester->sections));
                 foreach($semester->sections as $section){
                     assert(get_class($section) == 'section');
                     /**
@@ -575,7 +607,7 @@ class lmsEnrollment extends lsuonlinereport{
         $semesters = $this->get_active_ues_semesters();
         mtrace("getting active semesters\n");
         
-        $tree = $this->build_enrollment_tree($semesters);
+        $tree = $this->build_enrollment_tree();
         mtrace("building enrollment tree\n");
         
         $logs = $this->get_log_activity();
@@ -698,7 +730,7 @@ class lmsEnrollment extends lsuonlinereport{
 }
 
 
-class semester{
+class semester_ues{
     public $year; //int
     public $name; //string
     public $sections; //array of section

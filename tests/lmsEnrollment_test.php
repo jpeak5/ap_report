@@ -13,6 +13,8 @@ class lmsEnrollment_testcase extends advanced_testcase{
     public $eight_am_yesterday;
     public $zero_hour_yesterday;
     public $enrollment;
+    
+    public static $logid =0;
 
     public static function strf($arg){
         return strftime('%F %T',$arg);
@@ -44,8 +46,10 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->sp = new lmsEnrollment();
         $this->numRows = 10;  
         
+        $this->resetAfterTest();
         $this->enrollment = new enrollment_generator();
         $this->enrollment->generate(true);
+//        $this->active_users = $this->sp->get_active_users();
 //        print_r($this->enrollment->enrollment->verify);
         
     }
@@ -97,8 +101,11 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
     public static function generate_log_event($time, $userid, $courseid, $is_login=false){
+        
         $action = $is_login ? 'login' : 'view';
-        return array('time'=>$time, 'userid'=>$userid,'course'=>$courseid, 'action'=>$action);
+        $record = array('time'=>$time, 'userid'=>$userid,'course'=>$courseid, 'action'=>$action);
+        
+        return $record;
     }
     
     public static function generate_user_activity_segment($userid, $cum_time_spent, $event_count, $courseid){
@@ -122,6 +129,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
 
     
     private function make_dummy_data(){
+        self::$logid =0;
         global $DB;
         
         $this->resetAfterTest(true);
@@ -130,7 +138,9 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $logs = $DB->get_records('log');
         $this->assertEmpty($logs);
-
+        
+        
+        
         $data = array(
                     'enrol_ues_courses' => $this->enrollment->ues_courses,
                     'user' => $this->enrollment->mdl_users,
@@ -159,6 +169,11 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $dataset = $this->createArrayDataSet($data);
         $this->loadDataSet($dataset);
+
+        
+        $this->enrollment->mdl_logs = $DB->get_records('log');
+//
+//
 //
 //        $semesters_rows = $DB->get_records('enrol_ues_semesters');
 //        $this->assertNotEmpty($semesters_rows);
@@ -432,11 +447,12 @@ class lmsEnrollment_testcase extends advanced_testcase{
      * @depends test_get_active_users
      * 
      */
-    public function test_get_semester_data($active_users){
+    public function test_get_semester_data(){
 
         $this->make_dummy_data();
         
-        $this->assertNotEmpty($active_users);
+//        $active_users = $this->sp->get_active_users();
+//        $this->assertNotEmpty($active_users);
         $semesters = $this->sp->get_active_ues_semesters();
         
         //make sure the test data matches what we expect
@@ -459,7 +475,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
     public function test_build_enrollment_tree($sem_data){
 
         $this->make_dummy_data();
-        $test_tree = $this->enrollment->enrollment;
+        
         
         $this->assertTrue($sem_data != false);
         
@@ -467,58 +483,41 @@ class lmsEnrollment_testcase extends advanced_testcase{
         //make sure the test data matches what we expect
         $this->assertEquals(count($this->enrollment->ues_semesters), count($semesters));
         
-        $tree = $this->sp->build_enrollment_tree($semesters);
+        $tree = $this->sp->build_enrollment_tree();
         
-        $this->assertTrue(is_array($tree));
+//        $this->assertTrue(is_array($tree));
         $this->assertNotEmpty($tree);
         
-        $index = array_keys($tree);
+        $index = array_keys($tree->semesters);
         
-        $semester = $tree[$index[0]];
+        $semester = $tree->semesters[$index[0]];
         $this->assertInstanceOf('semester', $semester);
         
-        $this->assertTrue(is_array($semester->sections));
+        $this->assertTrue(is_array($semester->courses));
         
-        foreach($tree as $sem){
+        foreach($tree->semesters as $sem){
             
-            if(!empty($sem->sections)){
-                $index = array_keys($sem->sections);
-                $section = $sem->sections[$index[0]];
-                $this->assertInstanceOf('section', $section);
+            if(!empty($sem->courses)){
+                $index = array_keys($sem->courses);
+                $section = $sem->courses[$index[0]];
+                $this->assertInstanceOf('course', $section);
                 //ensure that test data has been recreated in production structure
                 foreach($this->enrollment->ues_sections as $usec){
-                    $this->assertTrue(array_key_exists($usec['id'], $sem->sections));
+                    $this->assertTrue(array_key_exists($usec['id'], $sem->courses));
                 }
             }
         }
         
         $some_sections = array();
-        foreach($tree as $sem){
-            if(!empty($sem->sections)){
-                $some_sections = array_merge($some_sections, $sem->sections);
+        foreach($tree->semesters as $sem){
+            if(!empty($sem->courses)){
+                $some_sections = array_merge($some_sections, $sem->courses);
             }
         }
         
         $this->assertNotEmpty($some_sections);
         
-        //check for students
-        $users = array();
-        $i=0;
-        foreach($tree as $sem){
-            if(!empty($sem->sections)){
-                foreach($sem->sections as $sec){
-                    if(!empty($sec->users)){
-                        foreach($sec->users as $u){
-                            $users[] = $u;
-                            $i++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        $this->assertNotEmpty($users);
-        $this->assertInstanceof('user', $users[0]);
+
 
         return $tree;
     }
@@ -540,8 +539,13 @@ class lmsEnrollment_testcase extends advanced_testcase{
      */
     public function test_populate_activity_tree($tree){
         $this->make_dummy_data();
-        
+        mtrace('dumping production logs');
+      
         $logs  = $this->sp->get_log_activity();
+//        print_r($this->enrollment->mdl_logs);
+        foreach($this->enrollment->mdl_logs as $log){
+            $this->assertTrue(array_key_exists($log->id, $logs));
+        }
 
         $this->assertNotEmpty($logs);
         $tree = $units = $this->sp->populate_activity_tree($logs, $tree);
