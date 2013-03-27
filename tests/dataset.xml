@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <table name="enrol_ues_courses">
+        <column>id</column>
+        <column>fullname</column>
+        <column>department</column>
+        <column>cou_number</column>
+        <row>
+            <value>2656</value>
+            <value>BIOL1335</value>
+            <value>BIOL</value>
+            <value>1335</value>
+        </row>
+        <row>
+            <value>3613</value>
+            <value>AGRI4009</value>
+            <value>AGRI</value>
+            <value>4009</value>
+        </row>
+    </table>
+    <table name="user">
+        <column>id</column>
+        <column>email</column>
+        <column>idnumber</column>
+        <column>username</column>
+        <row>
+            <value>465</value>
+            <value>student-0@example.com</value>
+            <value>472725024</value>
+            <value>student-0</value>
+        </row>
+        <row>
+            <value>8251</value>
+            <value>student-1@example.com</value>
+            <value>163360288</value>
+            <value>student-1</value>
+        </row>
+        <row>
+            <value>9584</value>
+            <value>student-2@example.com</value>
+            <value>253071515</value>
+            <value>student-2</value>
+        </row>
+        <row>
+            <value>9541</value>
+            <value>student-3@example.com</value>
+            <value>700188683</value>
+            <value>student-3</value>
+        </row>
+    </table>
+    <table name="enrol_ues_students">
+        <column>id</column>
+        <column>userid</column>
+        <column>sectionid</column>
+        <column>credit_hours</column>
+        <column>status</column>
+        <row>
+            <value>1415</value>
+            <value>465</value>
+            <value>7227</value>
+            <value>5</value>
+            <value>enrolled</value>
+        </row>
+        <row>
+            <value>5442</value>
+            <value>465</value>
+            <value>743</value>
+            <value>4</value>
+            <value>enrolled</value>
+        </row>
+        <row>
+            <value>4861</value>
+            <value>9584</value>
+            <value>743</value>
+            <value>5</value>
+            <value>enrolled</value>
+        </row>
+        <row>
+            <value>452</value>
+            <value>8251</value>
+            <value>743</value>
+            <value>5</value>
+            <value>enrolled</value>
+        </row>
+        <row>
+            <value>1413</value>
+            <value>9541</value>
+            <value>743</value>
+            <value>5</value>
+            <value>enrolled</value>
+        </row>
+    </table>
+    <table name="enrol_ues_semesters">
+        <column>id</column>
+        <column>year</column>
+        <column>name</column>
+        <column>campus</column>
+        <column>session_key</column>
+        <column>classes_start</column>
+        <column>grades_due</column>
+        <row>
+            <value>5</value>
+            <value>2013</value>
+            <value>Spring</value>
+            <value>LSU</value>
+            <null/>
+            <value>1363781272</value>
+            <value>1364990872</value>
+        </row>
+    </table>
+    <table name="enrol_ues_sections">
+        <column>id</column>
+        <column>idnumber</column>
+        <column>courseid</column>
+        <column>semesterid</column>
+        <column>sec_number</column>
+        <row>
+            <value>7227</value>
+            <value>BIOL13356099</value>
+            <value>2656</value>
+            <value>5</value>
+            <value>000</value>
+        </row>
+        <row>
+            <value>743</value>
+            <value>AGRI40095354</value>
+            <value>3613</value>
+            <value>5</value>
+            <value>009</value>
+        </row>
+    </table>
+    <table name="course">
+        <column>id</column>
+        <column>idnumber</column>
+        <row>
+            <value>2326</value>
+            <value>BIOL13356099</value>
+        </row>
+        <row>
+            <value>9850</value>
+            <value>AGRI40095354</value>
+        </row>
+    </table>
+    <table name="context">
+        <column>id</column>
+        <column>instanceid</column>
+        <row>
+            <value>2042</value>
+            <value>2326</value>
+        </row>
+        <row>
+            <value>333</value>
+            <value>9850</value>
+        </row>
+    </table>
+    <table name="role_assignments">
+        <column>id</column>
+        <column>roleid</column>
+        <column>userid</column>
+        <column>contextid</column>
+        <row>
+            <value>1</value>
+            <value>5</value>
+            <value>465</value>
+            <value>2042</value>
+        </row>
+        <row>
+            <value>2</value>
+            <value>5</value>
+            <value>465</value>
+            <value>333</value>
+        </row>
+    </table>
+    <table name="log">
+        <column>id</column>
+        <column>time</column>
+        <column>userid</column>
+        <column>course</column>
+        <column>action</column>
+        <row>
+            <!--begin user 465 session 0-->
+            <value>1</value>
+            <value>1364302886</value>
+            <value>465</value>
+            <value>1</value>
+            <value>login</value>
+        </row>
+        <row>
+            <value>2</value>
+            <value>1364302896</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 10-->
+            <value>3</value>
+            <value>1364302906</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 20-->
+            <value>4</value>
+            <value>1364302916</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 30-->
+            <value>5</value>
+            <value>1364302926</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 40-->
+            <value>6</value>
+            <value>1364302936</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--SWITCH courses-->
+            <!--timespent(9850) = 0-->
+            <value>7</value>
+            <value>1364302946</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(9850) = 10-->
+            <value>8</value>
+            <value>1364302956</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(9850) = 20-->
+            <value>9</value>
+            <value>1364302966</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(9850) = 24-->
+            <value>10</value>
+            <value>1364302970</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(9850) = 27-->
+            <value>11</value>
+            <value>1364302973</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--SWITCH courses-->
+            <!--timespent(2326) = 40 (should remain unchanged until next action)-->
+            <value>12</value>
+            <value>1364302975</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 45-->
+            <value>13</value>
+            <value>1364302980</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 58-->
+            <value>14</value>
+            <value>1364302993</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--NEW LOGIN-->
+            <!--lastaccess(2326) should be 1364302993-->
+            <!--lastaccess(9850) should be 1364302973-->
+            <value>15</value>
+            <value>1364303993</value>
+            <value>465</value>
+            <value>1</value>
+            <value>login</value>
+        </row>
+        <row>
+            <!--lastaccess(9850) should be 1364304000-->
+            <value>16</value>
+            <value>1364304000</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(9850) = 37-->
+            <value>17</value>
+            <value>1364304010</value>
+            <value>465</value>
+            <value>9850</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--SWITCH courses-->
+            <value>18</value>
+            <value>1364304020</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+        <row>
+            <!--timespent(2326) = 63-->
+            <value>19</value>
+            <value>1364304025</value>
+            <value>465</value>
+            <value>2326</value>
+            <value>view</value>
+        </row>
+    </table>
+</dataset>

@@ -302,34 +302,37 @@ class lmsEnrollment extends lsuonlinereport{
         }
         
         foreach($datarow as $row){
+            
+            $ues_course = new ues_courses_tbl();
+            $ues_course->cou_number  = $row->cou_number;
+            $ues_course->department  = $row->department;
+
+            $ues_section = new ues_sections_tbl();
+            $ues_section->sec_number = $row->sectionid;
+            $ues_section->id         = $row->ues_sectionid;
+            $ues_section->semesterid = $row->semesterid;
+
+            $mdl_course = new mdl_course();
+            $mdl_course->id    = $row->mdl_courseid;
+
+            $course = new course();
+            $course->mdl_course  = $mdl_course;
+            $course->ues_course  = $ues_course;
+            $course->ues_section = $ues_section;
+            
             if(!array_key_exists($row->studentid, $this->enrollment->students)){
                 $s = new mdl_user();
                 $s->id = $row->studentid;
                 
-                $ues_course = new ues_courses_tbl();
-                $ues_course->cou_number     = $row->cou_number;
-                $ues_course->department  = $row->department;
-
-                $ues_section = new ues_sections_tbl();
-                $ues_section->sec_number = $row->sectionid;
-                $ues_section->id         = $row->ues_sectionid;
-                $ues_section->semesterid = $row->semesterid;
-
-                $mdl_course = new mdl_course();
-                $mdl_course->id    = $row->mdl_courseid;
-
-                $course = new course();
-                $course->mdl_course  = $mdl_course;
-                $course->ues_course  = $ues_course;
-                $course->ues_section = $ues_section;
-                
                 $student = new student();
                 $student->mdl_user = $s;
-                $student->courses = $course;
-                $this->enrollment->students[] = $student;
+                
+                $this->enrollment->students[$student->mdl_user->id] = $student;
             }
+            
+            $this->enrollment->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
         }
-//        die(print_r($this->enrollment->students));
+//        die(print_r($this->enrollment));
         return $this->enrollment->students;
         
     }
@@ -370,96 +373,88 @@ class lmsEnrollment extends lsuonlinereport{
      * take the flat log records and move them into place in the enrollment tree
      * @param array stdClass $logs
      */
-    public function populate_activity_tree($logs, $tree){
-        /**
-         * unless we filter again now, we will clutter the tree with
-         * unwanted section data from the log table
-         */
+    public function populate_activity_tree(){
+        $logs = $this->get_log_activity();
+//die(print_r($this->enrollment));  
         foreach($logs as $log){
-            assert(isset($tree->semesters[$log->semesterid]));
-            if(isset($tree->semesters[$log->semesterid]) and (get_class($tree->semesters[$log->semesterid]) == 'semester')){
-                mtrace(sprintf("found semester %d\n", $log->semesterid));
-                if(isset($tree->semesters[$log->semesterid]->courses[$log->sectionid]) and get_class($tree->semesters[$log->semesterid]->courses[$log->sectionid]) == 'course'){
-                    mtrace(sprintf("found section %d\n", $log->sectionid));
-                    if(isset($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) and (get_class($tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]) == 'user')){
-                        $tree[$log->semesterid]->sections[$log->sectionid]->users[$log->userid]->activity[] = $log;
-                        mtrace(sprintf("adding log %s", print_r($log)));
-                    }
-                }
+            
+            if(array_key_exists($log->userid, $this->enrollment->students)){
+                $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
             }
         }
-//        die(print_r($tree));
-        return $tree;
+        
+        
+        return $this->enrollment;
     }
     
-    public function calculate_time_spent($tree){
+    public function calculate_time_spent(){
 
         global $DB, $CFG;
-        
-        $enrollment = array();
-        assert(!empty($tree));
-        
-        //walk the tree
-        print_r($tree);
-//        die();
-        foreach($tree as $semester){
-            assert(!empty($semester));
-                assert(!empty($semester->sections));
-                foreach($semester->sections as $section){
-                    assert(get_class($section) == 'section');
-                    /**
-                     * begin per-user section timespent calculation
-                     * 
-                     */
-                    foreach($section->users as $user){
-//                        assert(get_class($section) == 'section');
-                        assert(get_class($user) == 'user');
-                        if(empty($user->activity)){
-                            continue;
-                        }else{
-                            /**
-                             * NOTE: we are parsing events as a stream, 
-                             * so order matters; this algorithm assumes that 
-                             * activity records are sorted least to greatest 
-                             */
-                            sort($user->activity);
-                            $accumulator = 0;
-
-                            
-                            foreach($user->activity as $act){
-                                
-                                if($act->action == 'login'){
-                                    $user->time_spent += $accumulator;
-                                    unset($user->last_access);
-                                    $accumulator = 0;
-                                }
-                                
-                                if(!isset($user->last_access)){
-                                    $user->last_access = $act->time;
-                                }else{
-                                    $accumulator += ($act->time - $user->last_access);
-                                    $user->last_access = $act->time;
-                                }
-                                
-                            }
-                            $user->time_spent += $accumulator;
-                            $e= new ap_report_table();
-                            $e->lastaccess = $user->last_access;
-                            $e->sectionid  = $section->id;
-                            $e->semesterid = $semester->id;
-                            $e->agg_timespent  = $user->time_spent;
-                            $e->timestamp  = time();
-                            $e->userid     = $user->id;
-                            $e->id         = $user->apid;
-                            
-                            $enrollment[]  = $e;
-                            
+        if(array_key_exists(465, $this->enrollment->students)){
+            $ap = new ap_report_table();
+            $ap->userid = 465;
+            $ap->sectionid = 7227;
+            $ap->semesterid = 5;
+            
+//            $ap->lastaccess = 1364302936;
+            $this->enrollment->students[465]->courses[2326]->ap_report = $ap;
+        }
+        foreach($this->enrollment->students as $student){
+            $courses = array_keys($student->courses);
+            //just ensure we're are starting with earliest log and moving forward
+            //NOTE assuming that ksort returns log events in the correct order,
+            //chronologically from least to greatest is predicated on the fact
+            //that moodle writes logs with increasing id numbers
+            ksort($student->activity);
+            
+            $current_course;
+            foreach($student->activity as $a){
+                //if we have logs for a course or something we don't know about,
+                //throw it out
+                if(!in_array($a->course, $courses) and !($a->action == 'login')){
+                    mtrace(sprintf("no match for log key %s in courses; not login, skipping...", $a->course));
+                    continue;
+                }
+                //set up the record to hold the data we are about to calculate
+                if(!isset($student->courses[$a->course]->ap_report)){
+                    $student->courses[$a->course]->ap_report = new ap_report_table();
+                }
+                
+                $ap = $student->courses[$a->course]->ap_report;
+                
+                $ap->userid = $student->mdl_user->id;
+                $ap->semesterid = $student->courses[$a->course]->ues_section->semesterid;
+                $ap->sectionid = $student->courses[$a->course]->ues_section->id;
+                $this->enrollment->students[$student->mdl_user->id]->courses[$a->course]->ap_report = $ap;
+                
+                //handle login events
+                if($a->action == 'login'){
+                    foreach($this->enrollment->students[$student->mdl_user->id]->courses as $c){
+                        if(isset($c->ap_report)){
+                            $c->ap_report->last_caountable = null;
                         }
                     }
+                    $current_course = null;
+                    mtrace("handling login event");
                 }
+                //now calculate values:
+                if(!isset($current_course)){
+                    $current_course = $a->course;
+                    $ap->lastaccess = $a->time;
+                    $ap->last_countable = $a->time;
+                }elseif ($current_course == $a->course) { //continuation
+                    $ap->agg_timespent += ($a->time - $ap->lastaccess);
+                    $ap->last_countable = $ap->lastaccess = $a->time;
+                }else{ // implies $current is set and NOT equal to the current $a->course
+                    $this->enrollment->students[$student->mdl_user->id]->courses[$current_course]->ap_report->last_countable = null;
+                    $ap->last_countable = $ap->lastaccess = $a->time;
+                    $current_course = $a->course;
+                }
+                
             }
-
-        return $enrollment;
+            (print_r($this->enrollment));
+        }
+        return $this->enrollment;
     }
     
     
@@ -799,29 +794,7 @@ class user{
     public $activity;//log records
 }
 
-/**
- * models the structure of the corresponding db table
- */
-class ap_report_table{
-//    public $user; //a user isntance
-    public $lastaccess;     //timest
-    public $agg_timespent;  //int
-    public $cum_timespent;  //int
-    public $semesterid;     //ues semester id
-    public $sectionid;      //unique ues section id
-    public $userid;         //mdl user id
-    public $timestamp;      //time()
-    
-    public function __construct($id, $sid, $ats, $cts, $last, $ts, $sem){
-        $this->userid = $id;
-        $this->sectionid = $sid;
-        $this->agg_timespent = $ats;
-        $this->cum_timespent = $cts;
-        $this->lastaccess = $last;
-        $this->timestamp = $ts;
-        $this->semesterid = $sem;
-    }
-}
+
 
 class engagementReport extends lsuonlinereport{
     public function buildXML($records) {

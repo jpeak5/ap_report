@@ -16,6 +16,30 @@ class tbl_model{
     }
 }
 
+
+/**
+ * models the structure of the corresponding db table
+ */
+class ap_report_table extends tbl_model{
+//    public $user; //a user isntance
+    public $lastaccess;     //timest
+    public $agg_timespent;  //int
+    public $cum_timespent;  //int
+    public $semesterid;     //ues semester id
+    public $sectionid;      //unique ues section id
+    public $userid;         //mdl user id
+    public $timestamp;      //time()
+    
+//    public function __construct($id, $sid, $ats, $cts, $last, $ts, $sem){
+//        $this->userid = $id;
+//        $this->sectionid = $sid;
+//        $this->agg_timespent = $ats;
+//        $this->cum_timespent = $cts;
+//        $this->lastaccess = $last;
+//        $this->timestamp = $ts;
+//        $this->semesterid = $sem;
+//    }
+}
 /**
  * models the table definition for ues_students
  */
@@ -216,6 +240,8 @@ class course extends tbl_model{
     public $students;
     public $role_assignments;
     public $contexts;
+    public $mdl_logs;
+    public $ap_report;
     
     public static function instantiate($params){
         $inst = new self();
