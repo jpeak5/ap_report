@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lmsEnrollments university="002010">
+    <lmsEnrollment>
+        <enrollmentId>1332132132107101001</enrollmentId>
+        <studentId>370775033</studentId>
+        <courseId>CSC 7101</courseId>
+        <sectionId>001</sectionId>
+        <startDate>01/14/2013</startDate>
+        <endDate>05/25/2013</endDate>
+        <status>A</status>
+        <lastCourseAccess>03/19/2013</lastCourseAccess>
+        <timeSpentInClass>80</timeSpentInClass>
+        <extensions/>
+    </lmsEnrollment>
+    <lmsEnrollment>
+        <enrollmentId>1332132132107505001</enrollmentId>
+        <studentId>370775033</studentId>
+        <courseId>LIS 7505</courseId>
+        <sectionId>001</sectionId>
+        <startDate>01/14/2013</startDate>
+        <endDate>05/25/2013</endDate>
+        <status>A</status>
+        <lastCourseAccess>03/19/2013</lastCourseAccess>
+        <timeSpentInClass>5</timeSpentInClass>
+        <extensions/>
+    </lmsEnrollment>
+</lmsEnrollments>
+
+git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch tests/newXMLDocument.xml' --prune-empty --tag-name-filter cat -- --all
