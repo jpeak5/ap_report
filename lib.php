@@ -38,6 +38,11 @@ class lmsEnrollment extends lsuonlinereport{
     
         public $active_semesters;
         public $active_users;
+        /**
+         *
+         * @var enrollment_model 
+         */
+        public $enrollment;
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
@@ -46,6 +51,7 @@ class lmsEnrollment extends lsuonlinereport{
     public function __construct(){
         
         list($this->start, $this->end) = self::get_yesterday();
+        $this->enrollment = new enrollment_model();
     }
     
     /**
@@ -88,7 +94,13 @@ class lmsEnrollment extends lsuonlinereport{
                                                 grades_due > ?'
                                         , array($time,$time));
 
-        return $this->active_semesters = $semesters;
+        $s = array();
+        foreach($semesters as $semester){
+            $obj = semester::instantiate(array('ues_semester'=>$semester));
+            $s[$obj->ues_semester->id] = $obj;
+        }
+        
+        return $this->enrollment->semesters = $s;
     }
     
 
@@ -209,25 +221,10 @@ class lmsEnrollment extends lsuonlinereport{
         assert(!empty($this));
 
         //define the root of the tree
-        $tree = new enrollment_model();
-        
-        $semesters = $this->get_active_ues_semesters();
-        
-        //populate the first level of the tree
-        foreach($semesters as $semester){
-            
-            $usem = ues_semester_tbl::instantiate($semester);
-            //usually, there will be only one semester, 
-            //so there is no need for the check
-            if(is_array($tree->semesters)){
-                assert(!array_key_exists($usem->id, $tree->semesters));
-            }
-            $s = semester::instantiate(array('ues_semester'=>$usem));
-            $tree->semesters[$s->ues_semester->id] = $s;
-        }
-        
+        $tree = $this->enrollment;
+
         //put enrollment records into semester arrays
-        $enrollments = $this->get_semester_data(array_keys($semesters));
+        $enrollments = $this->get_semester_data(array_keys($this->enrollment->semesters));
         //@TODO what hapens if this is empty???
         if(empty($enrollments)){
             return false;
@@ -295,6 +292,47 @@ class lmsEnrollment extends lsuonlinereport{
         return $tree;
     }    
 
+    public function build_user_tree(){
+        assert(!empty($this->enrollment->semesters));
+        
+        $datarow = $this->get_semester_data(array_keys($this->enrollment->semesters));
+        
+        if(empty($this->enrollment->students)){
+            $this->enrollment->students = array();
+        }
+        
+        foreach($datarow as $row){
+            if(!array_key_exists($row->studentid, $this->enrollment->students)){
+                $s = new mdl_user();
+                $s->id = $row->studentid;
+                
+                $ues_course = new ues_courses_tbl();
+                $ues_course->cou_number     = $row->cou_number;
+                $ues_course->department  = $row->department;
+
+                $ues_section = new ues_sections_tbl();
+                $ues_section->sec_number = $row->sectionid;
+                $ues_section->id         = $row->ues_sectionid;
+                $ues_section->semesterid = $row->semesterid;
+
+                $mdl_course = new mdl_course();
+                $mdl_course->id    = $row->mdl_courseid;
+
+                $course = new course();
+                $course->mdl_course  = $mdl_course;
+                $course->ues_course  = $ues_course;
+                $course->ues_section = $ues_section;
+                
+                $student = new student();
+                $student->mdl_user = $s;
+                $student->courses = $course;
+                $this->enrollment->students[] = $student;
+            }
+        }
+//        die(print_r($this->enrollment->students));
+        return $this->enrollment->students;
+        
+    }
     
 /*----------------------------------------------------------------------------*/    
 /*                              Calculate Time Spent                          */    

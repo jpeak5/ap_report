@@ -434,12 +434,19 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $unit = array_pop($vals);
         
 //        $this->assertInstanceOf('semester', $unit);
-        $this->assertNotEmpty($unit->name);
-        $this->assertNotEmpty($unit->year);
-        $this->assertNotEmpty($unit->id);
-        $this->assertTrue(is_numeric($unit->id));
+        $this->assertNotEmpty($unit->ues_semester->name);
+        $this->assertNotEmpty($unit->ues_semester->year);
+        $this->assertNotEmpty($unit->ues_semester->id);
+        $this->assertTrue(is_numeric($unit->ues_semester->id));
         
         return $foo;
+    }
+    
+    public function test_build_user_tree(){
+        $this->make_dummy_data();
+        $semesters = $this->sp->get_active_ues_semesters();
+        $units = $this->sp->build_user_tree();
+        $this->assertTrue(!empty($units));
     }
 
     
@@ -537,23 +544,23 @@ class lmsEnrollment_testcase extends advanced_testcase{
      * 
      * @depends test_build_enrollment_tree
      */
-    public function test_populate_activity_tree($tree){
-        $this->make_dummy_data();
-        mtrace('dumping production logs');
-      
-        $logs  = $this->sp->get_log_activity();
-//        print_r($this->enrollment->mdl_logs);
-        foreach($this->enrollment->mdl_logs as $log){
-            $this->assertTrue(array_key_exists($log->id, $logs));
-        }
-
-        $this->assertNotEmpty($logs);
-        $tree = $units = $this->sp->populate_activity_tree($logs, $tree);
-        $this->assertTrue($units != false);
-        $this->assertTrue(is_array($units));
-        $this->assertNotEmpty($units);
-        return $tree;
-    }
+//    public function test_populate_activity_tree($tree){
+//        $this->make_dummy_data();
+//        mtrace('dumping production logs');
+//      
+//        $logs  = $this->sp->get_log_activity();
+////        print_r($this->enrollment->mdl_logs);
+//        foreach($this->enrollment->mdl_logs as $log){
+//            $this->assertTrue(array_key_exists($log->id, $logs));
+//        }
+//
+//        $this->assertNotEmpty($logs);
+//        $tree = $units = $this->sp->populate_activity_tree($logs, $tree);
+//        $this->assertTrue($units != false);
+//        $this->assertTrue(is_array($units));
+//        $this->assertNotEmpty($units);
+//        return $tree;
+//    }
     
     /**
      * @depends test_populate_activity_tree
