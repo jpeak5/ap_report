@@ -423,15 +423,7 @@ class lmsEnrollment extends lsuonlinereport{
     public function calculate_time_spent(){
 
         global $DB, $CFG;
-        if(array_key_exists(465, $this->enrollment->students)){
-            $ap = new ap_report_table();
-            $ap->userid = 465;
-            $ap->sectionid = 7227;
-            $ap->semesterid = 5;
-            
-//            $ap->lastaccess = 1364302936;
-            $this->enrollment->students[465]->courses[2326]->ap_report = $ap;
-        }
+
         foreach($this->enrollment->students as $student){
             $courses = array_keys($student->courses);
             //just ensure we're are starting with earliest log and moving forward
@@ -522,6 +514,7 @@ class lmsEnrollment extends lsuonlinereport{
                     echo sprintf("start = %s, end = %s", $this->start, $this->end);
 //                    echo sprintf("config start is set as %s", get_config('local_apreport_range_start'));
 //                    die(print_r($course->ap_report));
+//                    die(print_r($this->enrollment));
                     $inserts[] = $DB->insert_record('apreport_enrol', $course->ap_report, true, true);
                 }
                 
