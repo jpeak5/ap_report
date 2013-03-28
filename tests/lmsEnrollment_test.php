@@ -605,12 +605,12 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertEquals(7227,$ap->sectionid);
         $this->assertEquals(5,$ap->semesterid);
         
-        $this->assertEquals(1364304025,$ap->lastaccess);
+        $this->assertEquals(1364384025,$ap->lastaccess);
         $this->assertEquals(63,$ap->agg_timespent);
         
         $ap2 = $enr->students[465]->courses[9850]->ap_report;
         $this->assertEquals(37, $ap2->agg_timespent);
-        $this->assertEquals(1364304010, $ap2->lastaccess);
+        $this->assertEquals(1364384010, $ap2->lastaccess);
     }
     
 
@@ -638,137 +638,116 @@ class lmsEnrollment_testcase extends advanced_testcase{
 ////    }
 ////    
 ////
-//    /**
-//     * @depends test_populate_activity_tree
-//     */
-//    public function test_save_enrollment_activity_records($tree){
-//        global $DB;
-//        $this->resetAfterTest(true);
-//        $this->make_dummy_data();
-//        
-//        $records = $this->sp->calculate_time_spent($tree);
-//        
-//        $result = $this->sp->save_enrollment_activity_records($records);
-//        $this->assertEmpty($result);
-//        
-//        $activity_records = $DB->get_records('apreport_enrol');
-//        print_r($activity_records);
-//        foreach($activity_records as $ar){
-//            if($ar->userid = 354){
-//                $this->assertEquals(20, $ar->agg_timespent);
-//            }
-//            
-//            if($ar->userid = 654){
-//                $this->assertEquals(30, $ar->agg_timespent);
-//            }
-//        }
-//        
-//        
-//        return $result;
-//    }
+    /**
+
+     */
+    public function test_save_enrollment_activity_records(){
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->make_dummy_data();
+        $semesters = $this->sp->get_active_ues_semesters();
+        $this->sp->get_semester_data(array_keys($semesters));
+        $this->sp->build_user_tree();
+        $this->sp->populate_activity_tree();
+        $this->sp->calculate_time_spent();
+        $inserts = $this->sp->save_enrollment_activity_records();
+        $this->assertTrue(is_array($inserts));
+        $this->assertNotEmpty($inserts);
+        
+        $records = $DB->get_records_list('apreport_enrol', 'userid', $inserts);
+        
+        foreach($records as $record){
+            if($record->userid == 465){
+                if($record->sectionid == 7227){
+                    $this->assertEquals(1364304025,$record->lastaccess);
+                }elseif($record->sectionid == 743){
+                    $this->assertEquals(37, $record->agg_timespent);
+                }
+            }
+        }  
+    }
 ////    
 ////
 //// /*----------------------------------------------------------------------------*/   
 ////    
 ////
-////    /**
-////     * @depends test_save_enrollment_activity_records
-////     * @return type
-////     */
-////    public function test_get_enrollment_activity_records($result){
-////        
-////        
-//////        die('git here');
-////        
-////        
-////            $units = $this->sp->get_enrollment_activity_records();
-////            $this->assertTrue($units != false, sprintf("No activity records were returned; check to be sure that someone has done something in some course..."));
-////            $this->assertTrue(is_array($units));
-////            $this->assertNotEmpty($units);
-////            $keys = array_keys($units);
-////
-////            foreach($units as $unit){
-////                $unit = new lmsEnrollmentRecord($units[$keys[0]]);
-////                $unit->validate();
-////                $this->assertInstanceOf('lmsEnrollmentRecord',$unit);
-////                $this->assertGreaterThanOrEqual(0,$unit->timeSpentInClass);
-////    //            $this->assertTrue($unit->endDate != '12/31/1969');
-////    //            $this->assertTrue($unit->startDate != '12/31/1969');
-////    //            print_r($unit);
-////            }
-////
-////            return $units;
-////
-////    }
-////    
-////    /**
-////     * @depends test_get_enrollment_activity_records
-////     */
-////    public function test_get_enrollment_xml($records){
-////
-////        $this->assertTrue(is_array($records));
-////        $this->assertNotEmpty($records);
-////        
-////        $xml = $this->sp->buildXML($records);
-////        $this->assertTrue($xml->schemaValidate('tests/lmsEnrollment.xsd'));        
-////    }
-////    
-////    /**
-////     * @depends test_get_enrollment_activity_records
-////     */
-////    public function test_transform_year($records){
-////
-////    }
-////    
-////    /**
-////     * test everything
-////     */
-////    public function test_survey_enrollment(){
-////        $this->resetAfterTest(true);
-////        
-////        $en = $this->sp;
-////        
-////        
-////        
-////        $semesters = $en->get_active_ues_semesters();
-////        $this->assertTrue($semesters != false);
-////        $this->assertTrue(is_array($semesters));
-////        $this->assertNotEmpty($semesters);
-////        
-////        $tree1 = $en->build_enrollment_tree($semesters);
-////        $this->assertNotEmpty($tree1);
-////        
-////        $logs = $this->sp->get_log_activity();
-////        $this->assertNotEmpty($logs);
-////        
-////        $tree2 = $en->populate_activity_tree($logs,$tree1);
-////        $this->assertNotEmpty($tree2);
-////        
-////        $records = $en->calculate_time_spent($tree2);
-////        $this->assertNotEmpty($records);
-////        
-////        
-////        
-////        
-////        $this->assertTrue($records != false);
-////        $this->assertTrue(is_array($records));
-////        $this->assertNotEmpty($records);
-////        
-////        $errors = $en->save_enrollment_activity_records($records);
-////        $this->assertEmpty($errors);
-////        
-////    }
-////
-////    public function test_write_file(){
-////        global $CFG;
-////        $file = $CFG->dataroot.'/test.txt';
-////        $handle = fopen($file, 'a');
-////        $this->assertTrue($handle !=false);
-////        $this->assertGreaterThan(0,fwrite($handle, 'hello world!'));
-////        fclose($handle);
-////        
-////        
-////    }
+    /**
+     * 
+     */
+    public function test_get_enrollment_activity_records(){
+        
+        $this->resetAfterTest(true);
+        
+        $semesters = $this->sp->get_active_ues_semesters();
+        $this->sp->get_semester_data(array_keys($semesters));
+        $this->sp->build_user_tree();
+        $this->sp->populate_activity_tree();
+        $this->sp->calculate_time_spent();
+        $this->sp->save_enrollment_activity_records();
+        
+        $units = $this->sp->get_enrollment_activity_records();
+        $this->assertTrue($units != false, sprintf("No activity records were returned; check to be sure that someone has done something in some course..."));
+        $this->assertTrue(is_array($units));
+        $this->assertNotEmpty($units);
+        $keys = array_keys($units);
+
+        foreach($units as $unit){
+            $unit = new lmsEnrollmentRecord($units[$keys[0]]);
+            $unit->validate();
+            $this->assertInstanceOf('lmsEnrollmentRecord',$unit);
+            $this->assertGreaterThanOrEqual(0,$unit->timeSpentInClass);
+//            $this->assertTrue($unit->endDate != '12/31/1969');
+//            $this->assertTrue($unit->startDate != '12/31/1969');
+//            print_r($unit);
+        }
+
+        return $units;
+
+    }
+    
+    /**
+     * @depends test_get_enrollment_activity_records
+     */
+    public function test_get_enrollment_xml($records){
+        
+        $this->assertTrue(is_array($records));
+        $this->assertNotEmpty($records);
+        
+        $xml = $this->sp->buildXML($records);
+        $this->assertTrue($xml->schemaValidate('tests/lmsEnrollment.xsd'));      
+        
+        return $xml;
+    }
+    
+//    /**
+//     * @depends test_get_enrollment_activity_records
+//     */
+//    public function test_transform_year($records){
+//
+//    }
+    
+
+    /**
+     * @depends test_get_enrollment_xml
+     * @global type $CFG
+     */
+    public function test_write_file($xml){
+        global $CFG;
+        $file = $CFG->dataroot.'/test.txt';
+        $handle = fopen($file, 'a');
+        $this->assertTrue($handle !=false);
+        $this->assertGreaterThan(0,fwrite($handle, $xml->saveXML()));
+        print_r($xml->saveXML());
+        fclose($handle);
+  
+    }
+    
+    public function test_get_enrollment(){
+
+        $got_data = $this->sp->get_enrollment();
+        $this->assertTrue($got_data);
+    }
+    
 //
 //    public function test_reset_agg_timespent(){
 //        global $DB;
@@ -831,11 +810,18 @@ class lmsEnrollment_testcase extends advanced_testcase{
 //        $this->assertTrue($result);
 //    }
 //        
-//    public function test_run(){
-//        
-//        $success = lmsEnrollment::run();
-//        $this->assertTrue($success);
-//    }
+    public function test_run(){
+        global $CFG;
+        $xml = lmsEnrollment::run();
+        $this->assertInstanceOf('DOMDocument', $xml);
+        $this->assertNotEmpty($xml->schemaValidate('tests/lmsEnrollment.xsd'));
+        
+        $this->assertNotEmpty($CFG->apreport_job_start);
+        $this->assertNotEmpty($CFG->apreport_job_complete);
+        
+        $this->assertGreaterThan($CFG->apreport_job_start,$CFG->apreport_job_complete);
+        
+    }
 }
 
 

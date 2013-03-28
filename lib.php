@@ -43,14 +43,47 @@ class lmsEnrollment extends lsuonlinereport{
          * @var enrollment_model 
          */
         public $enrollment;
+        
+        /**
+         *
+         * @var int unix timestamp for the beginning of an ad hoc reporting timespan 
+         */
+        public $range_start;
+        
+        /**
+         *
+         * @var int unix timestamp for the end of an ad hoc reporting timespan 
+         */
+        public $range_end;
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
     
     public function __construct(){
-        
-        list($this->start, $this->end) = self::get_yesterday();
+        global $CFG;
+//        die($CFG->local_apreport_range_start);
+        $range_start = isset($CFG->local_apreport_range_start) ? $CFG->local_apreport_range_start : null;
+        $range_end   = isset($CFG->local_apreport_range_end)   ? $CFG->local_apreport_range_end   : null;
+        mtrace(sprintf("range values are set as %s, %s", $range_start, $range_end));
+        if(isset($range_start)){
+            $this->start = $range_start;
+            mtrace("unsetting local_apreport_range_start");
+            set_config('local_apreport_range_start', null);
+            
+            if(isset($range_end) and is_int($range_end)){
+                $this->end = $range_end;
+                set_config('local_apreport_range_end', null);
+            }else{
+                $this->end = time();
+            }
+            
+        }else{
+            
+            list($this->start, $this->end) = self::get_yesterday();
+            mtrace("using defaults");
+        }
+        mtrace(sprintf("using following values for job: %s, %s", $this->start, $this->end));
         $this->enrollment = new enrollment_model();
     }
     
@@ -199,8 +232,8 @@ class lmsEnrollment extends lsuonlinereport{
         
         $rows = $DB->get_records_sql($sql);
         
-        mtrace("dumping semester data sql");
-        print_r($rows);
+//        mtrace("dumping semester data sql");
+//        print_r($rows);
 //        die($sql);
         return count($rows) > 0 ? $rows : false;
     }
@@ -288,7 +321,7 @@ class lmsEnrollment extends lsuonlinereport{
                     $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
                 }
         }
-        print_r($tree);
+//        print_r($tree);
         return $tree;
     }    
 
@@ -452,7 +485,7 @@ class lmsEnrollment extends lsuonlinereport{
                 }
                 
             }
-            (print_r($this->enrollment));
+//            (print_r($this->enrollment));
         }
         return $this->enrollment;
     }
@@ -463,27 +496,7 @@ class lmsEnrollment extends lsuonlinereport{
 /*                              Persist Data                                  */    
 /*----------------------------------------------------------------------------*/    
 
-    /**
-     * Relies on $this->tree having already been populated
-     * @global type $DB
-     * @return \lsureports_lmsenrollment_record
-     */
-//    public function prepare_enrollment_activity_records(){
-//        global $DB;
-//        
-//        $activity_logs = $this->get_log_activity();
-//        $this->populate_activity_tree($activity_logs);
-//
-//        $activity = array();
-//        
-//        foreach($sorted_logs as $log => $user_rec){
-//            foreach($user_rec as $enrolment_rec){
-//                $activity[] = $enrolment_rec;
-//            }
-//        }
-//    return $activity;
-//
-//    }
+
     
     
     
@@ -495,25 +508,28 @@ class lmsEnrollment extends lsuonlinereport{
      * @param array $records of type lmsEnrollmentRecord
      * @return array errors
      */
-    public function save_enrollment_activity_records($records){
+    public function save_enrollment_activity_records(){
         
         global $DB;
-        $errors = array();
-        foreach($records as $record){
-            $record->timestamp = time();
-            if(!isset($record->semesterid) or !isset($record->sectionid)){
-                continue;
+        $inserts = array();
+        foreach($this->enrollment->students as $student){
+            foreach($student->courses as $course){
+                if(!isset($course->ap_report)){
+                    continue;
+                }else{
+                    $course->ap_report->timestamp = time();
+                    echo "<hr/>";
+                    echo sprintf("start = %s, end = %s", $this->start, $this->end);
+//                    echo sprintf("config start is set as %s", get_config('local_apreport_range_start'));
+//                    die(print_r($course->ap_report));
+                    $inserts[] = $DB->insert_record('apreport_enrol', $course->ap_report, true, true);
+                }
+                
             }
-            if(!isset($record->id)){
-                $result = $DB->insert_record('apreport_enrol', $record, true, true);
-            }else{
-                $result = $DB->update_record('apreport_enrol', $record, true, true);
-            }
-            if(false == $result){
-                $errors[] = $record->id;
-            }
+            
         }
-        return $errors;
+        return $inserts;
+        
     }
     
 /*----------------------------------------------------------------------------*/    
@@ -530,7 +546,7 @@ class lmsEnrollment extends lsuonlinereport{
      * @return array stdClass | false if no rows are returned
      */
     public function get_enrollment_activity_records(){
-
+        
         global $DB;
         $sql = vsprintf("SELECT len.id AS enrollmentid
                 , len.userid
@@ -543,34 +559,36 @@ class lmsEnrollment extends lsuonlinereport{
                 , usem.session_key
                 , usem.classes_start AS startdate
                 , usem.grades_due AS enddate
-                , sum(len.timespent) AS timespent
+                , agg_timespent AS timespent
                 , len.lastaccess 
                 , ucourse.department AS department
                 , ucourse.cou_number AS coursenumber
                 , usect.sec_number AS sectionid
                 , 'A' as status
                 , NULL AS extensions
-                FROM mdl_apreport_enrol len
-                    LEFT JOIN mdl_user u
+                FROM {apreport_enrol} len
+                    LEFT JOIN {user} u
                         on len.userid = u.id
-                    LEFT JOIN mdl_enrol_ues_sections usect
+                    LEFT JOIN {enrol_ues_sections} usect
                         on len.sectionid = usect.id
-                    LEFT JOIN mdl_course c
+                    LEFT JOIN {course} c
                         on usect.idnumber = c. idnumber
-                    LEFT JOIN mdl_enrol_ues_courses ucourse
+                    LEFT JOIN {enrol_ues_courses} ucourse
                         on usect.courseid = ucourse.id
-                    LEFT JOIN mdl_enrol_ues_semesters usem
+                    LEFT JOIN {enrol_ues_semesters} usem
                         on usect.semesterid = usem.id
                 WHERE 
-                    len.timestamp > %s and len.timestamp <= %s
+                    len.lastaccess > %s and len.lastaccess <= %s
                 GROUP BY len.sectionid"
-                ,array($this->report_start, $this->report_end)
+                ,array($this->start, $this->end)
                 );
-//        die($sql);
+        
         $enrollments = $DB->get_records_sql($sql);
-//        die(strftime('%F %T',$start)."--".strftime('%F %T',$end));
-//        echo sprintf("using %s and %s as start and end", $start, $end);
 //        print_r($enrollments);
+        
+          print(strftime('%F %T',$this->start)."--".strftime('%F %T',$this->end)."\n".$sql);
+//        echo sprintf("using %s and %s as start and end", $start, $end);
+
         return count($enrollments) > 0 ? $enrollments : false;
     }
     
@@ -635,38 +653,38 @@ class lmsEnrollment extends lsuonlinereport{
      * Further, this method invokes a 
      * re-scanning of mdl_log and the calculation of latest data
      */
-    public function survey_enrollment(){
-
-        $semesters = $this->get_active_ues_semesters();
-        mtrace("getting active semesters\n");
-        
-        $tree = $this->build_enrollment_tree();
-        mtrace("building enrollment tree\n");
-        
-        $logs = $this->get_log_activity();
-        
-        $tree = $this->populate_activity_tree($logs, $tree);
-        
-        $records = $this->calculate_time_spent($tree);
-        
-//        $records = $this->prepare_enrollment_activity_records();
-        $errors = $this->save_enrollment_activity_records($records);
-        if($records == false){
-            return "no records";
-        }
-        if(!empty($errors)){
-            echo sprintf("got errors %s", print_r($errors));
-        }else{
-            $xml = $this->get_enrollment_xml();
-            if($this->create_file($xml)){
-                return $xml;
-            }else{
-                return "error saving file";
-            }
-            
-        }
-                
-    }
+//    public function survey_enrollment(){
+//
+//        $semesters = $this->get_active_ues_semesters();
+//        mtrace("getting active semesters\n");
+//        
+//        $tree = $this->build_enrollment_tree();
+//        mtrace("building enrollment tree\n");
+//        
+//        $logs = $this->get_log_activity();
+//        
+//        $tree = $this->populate_activity_tree($logs, $tree);
+//        
+//        $records = $this->calculate_time_spent($tree);
+//        
+////        $records = $this->prepare_enrollment_activity_records();
+//        $errors = $this->save_enrollment_activity_records($records);
+//        if($records == false){
+//            return "no records";
+//        }
+//        if(!empty($errors)){
+//            echo sprintf("got errors %s", print_r($errors));
+//        }else{
+//            $xml = $this->get_enrollment_xml();
+//            if($this->create_file($xml)){
+//                return $xml;
+//            }else{
+//                return "error saving file";
+//            }
+//            
+//        }
+//                
+//    }
     
     
     /**
@@ -677,7 +695,7 @@ class lmsEnrollment extends lsuonlinereport{
         
         $records = $this->get_enrollment_activity_records();
         $xml = $this->buildXML($records);
-        return $xml->saveXML();
+        return $xml;
     }
     
     
@@ -687,53 +705,82 @@ class lmsEnrollment extends lsuonlinereport{
      * sense that the old file, if exists, will be overwritten WITHOUT
      * warning. This is by design, as we never want more than 
      * one disk copy of this data around.
+     * 
+     * @param DOMDocument $contents
      */
     public function create_file($contents)  {
         
         global $CFG;
-        $file = $CFG->dataroot.'/test.txt';
+        $fname = isset($CFG->apreport_enrol_xml) ? $CFG->apreport_enrol_xml.'.xml' : 'enrollment.xml';
+        $file = $CFG->dataroot.$fname;
         $handle = fopen($file, 'w');
         assert($handle !=false);
-        $success = fwrite($handle, $contents);
+        $success = fwrite($handle, $contents->saveXML());
         fclose($handle);
         return $success ? true : false;
    
     }
     
     
-    public function update_timespent($record){
-        $record->cum_timespent += $record->agg_timespent;
-        return $record;
+//    public function update_timespent($record){
+//        $record->cum_timespent += $record->agg_timespent;
+//        return $record;
+//    }
+//    
+//    public function reset_agg_timespent($record){
+//        $record->agg_timespent = 0;
+//        return $record;
+//    }
+//    
+//    public function update_reset_db(){
+//        global $DB;
+//        $timespent_records = $DB->get_records('apreport_enrol');
+//        $error = 0;
+//        foreach($timespent_records as $record){
+//            $updated = $this->update_timespent($record);
+//            $reset   = $this->reset_agg_timespent($updated);
+//            $success = $DB->update_record('apreport_enrol', $reset, false);
+//            if($success != true){
+//                $error++;
+//            }
+//            return $error > 0 ? false : true;
+//        }
+//
+//        return $error == 0 ? true : false;
+//    }
+    
+    public function get_enrollment(){
+        $semesters = $this->get_active_ues_semesters();
+        if(empty($semesters)){
+            return false;
+        }
+        $data = $this->get_semester_data(array_keys($semesters));
+        if(!$data){
+            return false;
+        }
+        $this->build_user_tree();
+        $this->populate_activity_tree();
+        $this->calculate_time_spent();
+        return true;
+
     }
     
-    public function reset_agg_timespent($record){
-        $record->agg_timespent = 0;
-        return $record;
-    }
-    
-    public function update_reset_db(){
-        global $DB;
-        $timespent_records = $DB->get_records('apreport_enrol');
-        $error = 0;
-        foreach($timespent_records as $record){
-            $updated = $this->update_timespent($record);
-            $reset   = $this->reset_agg_timespent($updated);
-            $success = $DB->update_record('apreport_enrol', $reset, false);
-            if($success != true){
-                $error++;
-            }
-            return $error > 0 ? false : true;
+    public function save_enrollment_data(){
+        $inserts = $this->save_enrollment_activity_records();
+        if(!$inserts){
+            return false;
         }
         
+        $xml = $this->get_enrollment_xml();
+        if(empty($xml)){
+           return false; 
+        }
         
+        if(!$this->create_file($xml)){
+            return false;
+        }
         
-        
-        
-        return $error == 0 ? true : false;
-    }
-    
-    public function calculate_ts(){
-        return true;
+        return $xml;
     }
     
     public function make_output(){
@@ -741,22 +788,23 @@ class lmsEnrollment extends lsuonlinereport{
     }
     
     public static function run(){
-        $enrol = new lmsEnrollment();
-        $db_ok = $enrol->update_reset_db();
-        if(!$db_ok){
-            die("db update not ok");
+        global $CFG, $DB;
+        
+        set_config('apreport_job_start', microtime(true));
+        
+        $enrollment = new self();
+        if(!$enrollment->get_enrollment()){
+            return false;
         }
         
-        $calc_ok = $enrol->calculate_ts();
-        if(!$calc_ok){
-            die("calc not ok!");
+        $xml = $enrollment->save_enrollment_data();
+        
+        if(!$xml){
+            return false;
         }
         
-        $make_out = $enrol->make_output();
-        if(!$make_out){
-            die("error making output file");
-        }
-        return true;
+        set_config('apreport_job_complete', microtime(true));
+        return $xml;
     }
     
 

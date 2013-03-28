@@ -17,11 +17,10 @@ if(is_siteadmin($USER)){
     
     echo html_writer::tag('h2', 'Current Enrollment');
 //    echo html_writer::tag('a', );
-    $report->survey_enrollment();
-    echo html_writer::tag('textarea', $report->get_enrollment_xml()->saveXML(),array('cols'=>80, 'rows'=>120));
-    if($report->create_file($report->get_enrollment_xml())){
-        redirect('/admin/settings.php?section=local_lsuonlinereport_settings_page', 'File saved successfuly');
-    }
+//    $report->survey_enrollment();
+    $xml = $report->run();
+    echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>80, 'rows'=>120));
+
 }else{
     /**
      * @TODO fix the link to point at site root
