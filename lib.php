@@ -65,11 +65,11 @@ class lmsEnrollment extends lsuonlinereport{
 //        die($CFG->local_apreport_range_start);
         $range_start = isset($CFG->local_apreport_range_start) ? $CFG->local_apreport_range_start : null;
         $range_end   = isset($CFG->local_apreport_range_end)   ? $CFG->local_apreport_range_end   : null;
-        mtrace(sprintf("range values are set as %s, %s", $range_start, $range_end));
+//        mtrace(sprintf("range values are set as %s, %s", $range_start, $range_end));
         if(isset($range_start)){
             $this->start = $range_start;
-            mtrace("unsetting local_apreport_range_start");
-            set_config('local_apreport_range_start', null);
+//            mtrace("unsetting local_apreport_range_start");
+//            set_config('local_apreport_range_start', null);
             
             if(isset($range_end) and is_int($range_end)){
                 $this->end = $range_end;
@@ -81,9 +81,9 @@ class lmsEnrollment extends lsuonlinereport{
         }else{
             
             list($this->start, $this->end) = self::get_yesterday();
-            mtrace("using defaults");
+//            mtrace("using defaults");
         }
-        mtrace(sprintf("using following values for job: %s, %s", $this->start, $this->end));
+//        mtrace(sprintf("using following values for job: %s, %s", $this->start, $this->end));
         $this->enrollment = new enrollment_model();
     }
     
@@ -207,7 +207,7 @@ class lmsEnrollment extends lsuonlinereport{
                 c.id AS mdl_courseid,
                 us.id AS ues_sectionid,
                 'A' AS status,
-                apen.id AS apid,
+                
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
             FROM {course} AS c
                 INNER JOIN {context}                  AS ctx  ON c.id = ctx.instanceid
@@ -217,7 +217,7 @@ class lmsEnrollment extends lsuonlinereport{
                 INNER JOIN {enrol_ues_students}       AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
                 INNER JOIN {enrol_ues_semesters}      AS usem ON usem.id = us.semesterid
                 INNER JOIN {enrol_ues_courses}        AS uc   ON uc.id = us.courseid
-                LEFT  JOIN {apreport_enrol}           AS apen ON apen.userid = u.id
+                
                 
             WHERE 
                 ra.roleid IN (5)
@@ -364,8 +364,9 @@ class lmsEnrollment extends lsuonlinereport{
             }
             
             $this->enrollment->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
+            
         }
-//        die(print_r($this->enrollment));
+//        die(print_r($this->enrollment->students[3]));
         return $this->enrollment->students;
         
     }
@@ -409,10 +410,14 @@ class lmsEnrollment extends lsuonlinereport{
     public function populate_activity_tree(){
         $logs = $this->get_log_activity();
 //die(print_r($this->enrollment));  
+        
         foreach($logs as $log){
-            
+            if($log->course == 1 and $log->action != 'login'){
+                continue;
+            }
             if(array_key_exists($log->userid, $this->enrollment->students)){
                 $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
+//                mtrace(sprintf("got log entry for user %d", $log->userid));
             }
         }
         
@@ -426,41 +431,62 @@ class lmsEnrollment extends lsuonlinereport{
 
         foreach($this->enrollment->students as $student){
             $courses = array_keys($student->courses);
+            assert(!in_array(1,$courses));
+            
             //just ensure we're are starting with earliest log and moving forward
             //NOTE assuming that ksort returns log events in the correct order,
             //chronologically from least to greatest is predicated on the fact
             //that moodle writes logs with increasing id numbers
             ksort($student->activity);
             
-            $current_course;
+            $current_course = null;
+            
+            //walk through each log record
             foreach($student->activity as $a){
-                //if we have logs for a course or something we don't know about,
-                //throw it out
-                if(!in_array($a->course, $courses) and !($a->action == 'login')){
-                    mtrace(sprintf("no match for log key %s in courses; not login, skipping...", $a->course));
+
+                assert(!array_key_exists(1,$student->courses));
+                
+                if(!in_array($a->course, $courses) and ($a->action != 'login')){
+//                    mtrace(sprintf("no match for log key %s in courses; not login, skipping...", $a->course));
                     continue;
+                    //if we have logs for a course or something 
+                    //we don't know about,skip it
+                    //only valid course view events or logins will pass
                 }
-                //set up the record to hold the data we are about to calculate
-                if(!isset($student->courses[$a->course]->ap_report)){
-                    $student->courses[$a->course]->ap_report = new ap_report_table();
+                
+                if($a->action != 'login'){
+                    assert(!array_key_exists(1,$student->courses));
+                    if(!isset($student->courses[$a->course]) and $a->course > 1){
+                        $student->courses[$a->course] = new course();
+//                        mtrace(sprintf("user %s : creating new course id %s", $student->mdl_user->id, $a->course));
+
+                    }
+                    assert(!array_key_exists(1,$student->courses));  
+
+                    //set up the record to hold the data we are about to calculate
+                    if(!isset($student->courses[$a->course]->ap_report)){
+                        $student->courses[$a->course]->ap_report = new ap_report_table();
+                        $ap = $student->courses[$a->course]->ap_report;
+                    }
+                
+                
+                
+                    $ap->userid = $student->mdl_user->id;
+                    $ap->semesterid = $student->courses[$a->course]->ues_section->semesterid;
+                    $ap->sectionid = $student->courses[$a->course]->ues_section->id;
+                    $this->enrollment->students[$student->mdl_user->id]->courses[$a->course]->ap_report = $ap;
+                
                 }
-                
-                $ap = $student->courses[$a->course]->ap_report;
-                
-                $ap->userid = $student->mdl_user->id;
-                $ap->semesterid = $student->courses[$a->course]->ues_section->semesterid;
-                $ap->sectionid = $student->courses[$a->course]->ues_section->id;
-                $this->enrollment->students[$student->mdl_user->id]->courses[$a->course]->ap_report = $ap;
-                
                 //handle login events
                 if($a->action == 'login'){
                     foreach($this->enrollment->students[$student->mdl_user->id]->courses as $c){
                         if(isset($c->ap_report)){
-                            $c->ap_report->last_caountable = null;
+                            $c->ap_report->last_countable = null;
                         }
                     }
                     $current_course = null;
-                    mtrace("handling login event");
+//                    mtrace("handling login event");
+                    continue;
                 }
                 //now calculate values:
                 if(!isset($current_course)){
@@ -471,13 +497,16 @@ class lmsEnrollment extends lsuonlinereport{
                     $ap->agg_timespent += ($a->time - $ap->lastaccess);
                     $ap->last_countable = $ap->lastaccess = $a->time;
                 }else{ // implies $current is set and NOT equal to the current $a->course
+                    assert($current_course != 1);
                     $this->enrollment->students[$student->mdl_user->id]->courses[$current_course]->ap_report->last_countable = null;
                     $ap->last_countable = $ap->lastaccess = $a->time;
                     $current_course = $a->course;
                 }
-                
+//                die('once through!');
             }
-//            (print_r($this->enrollment));
+//            die(print_r($this->enrollment));
+//            echo "<hr/>";
+//            die(print_r(array_keys($student->courses)));
         }
         return $this->enrollment;
     }
@@ -509,18 +538,27 @@ class lmsEnrollment extends lsuonlinereport{
                 if(!isset($course->ap_report)){
                     continue;
                 }else{
+//                    echo "<hr/>";
+//                    print_r($course);
+                    
+                    
                     $course->ap_report->timestamp = time();
-                    echo "<hr/>";
-                    echo sprintf("start = %s, end = %s", $this->start, $this->end);
+//                    echo "<hr/>";
+//                    echo sprintf("start = %s, end = %s", $this->start, $this->end);
+//                    echo "<hr/>";
 //                    echo sprintf("config start is set as %s", get_config('local_apreport_range_start'));
 //                    die(print_r($course->ap_report));
-//                    die(print_r($this->enrollment));
+                    if(!isset($course->ap_report->agg_timespent)){
+//                        die(print_r($course));
+                    }
                     $inserts[] = $DB->insert_record('apreport_enrol', $course->ap_report, true, true);
                 }
+                
                 
             }
             
         }
+
         return $inserts;
         
     }
@@ -579,7 +617,7 @@ class lmsEnrollment extends lsuonlinereport{
         $enrollments = $DB->get_records_sql($sql);
 //        print_r($enrollments);
         
-          print(strftime('%F %T',$this->start)."--".strftime('%F %T',$this->end)."\n".$sql);
+//          print(strftime('%F %T',$this->start)."--".strftime('%F %T',$this->end)."\n".$sql);
 //        echo sprintf("using %s and %s as start and end", $start, $end);
 
         return count($enrollments) > 0 ? $enrollments : false;
@@ -704,7 +742,7 @@ class lmsEnrollment extends lsuonlinereport{
     public function create_file($contents)  {
         
         global $CFG;
-        $fname = isset($CFG->apreport_enrol_xml) ? $CFG->apreport_enrol_xml.'.xml' : 'enrollment.xml';
+        $fname = isset($CFG->apreport_enrol_xml) ? '/'.$CFG->apreport_enrol_xml.'.xml' : '/enrollment.xml';
         $file = $CFG->dataroot.$fname;
         $handle = fopen($file, 'w');
         assert($handle !=false);
@@ -754,6 +792,13 @@ class lmsEnrollment extends lsuonlinereport{
         $this->build_user_tree();
         $this->populate_activity_tree();
         $this->calculate_time_spent();
+        foreach($this->enrollment->students as $s){
+            foreach($s->courses as $c){
+//                print_r($c->ap_report);
+//                echo "<hr/>";
+            }
+        }
+//        die();
         return true;
 
     }
