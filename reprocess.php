@@ -32,8 +32,6 @@ echo $OUTPUT->header();
 
 if(is_siteadmin($USER)){
 
-    
-    $limit = 100;
     $report = new lmsEnrollment();
     
     echo html_writer::tag('h2', 'Current Enrollment');
@@ -113,7 +111,7 @@ if(is_siteadmin($USER)){
      * @TODO fix the link to point at site root
      * @TODO define a lang file
      */
-    print_error('nopermission', lsu_online_reports, '/');
+    print_error('nopermission', local_ap_report, '/');
 }
 
 echo $OUTPUT->footer();
