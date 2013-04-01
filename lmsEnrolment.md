@@ -1,6 +1,6 @@
 #lmsEnrolment
 ##Executive Summary
-This application will calculate student time spent in class,hereafter _timespent_, on a daily basis using the activity records stored in `mdl_log`. A single DB table, `mdl_lsureports_lmsenrollment`, will store this information. Summary reports can be constructed at any time, with the understanding that the freshest data will always be, at most, 24 hours old. 
+This application will calculate student time spent in class,hereafter _timespent_, on a daily basis using the activity records stored in `mdl_log`. A single DB table, `mdl_apreport_enrol`, will store this information. Summary reports can be constructed at any time, with the understanding that the freshest data will always be, at most, 24 hours old. 
 
 Realtime aggregate data is not available, rather, the application will only be concerned with events occurring up until the first minute of the current day, exclusive. Generally, we will only concern ourselves with the 24 hours ending at the beginning of the first minute of the current day.
 
@@ -17,11 +17,11 @@ An outline of the proceedure is as follows. This outline alludes to the existenc
 	1. set $CFG->lmenrollment-start
 	1. using the _Comprehensive Enrollment Query_ (below) build a logical structure, a tree or multidimensional array, call it the _Enrollments Tree_ data structure, in memory
 	1. calculate time spent per user per course at the leaves of the _Enrollments Tree_ 
-	1. traverse the tree and save timespent/lastaccess data `mdl_lsureports_lmsenrollment`
+	1. traverse the tree and save timespent/lastaccess data `mdl_apreport_enrol`
 	1. set $CFG->lmsenrollment-finish
 1. build xml (at any time after time-spent calculation has been performed)
 	1. if not(CFG->lmsenrollment_start > CFG->lmsenrollment->finish), complain and stop
-	1. otherwise, JOIN `mdl_lsureports_lmsenrollment` with appropriate tables to hydrate sparse enrollment records into full AP-spec records for serialization to XML
+	1. otherwise, JOIN `mdl_apreport_enrol` with appropriate tables to hydrate sparse enrollment records into full AP-spec records for serialization to XML
 	1. iterate through rows fetched in previous step, appending new lmsEnrollment nodes to a new DOMDocument
 	1. save the DOMDoc to file
 	1. set error, if appropriate
@@ -40,7 +40,7 @@ In this step, we begin by setting `lmsEnrollment-start`. We build a data structu
 
 Traversing the tree in a left-right manner, we build an array of `lmsEnrollment_record` objects representing timespent per user per section for the timeframe (yesterday).
 
-This process finishes by updating the `mdl_lsureports_lmsenrollment` table with the data stored in the just-created `lmsEnrollment_reocrd`s array. If there are no errors, set `$CFG->lmsenrollment-finish`. 
+This process finishes by updating the `mdl_apreport_enrol` table with the data stored in the just-created `lmsEnrollment_reocrd`s array. If there are no errors, set `$CFG->lmsenrollment-finish`. 
 
 ##Build XML
 For this step to occur, we require that no errors are present in the cycle, especially, that `$CFG->lmsEnrollment-start < $CFG->lmsEnrollment-finish`.
@@ -135,7 +135,7 @@ Returns records ready for formatting to final XML output.
     , usect.sec_number AS sectionid
     , 'A' as status
     , NULL AS extensions
-    FROM mdl_lsureports_lmsenrollment len
+    FROM mdl_apreport_enrol len
         LEFT JOIN mdl_user u
             on len.userid = u.id
         LEFT JOIN mdl_enrol_ues_sections usect
