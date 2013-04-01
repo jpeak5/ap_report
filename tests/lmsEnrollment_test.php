@@ -614,30 +614,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
     
 
-//        /**
-//     * @depends test_get_active_ues_semesters
-//     * 
-//     * @return type
-//     */
-////    public function test_prepare_enrollment_activity_records($semesters){
-//////die('git here');
-////            
-////            $this->make_dummy_data();
-////            
-////            $semesters = $this->sp->get_active_ues_semesters();
-////            $this->sp->build_enrollment_tree($semesters);
-//////            print_r($this->sp->tree);
-//////            $records = $this->sp->prepare_enrollment_activity_records();
-////            $this->assertTrue(is_array($records));
-////            $this->assertNotEmpty($records,"no records returned from 'prepare_activity_records");
-////            $keys = array_keys($records);
-////            $this->assertGreaterThanOrEqual(1, count($keys));
-////            $this->assertInstanceOf('lsureports_lmsenrollment_record', $records[$keys[0]]);
-////            return $records;
-////
-////    }
-////    
-////
     /**
 
      */
@@ -666,11 +642,11 @@ class lmsEnrollment_testcase extends advanced_testcase{
             }
         }  
     }
-////    
-////
-//// /*----------------------------------------------------------------------------*/   
-////    
-////
+    
+
+ /*----------------------------------------------------------------------------*/   
+    
+
     /**
      * 
      */

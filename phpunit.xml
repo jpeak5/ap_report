@@ -24,7 +24,7 @@
 
 
         <testsuites>
-            <testsuite name="local_lsuOnlineReports">
+            <testsuite name="local_ap_report">
                 <directory suffix="_test.php">.</directory>
             </testsuite>
         </testsuites>
