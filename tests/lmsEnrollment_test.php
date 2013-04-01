@@ -812,7 +812,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
 //        
     public function test_run(){
         global $CFG;
-        $xml = lmsEnrollment::run();
+        $xml = $this->sp->run();
         $this->assertInstanceOf('DOMDocument', $xml);
         $this->assertNotEmpty($xml->schemaValidate('tests/lmsEnrollment.xsd'));
         
