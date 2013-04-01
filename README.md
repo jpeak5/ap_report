@@ -3,7 +3,13 @@ ap_report
 
 Academic Partnerships Moodle 2.X Export. Mostly LSU Specific.
 #lmsEnrolment
-##Executive Summary
+
+##quick install
+1. install the plugin as usual
+1. set the hour in which you'd like cron to call the script to populate user activity stats (this is always for the previous day).
+1. verify that things work by previewing activity stats for today. This uses the same calls as the daily cron but gives data for today, making testing easier.
+
+###Summary
 This application will calculate student time spent in class on a daily basis using the activity records stored in `mdl_log`. 
 A single DB table, `mdl_apreport_enrol`, stores this information.
 
