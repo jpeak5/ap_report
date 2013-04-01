@@ -809,36 +809,6 @@ class user{
 
 
 
-class engagementReport extends apreport{
-    public function buildXML($records) {
-        $doc  = new DOMDocument('1.0', 'UTF-8');
-        $root = $doc->createElement('lmsEnrollments');
-        $root->setAttribute('university', '002010');
-        
-        foreach($records as $rec){
-            $fields = array_diff(get_object_vars($rec), array('lmsEnrollments','lmsEnrollment'));
-            $lmsEnollment = $doc->createElement('lmsEnrollment');
-
-            foreach($fields as $k => $v){
-                $node = $doc->createElement($k, $v);
-                $lmsEnollment->appendChild($node);
-            }
-            
-            $root->appendChild($lmsEnollment);
-        }
-        $doc->appendChild($root);
-        return $doc;
-    }
-
-    public function getData($limit = 0) {
-        
-    }
-
-    protected function saveData() {
-        
-    }
-}
-
 /**
  * parent class for all user-facing data records.
  * Contains formatting methods that ensure adherence to the end-user XML schema

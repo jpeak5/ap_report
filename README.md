@@ -4,13 +4,17 @@ ap_report
 Academic Partnerships Moodle 2.X Export. Mostly LSU Specific.
 #lmsEnrolment
 ##Executive Summary
-This application will calculate student time spent in class,hereafter _timespent_, on a daily basis using the activity records stored in `mdl_log`. A single DB table, `mdl_apreport_enrol`, will store this information. Summary reports can be constructed at any time, with the understanding that the freshest data will always be, at most, 24 hours old. 
+This application will calculate student time spent in class on a daily basis using the activity records stored in `mdl_log`. 
+A single DB table, `mdl_apreport_enrol`, stores this information.
 
-Realtime aggregate data is not available, rather, the application will only be concerned with events occurring up until the first minute of the current day, exclusive. Generally, we will only concern ourselves with the 24 hours ending at the beginning of the first minute of the current day.
+Realtime aggregate data is not available, rather, the application will only be concerned with events occurring up until the first minute of the current day, exclusive. 
+Generally, we will only concern ourselves with the 24 hours ending at the beginning of the first minute of the current day.
 
-At application run time, latest `timespent` and `last_access` information will be written to the file system under the Moodle Dataroot as XML in a file called `lmsEnrollments.xml`
+At application run time, latest `timespent` and `last_access` information will be written to the file system under the Moodle Dataroot (`$CFG->dataroot`) 
+as XML in a file named `lmsEnrollments.xml` by default. This name is user-configurable in the settings page `admin/settings.php?section=local_ap_report`.
 
-An outline of the proceedure is as follows. This outline alludes to the existence of globally available data points, in Moodle called `$CFG->lmsenrollment_start` and `$CFG->lmsenrollment_finish`. These actions cycle continuously on a daily basis unless an error condition is detected. In case of error, the cycle halts, and an error flag is set for the administrator on the plugin settings page.
+An outline of the procedure is as follows. These actions run on a daily basis via cron unless an error condition is detected. In case of error, the cycle halts, 
+and an error flag is set for the administrator on the plugin settings page.
 
 1. Update db
 	1. add yesterday total to cumulative total
@@ -18,22 +22,23 @@ An outline of the proceedure is as follows. This outline alludes to the existenc
 	1. set success or failure
 1. calculate time spent for yesterday
 	1. check error, halt if error
-	1. set $CFG->lmenrollment-start
-	1. using the _Comprehensive Enrollment Query_ (below) build a logical structure, a tree or multidimensional array, call it the _Enrollments Tree_ data structure, in memory
+	1. set `$CFG->apreport_job_start`
+	1. using the _Comprehensive Enrollment Query_ (below) build a logical structure, 
+            a tree or multidimensional array, call it the _Enrollments Tree_ data structure, in memory
 	1. calculate time spent per user per course at the leaves of the _Enrollments Tree_ 
-	1. traverse the tree and save timespent/lastaccess data `mdl_apreport_enrol`
-	1. set $CFG->lmsenrollment-finish
+	1. traverse the tree and save `timespent`/`lastaccess` data in `{apreport_enrol}`
 1. build xml (at any time after time-spent calculation has been performed)
-	1. if not(CFG->lmsenrollment_start > CFG->lmsenrollment->finish), complain and stop
-	1. otherwise, JOIN `mdl_apreport_enrol` with appropriate tables to hydrate sparse enrollment records into full AP-spec records for serialization to XML
-	1. iterate through rows fetched in previous step, appending new lmsEnrollment nodes to a new DOMDocument
-	1. save the DOMDoc to file
-	1. set error, if appropriate
+	1. if not(`$CFG->apreport_job_start > $CFG->apreport_job_complete`), complain and stop
+	1. otherwise, JOIN `{apreport_enrol}` with appropriate tables to hydrate sparse enrollment records into full AP-spec records for serialization to XML
+	1. iterate through rows fetched in previous step, appending new `lmsEnrollment` nodes to a new `DOMDocument`
+	1. save the `DOMDocument` to file
+	1. declare victory by setting `$CFG->apreport_job_complete` to the current time and returning the `DOMDocument` for presentation
 
+###Roadmap
+* generate reports for an arbitrary time span
 
 
 ##Update DB
-###DB table Structure
 In this step, we will add yesterday's activity totals to the cumulative activity total for each user. Assuming this query does not return false, we proceed and set the accumulator column, `yesterday_ts` to 0.  
 __NB__ that a 0 in this column means that there has been no activity for the user in the given section for yesterday.
 Assuming this does not return false, do not set any error flags (or we just return true).
