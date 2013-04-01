@@ -1,6 +1,13 @@
 <?php
 $string['apreports_settings']   = 'AP Reports Settings';
-$string['pluginname_desc']      = 'LSU Online Reports Settings...- [Reprocess]({$a})';
+$string['pluginname_desc']      = 'LSU Online Reports Settings...- [Reprocess]({$a->url})';
+$string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->url})';
+$string['no_completion']        = '[Reprocess]({$a->url})';
+
+$string['preview']              = '[Preview]({$a->preview}) activity for today or [Reprocess]({$a->url}) yesterday\'s records';
+$string['file_location']        = 'XML document is located at {$a}';
+$string['view_range_summary']   = 'Acvtivity for the time range beginning {$a->start} and ending {$a->end}';
+$string['no_activity__summary'] = 'No acvtivity for the time range beginning {$a->start} and ending {$a->end}; ensure that log data exists for this time range.';
 
 $string['daily_run_time']       = 'Daily Run Time'; 
 $string['daily_run_time_dcr']   = 'When should cron trigger this job? The enrollment report never automatically queries activity occurring after the first second of today.'; 
