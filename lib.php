@@ -49,18 +49,19 @@ class lmsEnrollment extends apreport{
 
     
     /**
+     * FROM THE AP SPEC:
      * The enrollment status should accurately reflect the status of the student’s enrollment in the section. If
         the student enrolls and the enrollment is accepted, a new enrollment record should reflect that the
         student is actively enrolled in the course. If there is a reason that the student should no longer have
         access to the class, i.e., they drop the course, do not fulfill their financial obligation, etc., then the
         enrollment status should reflect this.
      */
-    
-    
-//    public $tree; //tree of enrollment data
-
-    
-        public $active_semesters;
+        /**
+         *
+         * @var stdClass holds DB records of users 
+         * users are considered active if they occur 
+         * in mdl_log as having done anything in a course.
+         */
         public $active_users;
         /**
          *
@@ -247,7 +248,11 @@ class lmsEnrollment extends apreport{
     }
     
     
-
+    /**
+     * builds a tree-like multidimensional array from semesters, 
+     * ues_sections with users as the leaves of the tree
+     * @return array
+     */
     public function build_user_tree(){
         assert(!empty($this->enrollment->semesters));
         
@@ -298,6 +303,12 @@ class lmsEnrollment extends apreport{
 /*                              Calculate Time Spent                          */    
 /*----------------------------------------------------------------------------*/
 
+    /**
+     * get activity records for active users from the DB.
+     * This data will be used to calculate 'timeSpentInclass'
+     * @global type $DB Moodle DB
+     * @return array stdClass {log} records
+     */
     public function get_log_activity(){
         global $DB;
         $sql = vsprintf(
@@ -345,6 +356,12 @@ class lmsEnrollment extends apreport{
         return $this->enrollment;
     }
     
+    /**
+     * parse log records an a per user basis to calculate 'timeSpentInClass'
+     * @global type $DB
+     * @global type $CFG
+     * @return enrollment_model
+     */
     public function calculate_time_spent(){
 
         global $DB, $CFG;
@@ -381,7 +398,8 @@ class lmsEnrollment extends apreport{
                     }
 
                     /**
-                     * if it doesn't exist, set up an ap_repor
+                     * if it doesn't exist yet, 
+                     * set up an ap_report
                      * record to store data
                      */
                     if(!isset($student->courses[$a->course]->ap_report)){
@@ -529,10 +547,7 @@ class lmsEnrollment extends apreport{
                 );
         
         $enrollments = $DB->get_records_sql($sql);
-//        print_r($enrollments);
-        
-//          print(strftime('%F %T',$this->start)."--".strftime('%F %T',$this->end)."\n".$sql);
-//        echo sprintf("using %s and %s as start and end", $start, $end);
+
         if(!count($enrollments) > 0){
             add_to_log(1, 'ap_reports', 'no records found in apreports_enrol');
             return false;
@@ -636,7 +651,12 @@ class lmsEnrollment extends apreport{
    
     }
     
-    
+    /**
+     * wrapper/convenience method called by @see run() and @see preview_today()
+     * When this function exits, user tree structure is built and the timespent 
+     * information has been calculated and stored in it.
+     * @return boolean true on success, flase on failure
+     */
     public function get_enrollment(){
         $semesters = $this->get_active_ues_semesters();
         if(empty($semesters)){
@@ -677,14 +697,23 @@ class lmsEnrollment extends apreport{
         
     }
     
+    /**
+     * convenience/wrapper method called by @see run() and @see preview_today
+     * to write calculated timespent to the db.
+     * NB that this method first makes a call to @see delete_enrollment_data()
+     * to wipe out any data for the time span defined by 
+     * $this->start and $this->end only; this is intended to be useful when 
+     * reprocessing activity stats after a failure; also, this clears away 
+     * any data created by @see preview_today() which is considered incomplete 
+     * until the day is done (midnight).
+     * @return boolean
+     */
     public function save_enrollment_data(){
         $delete = $this->delete_enrollment_data();
         if(!$delete){
             add_to_log(1, 'ap_reports', 'db error: delete_records');
             return false;
         }
-//        print_r($this->start);
-//        print_r($this->end);
 
         $inserts = $this->save_enrollment_activity_records();
         if(!$inserts){
@@ -705,11 +734,16 @@ class lmsEnrollment extends apreport{
         
         return $xml;
     }
-    
-    public function make_output(){
-        return true;
-    }
-    
+
+    /**
+     * wraps most calls made by @see run(), but parameterizes the report to 
+     * return results for the current day beginning at 0:00 and ending at time().
+     * NB that the records created by this method do not constitute a complete 
+     * day's report, and so will be dropped the next time @see run() or is called 
+     * or the next time it, itself, is called (the daily cron run will wipe out 
+     * records persisted by this method).
+     * @return boolean ture on success, false on failure
+     */
     public function preview_today(){
         $today = new DateTime();
         $midnight = new DateTime($today->format('Y-m-d'));
