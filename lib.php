@@ -7,13 +7,28 @@ require_once('classes.php');
 
 
 function local_ap_report_cron(){
-        $report = new lmsEnrollment();
-        $report->run();
-        add_to_log(1, 'ap_reports', 'cron');
+    global $CFG;
+        $current_hour = (int)date('H');
+        
+        $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
+
+        
+        if($current_hour == $acceptable_hour){
+        
+            mtrace("Begin generating AP Reports...");
+            $report = new lmsEnrollment();
+            mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
+                    strftime('%F %T',$report->start),
+                    strftime('%F %T',$report->end)
+                    ));
+            $report->run();
+            add_to_log(1, 'ap_reports', 'cron');
+            mtrace("done.");
+        }
         return true;
 }
 
-abstract class lsuonlinereport {
+abstract class apreport {
     
     public $data;
     public $start;
@@ -30,7 +45,7 @@ abstract class lsuonlinereport {
 
 
 
-class lmsEnrollment extends lsuonlinereport{
+class lmsEnrollment extends apreport{
 
     
     /**
@@ -166,7 +181,7 @@ class lmsEnrollment extends lsuonlinereport{
                 AND 
                     log.time < %s;",array($this->start,$this->end));
        $this->active_users = $DB->get_records_sql($sql);
-       assert($this->active_users);
+       
        return count($this->active_users) > 0 ? $this->active_users : false;
     }
     
@@ -183,7 +198,7 @@ class lmsEnrollment extends lsuonlinereport{
     public function get_semester_data($semesterids){
         global $DB;
         $active_users = $this->get_active_users();
-        assert($active_users);
+
         //use the idnumbers of the active users to reduce the number of rows we're working with;
         if(!$active_users){
             add_to_log(1, 'ap_reports', 'no active users');
@@ -424,7 +439,7 @@ class lmsEnrollment extends lsuonlinereport{
             
             //just ensure we're are starting with earliest log and moving forward
             //NOTE assuming that ksort returns log events in the correct order,
-            //chronologically from least to greatest is predicated on the fact
+            //chronologically from least to greatest is predicated on the assumption
             //that moodle writes logs with increasing id numbers
             ksort($student->activity);
             
@@ -552,7 +567,7 @@ class lmsEnrollment extends lsuonlinereport{
 /*----------------------------------------------------------------------------*/
     
     /**
-     * fetches time spent from the lsuonlinreports_lmsenrollments 
+     * fetches time spent from apreport_enrol 
      * table for a given time range
      * 
      * @global type $DB
@@ -786,17 +801,11 @@ class lmsEnrollment extends lsuonlinereport{
             add_to_log(1, 'ap_reports', 'no user activity');
             return false;
         }
-        $this->build_user_tree();
-        $this->populate_activity_tree();
-        $this->calculate_time_spent();
-        foreach($this->enrollment->students as $s){
-            foreach($s->courses as $c){
-//                print_r($c->ap_report);
-//                echo "<hr/>";
-            }
-        }
-//        die(print_r($this->enrollment));
-        return true;
+        $tree     = $this->build_user_tree();
+        $activity = $this->populate_activity_tree();
+        $timespt  = $this->calculate_time_spent();
+        
+        return !empty($tree) and !empty($activity) and !empty($timespt);
 
     }
     
@@ -861,31 +870,42 @@ class lmsEnrollment extends lsuonlinereport{
         $this->end = time();
         $this->filename = '/preview.xml';
         add_to_log(1, 'ap_reports', 'preview');
-        return $this->run();
+        
+        $e = $this->get_enrollment();
+        $x = $this->save_enrollment_data();
+        if($e and $x){
+            return $x;
+        }else{
+            return false;
+        }
     }
     
     /**
      * @TODO let the start and complete flags be simple boolean rather than timestamps
+     * @TODO the boolean set_configs could be made more granular
      * @global type $CFG
      * @global type $DB
      * @return boolean
      */
     public function run(){
-        global $CFG, $DB;
-        
+        set_config('apreport_got_xml', false);
+        set_config('apreport_got_enrollment', false);        
         set_config('apreport_job_start', microtime(true));
         
         if(!$this->get_enrollment()){
             add_to_log(1, 'ap_reports', 'get_enrollment failure');
             return false;
         }
+        set_config('apreport_got_enrollment', true);
         
         $xml = $this->save_enrollment_data();
         
         if(!$xml){
             add_to_log(1, 'ap_reports', 'no user activity');
+
             return false;
         }
+        set_config('apreport_got_xml', true);
         
         set_config('apreport_job_complete', microtime(true));
         add_to_log(1, 'ap_reports', 'complete');
@@ -930,7 +950,7 @@ class user{
 
 
 
-class engagementReport extends lsuonlinereport{
+class engagementReport extends apreport{
     public function buildXML($records) {
         $doc  = new DOMDocument('1.0', 'UTF-8');
         $root = $doc->createElement('lmsEnrollments');
