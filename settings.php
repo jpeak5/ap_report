@@ -40,22 +40,28 @@ if ($hassiteconfig) {
 //                    0
 //                    ));
     
+    $stop  = $CFG->apreport_job_complete;
+    $start = $CFG->apreport_job_start;
     
-    
-    if(!isset($CFG->apreport_job_complete) or !isset($CFG->apreport_job_start)){
-        $compl_status = sprintf("This report has never run, or failed on first run"
+    if(!isset($stop) and isset($start)){
+        $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp"
                 );
-    }elseif($CFG->apreport_job_complete > $CFG->apreport_job_start){
-        $compl  = $CFG->apreport_job_complete;
-        $job_st = $CFG->apreport_job_start;
+    }elseif(!isset($stop) and !isset($start)){
+        $compl_status = sprintf("There is no evidence that this job has ever run");
+        
+    }elseif(isset($stop) and !isset($start)){
+        $compl_status = sprintf("ERROR: job completion time is set as %s, but no start time exists in the db.", $stop);
+    }elseif($stop > $start){
+        $stop  = $stop;
+        $start = $start;
         
         $compl_status = sprintf("Last Run began at %s and completed at %s",
-                strftime('%F %T', $compl), 
-                strftime('%F %T', $job_st)
+                strftime('%F %T', $stop), 
+                strftime('%F %T', $start)
                 );
     }else{
         $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp",
-                strftime('%F %T', $job_st)
+                strftime('%F %T', $start)
                 );
     }
     $settings->add(

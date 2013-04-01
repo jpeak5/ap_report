@@ -19,7 +19,14 @@ if(is_siteadmin($USER)){
 //    echo html_writer::tag('a', );
 //    $report->survey_enrollment();
     $xml = $report->run();
-    echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>80, 'rows'=>120));
+    if(!$xml){
+        
+        echo sprintf("no results for the time range beginning %s and ending %s", 
+                strftime('%F %T',$report->start),
+                strftime('%F %T',$report->end));
+    }else{
+        echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>80, 'rows'=>120));
+    }
 
 }else{
     /**

@@ -446,7 +446,7 @@ class lmsEnrollment extends lsuonlinereport{
 
                 assert(!array_key_exists(1,$student->courses));
                 
-                if(!in_array($a->course, $courses) and ($a->action != 'login')){
+                if(!in_array($a->course, $courses) or ($a->action != 'login' and $a->course ==1)){
 //                    mtrace(sprintf("no match for log key %s in courses; not login, skipping...", $a->course));
                     continue;
                     //if we have logs for a course or something 
@@ -455,37 +455,39 @@ class lmsEnrollment extends lsuonlinereport{
                 }
                 
                 if($a->action != 'login'){
-                    assert(!array_key_exists(1,$student->courses));
-                    if(!isset($student->courses[$a->course]) and $a->course > 1){
+                    
+                    if(!isset($student->courses[$a->course])){
                         $student->courses[$a->course] = new course();
 //                        mtrace(sprintf("user %s : creating new course id %s", $student->mdl_user->id, $a->course));
-
+                        assert(!array_key_exists(1,$student->courses));
                     }
-                    assert(!array_key_exists(1,$student->courses));  
 
-                    //set up the record to hold the data we are about to calculate
+                    /**
+                     * if it doesn't exist, set up an ap_repor
+                     * record to store data
+                     */
                     if(!isset($student->courses[$a->course]->ap_report)){
                         $student->courses[$a->course]->ap_report = new ap_report_table();
-                        $ap = $student->courses[$a->course]->ap_report;
+                        
                     }
                 
                 
-                
+                    $ap = $student->courses[$a->course]->ap_report;
                     $ap->userid = $student->mdl_user->id;
                     $ap->semesterid = $student->courses[$a->course]->ues_section->semesterid;
                     $ap->sectionid = $student->courses[$a->course]->ues_section->id;
                     $this->enrollment->students[$student->mdl_user->id]->courses[$a->course]->ap_report = $ap;
                 
-                }
-                //handle login events
-                if($a->action == 'login'){
+                }else{
+                    //handle a login event
+                    //reset lastaccess placeholder
                     foreach($this->enrollment->students[$student->mdl_user->id]->courses as $c){
                         if(isset($c->ap_report)){
                             $c->ap_report->last_countable = null;
                         }
                     }
+                    //reset last active course placeholder
                     $current_course = null;
-//                    mtrace("handling login event");
                     continue;
                 }
                 //now calculate values:
@@ -502,11 +504,8 @@ class lmsEnrollment extends lsuonlinereport{
                     $ap->last_countable = $ap->lastaccess = $a->time;
                     $current_course = $a->course;
                 }
-//                die('once through!');
             }
-//            die(print_r($this->enrollment));
-//            echo "<hr/>";
-//            die(print_r(array_keys($student->courses)));
+
         }
         return $this->enrollment;
     }
@@ -543,15 +542,13 @@ class lmsEnrollment extends lsuonlinereport{
                     
                     
                     $course->ap_report->timestamp = time();
-//                    echo "<hr/>";
-//                    echo sprintf("start = %s, end = %s", $this->start, $this->end);
-//                    echo "<hr/>";
-//                    echo sprintf("config start is set as %s", get_config('local_apreport_range_start'));
-//                    die(print_r($course->ap_report));
-                    if(!isset($course->ap_report->agg_timespent)){
-//                        die(print_r($course));
-                    }
-                    $inserts[] = $DB->insert_record('apreport_enrol', $course->ap_report, true, true);
+
+                    $inserts[] = $DB->insert_record(
+                            'apreport_enrol', 
+                            $course->ap_report, 
+                            true, 
+                            true
+                            );
                 }
                 
                 
@@ -798,7 +795,7 @@ class lmsEnrollment extends lsuonlinereport{
 //                echo "<hr/>";
             }
         }
-//        die();
+//        die(print_r($this->enrollment));
         return true;
 
     }
