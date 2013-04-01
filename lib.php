@@ -241,96 +241,12 @@ class lmsEnrollment extends apreport{
                         , implode(',', $active_ids))
                 );
         
-        
         $rows = $DB->get_records_sql($sql);
         
         return count($rows) > 0 ? $rows : false;
     }
     
     
-    /**
-     * for the input semesters, this method builds an 
-     * internal tree-like data structure composed of 
-     * nodes of type semester, section, user.
-     * Note that this tree contains only enrollment, no timespent data.
-     * 
-     *  
-     * @see get_active_ues_semesters
-     */
-    public function build_enrollment_tree(){
-        
-        
-        assert(!empty($this));
-
-        //define the root of the tree
-        $tree = $this->enrollment;
-
-        //put enrollment records into semester arrays
-        $enrollments = $this->get_semester_data(array_keys($this->enrollment->semesters));
-        //@TODO what hapens if this is empty???
-        if(empty($enrollments)){
-            return false;
-        }
-
-        
-        //walk through each row returned from the db @see get_semester_data
-        foreach($enrollments as $row => $e){
-            
-            //in populating the first level, above, we should have already 
-            //allocated an array slot for every possible value here
-            assert(array_key_exists($e->semesterid, $tree->semesters));
-
-                $semester = $tree->semesters[$e->semesterid];
-                if(empty($semester->courses)){
-                    $semester->courses = array();
-                }
-                
-                if(!array_key_exists($e->sectionid, $semester->courses)){
-                    //add a new section to the semester node's sections array
-                    
-                    $ues_course = new stdClass();
-                    $ues_course->cou_number     = $e->cou_number;
-                    $ues_course->department  = $e->department;
-                    
-                    $ues_section = new stdClass();
-                    $ues_section->sec_number = $e->sectionid;
-                    $ues_section->id         = $e->ues_sectionid;
-                    $ues_section->semesterid = $e->semesterid;
-
-                    $mdl_course = new stdClass();
-                    $mdl_course->id    = $e->mdl_courseid;
-
-                    $ucourse = ues_courses_tbl::instantiate($ues_course);
-                    
-                    $usect = ues_sections_tbl::instantiate($ues_section);
-                    $mdlc = mdl_course::instantiate($mdl_course);
-                    
-                    $course_params = array('ues_course' => $ucourse, 
-                        'ues_section' => $usect,
-                        'mdl_course' => $mdlc);
-                    
-                    $semester->courses[$e->ues_sectionid] = course::instantiate($course_params);
-                    
-                    
-                    
-                    //add this row's student as the next element 
-                    //of the current section's users array
-                    $user       = new user();
-                    $user->id   = $e->studentid;
-                    $user->apid = $e->apid;
-                    $section->users[$e->studentid] = $user;
-                }else{
-                    //the section already exists, so just add the user 
-                    //to the semester->section->users array
-                    $user       = new user();
-                    $user->id   = $e->studentid;
-                    $user->apid = $e->apid;
-                    $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
-                }
-        }
-//        print_r($tree);
-        return $tree;
-    }    
 
     public function build_user_tree(){
         assert(!empty($this->enrollment->semesters));
@@ -461,7 +377,6 @@ class lmsEnrollment extends apreport{
                     
                     if(!isset($student->courses[$a->course])){
                         $student->courses[$a->course] = new course();
-//                        mtrace(sprintf("user %s : creating new course id %s", $student->mdl_user->id, $a->course));
                         assert(!array_key_exists(1,$student->courses));
                     }
 
@@ -679,48 +594,7 @@ class lmsEnrollment extends apreport{
 /*----------------------------------------------------------------------------*/    
 /*               WRAPPER / CONVENIENCE METHODS                                */
 /*----------------------------------------------------------------------------*/
-    
 
-
-
-    
-    /**
-     * This is the main API call. 
-     * Further, this method invokes a 
-     * re-scanning of mdl_log and the calculation of latest data
-     */
-//    public function survey_enrollment(){
-//
-//        $semesters = $this->get_active_ues_semesters();
-//        mtrace("getting active semesters\n");
-//        
-//        $tree = $this->build_enrollment_tree();
-//        mtrace("building enrollment tree\n");
-//        
-//        $logs = $this->get_log_activity();
-//        
-//        $tree = $this->populate_activity_tree($logs, $tree);
-//        
-//        $records = $this->calculate_time_spent($tree);
-//        
-////        $records = $this->prepare_enrollment_activity_records();
-//        $errors = $this->save_enrollment_activity_records($records);
-//        if($records == false){
-//            return "no records";
-//        }
-//        if(!empty($errors)){
-//            echo sprintf("got errors %s", print_r($errors));
-//        }else{
-//            $xml = $this->get_enrollment_xml();
-//            if($this->create_file($xml)){
-//                return $xml;
-//            }else{
-//                return "error saving file";
-//            }
-//            
-//        }
-//                
-//    }
     
     
     /**
@@ -762,33 +636,6 @@ class lmsEnrollment extends apreport{
    
     }
     
-    
-//    public function update_timespent($record){
-//        $record->cum_timespent += $record->agg_timespent;
-//        return $record;
-//    }
-//    
-//    public function reset_agg_timespent($record){
-//        $record->agg_timespent = 0;
-//        return $record;
-//    }
-//    
-//    public function update_reset_db(){
-//        global $DB;
-//        $timespent_records = $DB->get_records('apreport_enrol');
-//        $error = 0;
-//        foreach($timespent_records as $record){
-//            $updated = $this->update_timespent($record);
-//            $reset   = $this->reset_agg_timespent($updated);
-//            $success = $DB->update_record('apreport_enrol', $reset, false);
-//            if($success != true){
-//                $error++;
-//            }
-//            return $error > 0 ? false : true;
-//        }
-//
-//        return $error == 0 ? true : false;
-//    }
     
     public function get_enrollment(){
         $semesters = $this->get_active_ues_semesters();
@@ -917,28 +764,6 @@ class lmsEnrollment extends apreport{
 }
 
 
-class semester_ues{
-    public $year; //int
-    public $name; //string
-    public $sections; //array of section
-    
-    public function  __construct($obj){
-        $this->year = $obj->year;
-        $this->name = $obj->name;
-        $this->id   = $obj->id;
-        $this->sections = array();
-    }
-
-}
-
-class section{
-    public $id; //int
-    public $mdlid; //the moodle course id
-    public $department; //string
-    public $cou_num; //int
-    public $sec_num; //int
-    public $users; //array  of user
-}
 
 class user{
     public $id;    

@@ -29,16 +29,7 @@ class ap_report_table extends tbl_model{
     public $sectionid;      //unique ues section id
     public $userid;         //mdl user id
     public $timestamp;      //time()
-    
-//    public function __construct($id, $sid, $ats, $cts, $last, $ts, $sem){
-//        $this->userid = $id;
-//        $this->sectionid = $sid;
-//        $this->agg_timespent = $ats;
-//        $this->cum_timespent = $cts;
-//        $this->lastaccess = $last;
-//        $this->timestamp = $ts;
-//        $this->semesterid = $sem;
-//    }
+
 }
 /**
  * models the table definition for ues_students
