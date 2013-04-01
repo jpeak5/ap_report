@@ -19,8 +19,13 @@ if ($hassiteconfig) {
     
     
     $a = new stdClass();
+    
     $repro_url = new moodle_url('/local/ap_report/reprocess.php');
     $a->url = $repro_url->out(false);
+    
+    $preview = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'preview'));
+    $a->preview = $preview->out(false);
+    
     
     
 //    $reproc = html_writer::tag('a', 'Reprocess', array('href'=>$a->url));
@@ -29,7 +34,7 @@ if ($hassiteconfig) {
             new admin_setting_heading(
                     'apreports_settings',
                     'Enrollment Report Settings',
-                    get_string('pluginname_desc',$plugin, $a->url)
+                    get_string('preview',$plugin, $a)
                     ));
 
 //    $settings->add(
@@ -44,26 +49,27 @@ if ($hassiteconfig) {
     $start = $CFG->apreport_job_start;
     
     if(!isset($stop) and isset($start)){
-        $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp"
-                );
+        $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp %s",
+                strftime('%F %T', $start),
+                get_string('no_completion',$plugin, $a->url));
     }elseif(!isset($stop) and !isset($start)){
-        $compl_status = sprintf("There is no evidence that this job has ever run");
+        $compl_status = get_string('never_run',$plugin, $a->url);
         
     }elseif(isset($stop) and !isset($start)){
         $compl_status = sprintf("ERROR: job completion time is set as %s, but no start time exists in the db.", $stop);
     }elseif($stop > $start){
         $stop  = $stop;
         $start = $start;
-        
         $compl_status = sprintf("Last Run began at %s and completed at %s",
                 strftime('%F %T', $stop), 
                 strftime('%F %T', $start)
                 );
     }else{
-        $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp",
-                strftime('%F %T', $start)
-                );
+        $compl_status = sprintf("FAILURE! Last job began at %s and has not recorded a completion timestamp %s",
+                strftime('%F %T', $start),
+                get_string('no_completion',$plugin, $a->url));
     }
+    
     $settings->add(
             new admin_setting_heading(
                     'apreport_last_completion', 
@@ -96,23 +102,23 @@ if ($hassiteconfig) {
 //                    array('h'=>0, 'm'=>5)
 //            ));
     
-    $settings->add(
-            new admin_setting_configtext(
-                    'local_apreport_range_start',
-                    $_s('range_start'),
-                    $_s('range_start_dcr'),
-                    PARAM_INT
-                    )
-            );
-    
-    $settings->add(
-            new admin_setting_configtext(
-                    'local_apreport_range_end',
-                    $_s('range_end'),
-                    $_s('range_end_dcr'),
-                    PARAM_INT
-                    )
-            );
+//    $settings->add(
+//            new admin_setting_configtext(
+//                    'local_apreport_range_start',
+//                    $_s('range_start'),
+//                    $_s('range_start_dcr'),
+//                    PARAM_INT
+//                    )
+//            );
+//    
+//    $settings->add(
+//            new admin_setting_configtext(
+//                    'local_apreport_range_end',
+//                    $_s('range_end'),
+//                    $_s('range_end_dcr'),
+//                    PARAM_INT
+//                    )
+//            );
     
     
     
