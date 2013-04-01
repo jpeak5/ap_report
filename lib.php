@@ -5,11 +5,20 @@ require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
 require_once('classes.php');
 
+
+function local_ap_report_cron(){
+        $report = new lmsEnrollment();
+        $report->run();
+        add_to_log(1, 'ap_reports', 'cron');
+        return true;
+}
+
 abstract class lsuonlinereport {
     
     public $data;
     public $start;
     public $end;
+    public $filename;
 
     /**
      * 
@@ -59,32 +68,20 @@ class lmsEnrollment extends lsuonlinereport{
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
-    
+    /**
+     * Default configuration (via cron) is to call without params, resulting in 
+     * stats harvesting for yesterday.
+     * @param int $start timestamp for start of the range of interest
+     * @param int $end   timestamp for end   of the range of interest
+     */
     public function __construct(){
         global $CFG;
-//        die($CFG->local_apreport_range_start);
-        $range_start = isset($CFG->local_apreport_range_start) ? $CFG->local_apreport_range_start : null;
-        $range_end   = isset($CFG->local_apreport_range_end)   ? $CFG->local_apreport_range_end   : null;
-//        mtrace(sprintf("range values are set as %s, %s", $range_start, $range_end));
-        if(isset($range_start)){
-            $this->start = $range_start;
-//            mtrace("unsetting local_apreport_range_start");
-//            set_config('local_apreport_range_start', null);
-            
-            if(isset($range_end) and is_int($range_end)){
-                $this->end = $range_end;
-                set_config('local_apreport_range_end', null);
-            }else{
-                $this->end = time();
-            }
-            
-        }else{
-            
-            list($this->start, $this->end) = self::get_yesterday();
-//            mtrace("using defaults");
-        }
-//        mtrace(sprintf("using following values for job: %s, %s", $this->start, $this->end));
+        list($this->start, $this->end) = self::get_yesterday();
+
         $this->enrollment = new enrollment_model();
+        $this->filename = isset($CFG->apreport_enrol_xml) 
+                ? '/'.$CFG->apreport_enrol_xml.'.xml' 
+                : '/enrollment.xml';
     }
     
     /**
@@ -152,9 +149,8 @@ class lmsEnrollment extends lsuonlinereport{
      */
     public function get_active_users(){
        global $DB;
+       assert(is_numeric($this->start));
        
-//       mtrace("START = ".$this->start);
-      assert(is_numeric($this->start));
        //get one userid for anyone in the mdl_log table that has done anything
        //in the temporal bounds
        //get, also, the timestamp of the last time they were included in this 
@@ -190,6 +186,7 @@ class lmsEnrollment extends lsuonlinereport{
         assert($active_users);
         //use the idnumbers of the active users to reduce the number of rows we're working with;
         if(!$active_users){
+            add_to_log(1, 'ap_reports', 'no active users');
             return false;
         }
         $active_ids = array_keys($active_users);
@@ -232,9 +229,6 @@ class lmsEnrollment extends lsuonlinereport{
         
         $rows = $DB->get_records_sql($sql);
         
-//        mtrace("dumping semester data sql");
-//        print_r($rows);
-//        die($sql);
         return count($rows) > 0 ? $rows : false;
     }
     
@@ -306,18 +300,16 @@ class lmsEnrollment extends lsuonlinereport{
                     
                     //add this row's student as the next element 
                     //of the current section's users array
-                    $user     = new user();
-                    $user->id = $e->studentid;
+                    $user       = new user();
+                    $user->id   = $e->studentid;
                     $user->apid = $e->apid;
-//                    $user->last_update = $e->last_update;
                     $section->users[$e->studentid] = $user;
                 }else{
                     //the section already exists, so just add the user 
                     //to the semester->section->users array
-                    $user = new user();
-                    $user->id = $e->studentid;
+                    $user       = new user();
+                    $user->id   = $e->studentid;
                     $user->apid = $e->apid;
-//                    $user->last_update = $e->last_update;
                     $semester->sections[$e->sectionid]->users[$e->studentid] = $user;
                 }
         }
@@ -336,22 +328,22 @@ class lmsEnrollment extends lsuonlinereport{
         
         foreach($datarow as $row){
             
-            $ues_course = new ues_courses_tbl();
+            $ues_course              = new ues_courses_tbl();
             $ues_course->cou_number  = $row->cou_number;
             $ues_course->department  = $row->department;
 
-            $ues_section = new ues_sections_tbl();
+            $ues_section             = new ues_sections_tbl();
             $ues_section->sec_number = $row->sectionid;
             $ues_section->id         = $row->ues_sectionid;
             $ues_section->semesterid = $row->semesterid;
 
-            $mdl_course = new mdl_course();
-            $mdl_course->id    = $row->mdl_courseid;
+            $mdl_course              = new mdl_course();
+            $mdl_course->id          = $row->mdl_courseid;
 
-            $course = new course();
-            $course->mdl_course  = $mdl_course;
-            $course->ues_course  = $ues_course;
-            $course->ues_section = $ues_section;
+            $course                  = new course();
+            $course->mdl_course      = $mdl_course;
+            $course->ues_course      = $ues_course;
+            $course->ues_section     = $ues_section;
             
             if(!array_key_exists($row->studentid, $this->enrollment->students)){
                 $s = new mdl_user();
@@ -366,7 +358,7 @@ class lmsEnrollment extends lsuonlinereport{
             $this->enrollment->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
             
         }
-//        die(print_r($this->enrollment->students[3]));
+
         return $this->enrollment->students;
         
     }
@@ -398,8 +390,7 @@ class lmsEnrollment extends lsuonlinereport{
                     log.time < %s AND (log.course > 1 OR log.action = 'login')
                 ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
         $activity_records = $DB->get_records_sql($sql);
-//        die($sql);
-//        die(print_r($activity_records));
+
         return empty($activity_records) ? false : $activity_records;
     }
     
@@ -409,7 +400,6 @@ class lmsEnrollment extends lsuonlinereport{
      */
     public function populate_activity_tree(){
         $logs = $this->get_log_activity();
-//die(print_r($this->enrollment));  
         
         foreach($logs as $log){
             if($log->course == 1 and $log->action != 'login'){
@@ -417,7 +407,6 @@ class lmsEnrollment extends lsuonlinereport{
             }
             if(array_key_exists($log->userid, $this->enrollment->students)){
                 $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
-//                mtrace(sprintf("got log entry for user %d", $log->userid));
             }
         }
         
@@ -447,7 +436,6 @@ class lmsEnrollment extends lsuonlinereport{
                 assert(!array_key_exists(1,$student->courses));
                 
                 if(!in_array($a->course, $courses) or ($a->action != 'login' and $a->course ==1)){
-//                    mtrace(sprintf("no match for log key %s in courses; not login, skipping...", $a->course));
                     continue;
                     //if we have logs for a course or something 
                     //we don't know about,skip it
@@ -468,14 +456,13 @@ class lmsEnrollment extends lsuonlinereport{
                      */
                     if(!isset($student->courses[$a->course]->ap_report)){
                         $student->courses[$a->course]->ap_report = new ap_report_table();
-                        
                     }
                 
                 
-                    $ap = $student->courses[$a->course]->ap_report;
-                    $ap->userid = $student->mdl_user->id;
+                    $ap             = $student->courses[$a->course]->ap_report;
+                    $ap->userid     = $student->mdl_user->id;
                     $ap->semesterid = $student->courses[$a->course]->ues_section->semesterid;
-                    $ap->sectionid = $student->courses[$a->course]->ues_section->id;
+                    $ap->sectionid  = $student->courses[$a->course]->ues_section->id;
                     $this->enrollment->students[$student->mdl_user->id]->courses[$a->course]->ap_report = $ap;
                 
                 }else{
@@ -616,8 +603,11 @@ class lmsEnrollment extends lsuonlinereport{
         
 //          print(strftime('%F %T',$this->start)."--".strftime('%F %T',$this->end)."\n".$sql);
 //        echo sprintf("using %s and %s as start and end", $start, $end);
-
-        return count($enrollments) > 0 ? $enrollments : false;
+        if(!count($enrollments) > 0){
+            add_to_log(1, 'ap_reports', 'no records found in apreports_enrol');
+            return false;
+        }
+        return $enrollments;
     }
     
 
@@ -662,6 +652,9 @@ class lmsEnrollment extends lsuonlinereport{
             $root->appendChild($lmsEnollment);
         }
         $doc->appendChild($root);
+        
+        assert(get_class($doc) == 'DOMDocument');
+        
         return $doc;
     }
     
@@ -723,6 +716,7 @@ class lmsEnrollment extends lsuonlinereport{
         
         $records = $this->get_enrollment_activity_records();
         $xml = $this->buildXML($records);
+        
         return $xml;
     }
     
@@ -739,13 +733,17 @@ class lmsEnrollment extends lsuonlinereport{
     public function create_file($contents)  {
         
         global $CFG;
-        $fname = isset($CFG->apreport_enrol_xml) ? '/'.$CFG->apreport_enrol_xml.'.xml' : '/enrollment.xml';
-        $file = $CFG->dataroot.$fname;
+        $contents->formatOutput = true;
+        $file = $CFG->dataroot.$this->filename;
         $handle = fopen($file, 'w');
         assert($handle !=false);
         $success = fwrite($handle, $contents->saveXML());
         fclose($handle);
-        return $success ? true : false;
+        if(!$success){
+            add_to_log(1, 'ap_reports', 'error writing to filesystem');
+            return false;
+        }
+        return true;
    
     }
     
@@ -780,10 +778,12 @@ class lmsEnrollment extends lsuonlinereport{
     public function get_enrollment(){
         $semesters = $this->get_active_ues_semesters();
         if(empty($semesters)){
+            add_to_log(1, 'ap_reports', 'no active semesters');
             return false;
         }
         $data = $this->get_semester_data(array_keys($semesters));
         if(!$data){
+            add_to_log(1, 'ap_reports', 'no user activity');
             return false;
         }
         $this->build_user_tree();
@@ -800,18 +800,50 @@ class lmsEnrollment extends lsuonlinereport{
 
     }
     
+    /**
+     * Cleans up the apreport_enrol table, if needed before writing new data;
+     * There should never be more than one record per day per user per course 
+     * 
+     * @global type $DB
+     */
+    private function delete_enrollment_data(){
+        global $DB;
+        $range = array($this->start, $this->end);
+        $table = 'apreport_enrol';
+        $where = vsprintf("lastaccess >= %s AND lastaccess < %s",$range);
+        
+        $count = $DB->get_records_select($table,$where);
+        
+        if(count($count) > 0){
+            $DB->delete_records_select($table,$where);
+        }
+        return true;
+        
+    }
+    
     public function save_enrollment_data(){
+        $delete = $this->delete_enrollment_data();
+        if(!$delete){
+            add_to_log(1, 'ap_reports', 'db error: delete_records');
+            return false;
+        }
+//        print_r($this->start);
+//        print_r($this->end);
+
         $inserts = $this->save_enrollment_activity_records();
         if(!$inserts){
+            add_to_log(1, 'ap_reports', 'db error: save_activity ');
             return false;
         }
         
         $xml = $this->get_enrollment_xml();
         if(empty($xml)){
+           add_to_log(1, 'ap_reports', 'error get_enrollment_xml');
            return false; 
         }
         
         if(!$this->create_file($xml)){
+            add_to_log(1, 'ap_reports', 'error create_file');
             return false;
         }
         
@@ -822,25 +854,44 @@ class lmsEnrollment extends lsuonlinereport{
         return true;
     }
     
-    public static function run(){
+    public function preview_today(){
+        $today = new DateTime();
+        $midnight = new DateTime($today->format('Y-m-d'));
+        $this->start = $midnight->getTimestamp();
+        $this->end = time();
+        $this->filename = '/preview.xml';
+        add_to_log(1, 'ap_reports', 'preview');
+        return $this->run();
+    }
+    
+    /**
+     * @TODO let the start and complete flags be simple boolean rather than timestamps
+     * @global type $CFG
+     * @global type $DB
+     * @return boolean
+     */
+    public function run(){
         global $CFG, $DB;
         
         set_config('apreport_job_start', microtime(true));
         
-        $enrollment = new self();
-        if(!$enrollment->get_enrollment()){
+        if(!$this->get_enrollment()){
+            add_to_log(1, 'ap_reports', 'get_enrollment failure');
             return false;
         }
         
-        $xml = $enrollment->save_enrollment_data();
+        $xml = $this->save_enrollment_data();
         
         if(!$xml){
+            add_to_log(1, 'ap_reports', 'no user activity');
             return false;
         }
         
         set_config('apreport_job_complete', microtime(true));
+        add_to_log(1, 'ap_reports', 'complete');
         return $xml;
     }
+    
     
 
 }
