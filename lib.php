@@ -159,9 +159,6 @@ class lmsEnrollment extends apreport{
      * We do this by first getting a collection of potential users from current enrollment;
      * Then, limit that collection to include only those users who have registered activity in the logs
      * 
-     * @param int $since unix timestamp for the minimum mdl_log.time value to check
-     * this should usually be the time this service was last run
-     * 
      */
     public function get_active_users(){
        global $DB;
@@ -764,6 +761,8 @@ class lmsEnrollment extends apreport{
     /**
      * @TODO let the start and complete flags be simple boolean rather than timestamps
      * @TODO the boolean set_configs could be made more granular
+     * @TODO continue refactoring this wrapper to allow better communication back
+     * to the caller for better end-user messages
      * @global type $CFG
      * @global type $DB
      * @return boolean
@@ -772,6 +771,14 @@ class lmsEnrollment extends apreport{
         set_config('apreport_got_xml', false);
         set_config('apreport_got_enrollment', false);        
         set_config('apreport_job_start', microtime(true));
+        
+        //if there has been no activity, that is not a failure of this system
+        if(!$this->get_active_users()){
+            $doc = new DOMDocument();
+            $doc->appendChild(new DOMElement('lmsEnrollments', "No Data. Check for user activity in the moodle log table"));
+            set_config('apreport_job_complete', microtime(true));
+            return $doc;
+        }
         
         if(!$this->get_enrollment()){
             add_to_log(1, 'ap_reports', 'get_enrollment failure');
