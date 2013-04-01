@@ -29,12 +29,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $re = $this->sp->report_end;
         $ss = $this->sp->survey_start;
         $se = $this->sp->survey_end;
-        mtrace(sprintf("Dumping vars for lmsEnrollment:\nreport_start = %s\nreport_end = %s\nsurvey_start = %s\nsurvey_end = %s"
-                ,$this->toTime($rs)
-                ,$this->toTime($re)
-                ,$this->toTime($ss)
-                ,$this->toTime($se)
-                ));
+
     }
     
     public function setUp(){
@@ -50,8 +45,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->make_dummy_data();
 //        $this->enrollment = new enrollment_generator();
 //        $this->enrollment->generate(true);
-//        $this->active_users = $this->sp->get_active_users();
-//        print_r($this->enrollment->enrollment->verify);
+
         
     }
     
@@ -134,69 +128,16 @@ class lmsEnrollment_testcase extends advanced_testcase{
         global $DB;
         $this->resetAllData();
         $this->resetAfterTest(true);
-//        $DB->delete_records('mdl_user');
         $DB->delete_records('log');
         
         $logs = $DB->get_records('log');
         $this->assertEmpty($logs);
-        
-        
-        
-//        $data = array(
-//                    'enrol_ues_courses' => $this->enrollment->ues_courses,
-//                    'user' => $this->enrollment->mdl_users,
-//                    'enrol_ues_students' => $this->enrollment->ues_students,
-//                    'enrol_ues_semesters' => $this->enrollment->ues_semesters,
-//                    'enrol_ues_sections' => $this->enrollment->ues_sections,
-//                    'course' => $this->enrollment->mdl_courses,
-//                    'context' => $this->enrollment->mdl_contexts,
-//                    'role_assignments' => $this->enrollment->mdl_role_ass,
-//                    'log' => $this->enrollment->mdl_logs,
-//                    'apreport_enrol' => array(
-//                        array(
-//                            'timestamp'=> $this->zero_hour_yesterday,
-//                            'lastaccess' => $this->generate_lastaccess(),
-//                            'agg_timespent'=>456, 
-//                            'cum_timespent'=>1515,
-//                            'userid'=>354, 
-//                            'sectionid'=>6666, 
-//                            'semesterid'=>5
-//                            )
-//                    )
-//
-//                );
-        
-        
-        
-//        $dataset = $this->createArrayDataSet($data);
+
         $dataset = $this->createXMLDataSet('tests/dataset.xml');
-//        die(print_r($dataset));
+
         $this->loadDataSet($dataset);
 
-//        die('finished loading');
-//        $this->enrollment->mdl_logs = $DB->get_records('log');
-//
-//
-//
-//        $semesters_rows = $DB->get_records('enrol_ues_semesters');
-//        $this->assertNotEmpty($semesters_rows);
-//        foreach($semesters_rows as $sr){
-//            $this->assertTrue(!empty($sr->id));
-//        }
-//        
-//        $ues_section_rows = $DB->get_records('enrol_ues_sections');
-//        $this->assertNotEmpty($ues_section_rows);
-//        foreach($ues_section_rows as $usr){
-//            $this->assertTrue(isset($usr->id));
-//        }
-//        
-//        $ues_students_rows = $DB->get_records('enrol_ues_students');
-//        $this->assertNotEmpty($ues_students_rows);
-//        
-//
-//        $logs_check = $DB->get_records('log');
-//        $this->assertNotEmpty($logs_check);
-//        print_r($logs_check);
+
     }
     
     public function test_make_dummy_data(){
@@ -227,9 +168,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
          * db are those we expect: either we have created them, or we and unit 
          * have created them...
          */
-        
-        
-        
+
         //test context count
         $contexts = $DB->get_records('context');
         $this->assertNotEmpty($contexts);
@@ -328,7 +267,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $all_contexts_sql = 'SELECT * FROM {context};';
         $all_contexts = $DB->get_records_sql($all_contexts_sql);
         $this->assertNotEmpty($all_contexts);
-//        $this->assertEquals(2, count($all_contexts));
         
         $check_course_context_sql = "SELECT 
                                         CONCAT(ctx.id,'-',ra.id) AS id
@@ -344,11 +282,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $roles = $DB->get_records_sql($check_course_context_sql);
         $this->assertNotEmpty($roles);
-
-        
-        mtrace("dumping roles");
-        print_r($roles);
-        
         
         $mondo_sql =             "SELECT
                 CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
@@ -374,12 +307,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         
         $mondo = $DB->get_records_sql($mondo_sql);
         $this->assertNotEmpty($mondo);
-        mtrace("dumping mondo");
-        print_r($mondo);
 
-        
-//        $this->assertEquals(count($mondo), count($users));
-        
     }
     
     public function test_get_yesterday(){
@@ -403,7 +331,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         //we are always working on a 24hour time period
         //start better be 86400 seconds before end
         $this->assertEquals($end,$start + 86400);
-//        mtrace(vsprintf("start = %s, end = %s", array($start, $end)));
+
 
     }
 
@@ -418,8 +346,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
      */
     public function test_get_active_users(){
         
-//            $this->make_dummy_data();
-            
             $units = $this->sp->get_active_users();
 
             $this->assertTrue((false !== $units),sprintf("empty set of active users returned from sp->get_active_users"));
@@ -429,14 +355,13 @@ class lmsEnrollment_testcase extends advanced_testcase{
             $vals = array_values($units);
             $unit = array_pop($keys);
             $this->assertTrue(is_int($unit));
-            mtrace("dumping active users return val");
-//            print_r($units);
+
             return $units;
        
     }
     
     public function test_get_active_ues_semesters(){
-//        $this->make_dummy_data();
+
         $foo = $units = $this->sp->get_active_ues_semesters();
         
         $this->assertTrue(is_array($units));
@@ -452,7 +377,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $vals = array_values($units);
         $unit = array_pop($vals);
         
-//        $this->assertInstanceOf('semester', $unit);
         $this->assertNotEmpty($unit->ues_semester->name);
         $this->assertNotEmpty($unit->ues_semester->year);
         $this->assertNotEmpty($unit->ues_semester->id);
@@ -476,9 +400,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
     public function test_get_semester_data(){
 
         $this->make_dummy_data();
-        
-//        $active_users = $this->sp->get_active_users();
-//        $this->assertNotEmpty($active_users);
         $semesters = $this->sp->get_active_ues_semesters();
         
         //make sure the test data matches what we expect
@@ -492,63 +413,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         return $units;
 
     }
-//    
-//
-//    
-//    /**
-//     * @depends test_get_semester_data
-//     */
-//    public function test_build_enrollment_tree($sem_data){
-//
-//        $this->make_dummy_data();
-//        
-//        
-//        $this->assertTrue($sem_data != false);
-//        
-//        $semesters = $this->sp->get_active_ues_semesters();
-//        //make sure the test data matches what we expect
-//        $this->assertEquals(count($this->enrollment->ues_semesters), count($semesters));
-//        
-//        $tree = $this->sp->build_enrollment_tree();
-//        
-////        $this->assertTrue(is_array($tree));
-//        $this->assertNotEmpty($tree);
-//        
-//        $index = array_keys($tree->semesters);
-//        
-//        $semester = $tree->semesters[$index[0]];
-//        $this->assertInstanceOf('semester', $semester);
-//        
-//        $this->assertTrue(is_array($semester->courses));
-//        
-//        foreach($tree->semesters as $sem){
-//            
-//            if(!empty($sem->courses)){
-//                $index = array_keys($sem->courses);
-//                $section = $sem->courses[$index[0]];
-//                $this->assertInstanceOf('course', $section);
-//                //ensure that test data has been recreated in production structure
-//                foreach($this->enrollment->ues_sections as $usec){
-//                    $this->assertTrue(array_key_exists($usec['id'], $sem->courses));
-//                }
-//            }
-//        }
-//        
-//        $some_sections = array();
-//        foreach($tree->semesters as $sem){
-//            if(!empty($sem->courses)){
-//                $some_sections = array_merge($some_sections, $sem->courses);
-//            }
-//        }
-//        
-//        $this->assertNotEmpty($some_sections);
-//        
-//
-//
-//        return $tree;
-//    }
-//    
-//    
+
     public function test_get_activity_logs(){
         $this->make_dummy_data();
         
@@ -591,7 +456,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
 
 
         $enr = $this->sp->calculate_time_spent();
-        print_r($enr);
         $this->assertTrue($enr!=false);
         $this->assertTrue(get_class($enr) == 'enrollment_model');
         $this->assertNotEmpty($enr);
@@ -672,9 +536,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
             $unit->validate();
             $this->assertInstanceOf('lmsEnrollmentRecord',$unit);
             $this->assertGreaterThanOrEqual(0,$unit->timeSpentInClass);
-//            $this->assertTrue($unit->endDate != '12/31/1969');
-//            $this->assertTrue($unit->startDate != '12/31/1969');
-//            print_r($unit);
+
         }
 
         return $units;
@@ -695,13 +557,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         return $xml;
     }
     
-//    /**
-//     * @depends test_get_enrollment_activity_records
-//     */
-//    public function test_transform_year($records){
-//
-//    }
-    
+
 
     /**
      * @depends test_get_enrollment_xml
@@ -713,7 +569,6 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $handle = fopen($file, 'a');
         $this->assertTrue($handle !=false);
         $this->assertGreaterThan(0,fwrite($handle, $xml->saveXML()));
-        print_r($xml->saveXML());
         fclose($handle);
   
     }
@@ -724,68 +579,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertTrue($got_data);
     }
     
-//
-//    public function test_reset_agg_timespent(){
-//        global $DB;
-//        $this->make_dummy_data();
-//        
-//        $original = $DB->get_records('apreport_enrol');
-//        $this->assertNotEmpty($original);
-//        $sample = array_pop($original);
-//        
-//        $cum = $sample->cum_timespent;
-//        $agg = $sample->agg_timespent;
-//        mtrace(sprintf("orig cum value is %s, agg is %s", $cum, $agg));
-//        
-//        $reset = $this->sp->reset_agg_timespent($sample);
-//        
-//        $this->assertEquals(0,$reset->agg_timespent);
-//        mtrace(sprintf("reset agg is %s", $reset->agg_timespent));
-//    }
-//    
-//    public function test_update_timespent(){
-//        global $DB;
-//        $this->make_dummy_data();
-//        
-//        $original = $DB->get_records('apreport_enrol');
-//        $this->assertNotEmpty($original);
-//        
-//        $sample = array_pop($original);
-//        $cum = $sample->cum_timespent;
-//        $agg = $sample->agg_timespent;
-//        mtrace(sprintf("orig cum value is %s, agg is %s", $cum, $agg));
-//        
-//        $updated = $this->sp->update_timespent($sample);
-//        
-//        $this->assertEquals($cum+$agg,$updated->cum_timespent);
-//        mtrace(sprintf("update cum value is %s", $updated->cum_timespent));
-//    }
-//    
-//    public function test_update_reset_db(){
-//        global $DB;
-//        $this->make_dummy_data();
-//
-//        $result = $this->sp->update_reset_db();
-//        $this->assertTrue($result);
-//        
-//        $reset_records = $DB->get_records('apreport_enrol');
-//        foreach($reset_records as $rr){
-//            $this->assertEquals(0,$rr->agg_timespent);
-//        }
-//    }
-//
-//    public function test_calculate_ts(){
-//        
-//        $result = $this->sp->calculate_ts();
-//        $this->assertTrue($result);
-//    }
-//
-//    public function test_make_output(){
-//        
-//        $result = $this->sp->make_output();
-//        $this->assertTrue($result);
-//    }
-//        
+
     public function test_run(){
         global $CFG;
         $xml = $this->sp->run();
