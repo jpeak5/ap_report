@@ -104,8 +104,8 @@ class lmsEnrollment extends apreport{
      * This method derives timestamps for the beginning and end of yesterday
      * @return array int contains the start and end timestamps
      */
-    public static function get_yesterday(){
-        $today = new DateTime();
+    public static function get_yesterday($rel=null){
+        $today = new DateTime($rel);
         $midnight = new DateTime($today->format('Y-m-d'));
         $end = $midnight->getTimestamp();
         
@@ -339,18 +339,19 @@ class lmsEnrollment extends apreport{
      */
     public function populate_activity_tree(){
         $logs = $this->get_log_activity();
-        
+        $count = 0;
         foreach($logs as $log){
             if($log->course == 1 and $log->action != 'login'){
                 continue;
             }
             if(array_key_exists($log->userid, $this->enrollment->students)){
                 $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
+                $count++;
             }
         }
         
         
-        return $this->enrollment;
+        return $count > 0 ? $this->enrollment : false;
     }
     
     /**
@@ -471,8 +472,11 @@ class lmsEnrollment extends apreport{
                 }else{
 //                    echo "<hr/>";
 //                    print_r($course);
-                    
-                    
+                    //prevent a DB write no nulls error by setting 0 for 
+                    //the case when someone has merely touched a course once
+                    if(!isset($course->ap_report->agg_timespent)){
+                        $course->ap_report->agg_timespent = 0;
+                    }
                     $course->ap_report->timestamp = time();
 
                     $inserts[] = $DB->insert_record(
@@ -508,43 +512,52 @@ class lmsEnrollment extends apreport{
     public function get_enrollment_activity_records(){
         
         global $DB;
-        $sql = vsprintf("SELECT len.id AS enrollmentid
-                , len.userid
-                , u.idnumber AS studentid
-                , len.sectionid AS ues_sectionid
-                , c.id AS courseid
-                , len.semesterid AS semesterid
-                , usem.year
-                , usem.name
-                , usem.session_key
-                , usem.classes_start AS startdate
-                , usem.grades_due AS enddate
-                , agg_timespent AS timespent
-                , len.lastaccess 
-                , ucourse.department AS department
-                , ucourse.cou_number AS coursenumber
-                , usect.sec_number AS sectionid
-                , 'A' as status
-                , NULL AS extensions
-                FROM {apreport_enrol} len
-                    LEFT JOIN {user} u
-                        on len.userid = u.id
-                    LEFT JOIN {enrol_ues_sections} usect
-                        on len.sectionid = usect.id
-                    LEFT JOIN {course} c
-                        on usect.idnumber = c. idnumber
-                    LEFT JOIN {enrol_ues_courses} ucourse
-                        on usect.courseid = ucourse.id
-                    LEFT JOIN {enrol_ues_semesters} usem
-                        on usect.semesterid = usem.id
-                WHERE 
-                    len.lastaccess > %s and len.lastaccess <= %s
-                GROUP BY len.sectionid"
-                ,array($this->start, $this->end)
-                );
+        $enrollments = array();
         
-        $enrollments = $DB->get_records_sql($sql);
+        foreach($this->enrollment->semesters as $semester){
+            $sql = vsprintf("SELECT len.id AS enrollmentid
+                    , len.userid
+                    , u.idnumber AS studentid
+                    , len.sectionid AS ues_sectionid
+                    , c.id AS courseid
+                    , len.semesterid AS semesterid
+                    , usem.year
+                    , usem.name
+                    , usem.session_key
+                    , usem.classes_start AS startdate
+                    , usem.grades_due AS enddate
+                    , sum(agg_timespent) AS timespent
+                    , max(len.lastaccess) AS lastaccess
+                    , ucourse.department AS department
+                    , ucourse.cou_number AS coursenumber
+                    , usect.sec_number AS sectionid
+                    , 'A' as status
+                    , NULL AS extensions
+                    FROM {apreport_enrol} len
+                        LEFT JOIN {user} u
+                            on len.userid = u.id
+                        LEFT JOIN {enrol_ues_sections} usect
+                            on len.sectionid = usect.id
+                        LEFT JOIN {course} c
+                            on usect.idnumber = c. idnumber
+                        LEFT JOIN {enrol_ues_courses} ucourse
+                            on usect.courseid = ucourse.id
+                        LEFT JOIN {enrol_ues_semesters} usem
+                            on usect.semesterid = usem.id
+                    WHERE 
+                        usem.id = %s
+                        AND
+                        len.lastaccess >= %s and len.lastaccess <= %s
+                    GROUP BY len.sectionid"
+                    ,array(
+                        $semester->ues_semester->id,
+                        $semester->ues_semester->classes_start, 
+                        $this->end)
+                    );
 
+            $enrollments = array_merge($enrollments,$DB->get_records_sql($sql));
+    
+        }
         if(!count($enrollments) > 0){
             add_to_log(1, 'ap_reports', 'no records found in apreports_enrol');
             return false;
@@ -732,6 +745,43 @@ class lmsEnrollment extends apreport{
         return $xml;
     }
 
+    public function run_arbitrary_day($start, $end){
+        
+        
+        
+        $this->start = $start;
+        $this->end = $end;
+        $this->filename = '/'.$start.'.xml';
+        add_to_log(1, 'ap_reports', 'backfill_'.$start);
+        
+        $semesters = $this->get_active_ues_semesters();
+        if(empty($semesters)){
+            add_to_log(1, 'ap_reports', 'no active semesters');
+            return false;
+        }
+        $data = $this->get_semester_data(array_keys($semesters));
+        if(!$data){
+            add_to_log(1, 'ap_reports', 'no user activity');
+            return 'no data';
+        }
+        $tree = $this->build_user_tree();
+        if(empty($tree)){
+            return 'no students';
+        }
+        if(!$this->populate_activity_tree()){
+            return 'no activity';
+        }
+        
+        $this->calculate_time_spent();
+        
+        $x = $this->save_enrollment_data();
+        if($x){
+            return 'success';
+        }else{
+            return 'save fail';
+        }
+    }
+    
     /**
      * wraps most calls made by @see run(), but parameterizes the report to 
      * return results for the current day beginning at 0:00 and ending at time().

@@ -333,6 +333,16 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertEquals($end,$start + 86400);
 
 
+        // 2000-10-10 ->  971154000
+        $this->assertTrue(strftime('%F', 971154000) == '2000-10-10');
+        
+        list($oct09_st, $oct09_end) = lmsEnrollment::get_yesterday(strftime('%F', 971154000));
+        $this->assertTrue(strftime('%F %T',$oct09_st) == '2000-10-09 00:00:00');
+        $this->assertTrue(strftime('%F %T',$oct09_end) == '2000-10-10 00:00:00');
+        
+        list($oct08_s, $oct08_e) = lmsEnrollment::get_yesterday(strftime('%F', $oct09_st));
+        $this->assertTrue(strftime('%F %T',$oct08_s) == '2000-10-08 00:00:00');
+        $this->assertTrue(strftime('%F %T',$oct08_e) == '2000-10-09 00:00:00');
     }
 
     
@@ -469,12 +479,12 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertEquals(7227,$ap->sectionid);
         $this->assertEquals(5,$ap->semesterid);
         
-        $this->assertEquals(1364744025,$ap->lastaccess);
+        $this->assertEquals(1364824025,$ap->lastaccess);
         $this->assertEquals(63,$ap->agg_timespent);
         
         $ap2 = $enr->students[465]->courses[9850]->ap_report;
         $this->assertEquals(37, $ap2->agg_timespent);
-        $this->assertEquals(1364744010, $ap2->lastaccess);
+        $this->assertEquals(1364824010, $ap2->lastaccess);
     }
     
 
@@ -584,7 +594,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         global $CFG;
         $xml = $this->sp->run();
         $this->assertInstanceOf('DOMDocument', $xml);
-        $this->assertNotEmpty($xml->schemaValidate('tests/lmsEnrollment.xsd'));
+        $this->assertTrue($xml->schemaValidate('tests/lmsEnrollment.xsd'));
         
         $this->assertNotEmpty($CFG->apreport_job_start);
         $this->assertNotEmpty($CFG->apreport_job_complete);
