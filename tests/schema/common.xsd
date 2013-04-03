@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <!--A unique identifier for the section. It must match the
+        section ID from the SIS                               -->
+  <xs:element name="sectionId" type="xs:integer"/>
+
+  <!--The university student ID from the SIS-->
+  <xs:element name="studentId" type="xs:unsignedInt"/>
+
+  <!--A unique identifier for the group, linking to the LMS
+      SectionGroup file-->
+  <xs:element name="groupId" type="xs:string"/>
+  
+  <!--catchall?-->
+  <xs:element name="extensions" type="xs:string"/>
+
+</xs:schema>

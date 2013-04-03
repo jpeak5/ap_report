@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:include schemaLocation="common.xsd"/>
   <xs:element name="lmsEnrollments">
     <xs:complexType>
       <xs:sequence>
@@ -29,8 +30,7 @@
   the course, used to tie the student to coursework-->
   <xs:element name="enrollmentId" type="xs:unsignedLong"/>
   
-  <!--The university student ID from the SIS-->
-  <xs:element name="studentId" type="xs:unsignedInt"/>
+
   
   <!--A unique identifier for the course. It must match course ID
   from SIS-->
@@ -42,9 +42,7 @@
     </xs:simpleType>
   </xs:element>
   
-  <!--A unique identifier for the section. It must match the
-  section ID from the SIS-->
-  <xs:element name="sectionId" type="xs:integer"/>
+
   
   <!--The starting date of the course (as stored in LMS)-->
   <xs:element name="startDate">
@@ -80,6 +78,5 @@
   course-->
   <xs:element name="timeSpentInClass" type="xs:integer"/>
   
-  <!--catchall?-->
-  <xs:element name="extensions" type="xs:string"/>
+
 </xs:schema>
