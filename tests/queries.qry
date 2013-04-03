@@ -301,7 +301,7 @@ FROM mdl_course c
     INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
     LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
     INNER JOIN mdl_forum_discussions mma ON mm.id = mma.forum
-    LEFT JOIN mdl_forum_posts mmap ON mma.id = mmap.discussion AND u.id = mma.userid
+    LEFT JOIN mdl_forum_posts mmap ON mma.id = mmap.discussion AND u.id = mmap.userid
     LEFT JOIN
         (SELECT
             mgi2.courseid AS catscourse,
@@ -320,6 +320,55 @@ WHERE c.id = '4872'
 
 
 
+
+
+
+# GET ME SOME FORUMNGS
+
+SELECT
+    DISTINCT(mma.id) AS modAttemptId,
+    mm.id AS courseModuleId,
+    CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+    u.username as pawsId,
+    u.idnumber AS studentId,
+    CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+    us.sec_number AS sectionId,
+    'forum' AS itemType,
+    mm.name AS itemName,
+    mm.ratinguntil AS dueDate,
+    mmap.modified AS dateSubmitted,
+    mm.ratingscale AS pointsPossible,
+    mgg.finalgrade AS pointsReceived,
+    mgc.fullname AS gradeCategory,
+    (cats.categoryWeight * 100) AS categoryWeight,
+    NULL AS extensions
+FROM mdl_course c
+    INNER JOIN mdl_forumng mm ON mm.course = c.id
+    INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+    INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+    INNER JOIN mdl_user u ON ustu.userid = u.id
+    INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+    INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+    INNER JOIN mdl_grade_items mgi ON
+        mgi.courseid = c.id AND
+        mgi.itemtype = 'mod' AND
+        mgi.itemmodule = 'forumng' AND
+        mgi.iteminstance = mm.id
+    INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+    LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+    INNER JOIN mdl_forumng_discussions mma ON mm.id = mma.forumngid
+    LEFT JOIN mdl_forumng_posts mmap ON mma.id = mmap.discussionid AND u.id = mmap.userid
+    LEFT JOIN
+        (SELECT
+            mgi2.courseid AS catscourse,
+            mgi2.id AS catsid,
+            mgi2.iteminstance AS catcatid,
+            mgi2.aggregationcoef AS categoryWeight
+        FROM mdl_grade_items mgi2
+            INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '4872'
+            AND mgi2.itemtype = 'category')
+        cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+WHERE c.id = '4872'
 
 
 
