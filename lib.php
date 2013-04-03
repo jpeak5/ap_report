@@ -3,7 +3,9 @@
 //defined('MOODLE_INTERNAL') || die;
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
-require_once('classes.php');
+require_once('classes/apreport.php');
+require_once('classes/dbal.php');
+require_once('classes/enrollment.php');
 
 
 function local_ap_report_cron(){
@@ -56,30 +58,13 @@ class lmsEnrollment extends apreport{
         access to the class, i.e., they drop the course, do not fulfill their financial obligation, etc., then the
         enrollment status should reflect this.
      */
-        /**
-         *
-         * @var stdClass holds DB records of users 
-         * users are considered active if they occur 
-         * in mdl_log as having done anything in a course.
-         */
-        public $active_users;
+
         /**
          *
          * @var enrollment_model 
          */
         public $enrollment;
-        
-        /**
-         *
-         * @var int unix timestamp for the beginning of an ad hoc reporting timespan 
-         */
-        public $range_start;
-        
-        /**
-         *
-         * @var int unix timestamp for the end of an ad hoc reporting timespan 
-         */
-        public $range_end;
+
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
@@ -92,267 +77,114 @@ class lmsEnrollment extends apreport{
      */
     public function __construct(){
         global $CFG;
-        list($this->start, $this->end) = self::get_yesterday();
+        list($this->start, $this->end) = apreport_util::get_yesterday();
 
         $this->enrollment = new enrollment_model();
+        assert(count($this->enrollment->semesters)>0);
         $this->filename = isset($CFG->apreport_enrol_xml) 
                 ? '/'.$CFG->apreport_enrol_xml.'.xml' 
                 : '/enrollment.xml';
     }
-    
+ 
+
     /**
-     * This method derives timestamps for the beginning and end of yesterday
-     * @return array int contains the start and end timestamps
+     * Defines an array of caseSensitive mappings from 
+     * internal class member names to XSD-required names.
+     * Using these, we build a document of activity records
+     * @param $records array of lmsenrollmentRecords
+     * @TODO include schema definition
+     * @return DOMDocument
      */
-    public static function get_yesterday($rel=null){
-        $today = new DateTime($rel);
-        $midnight = new DateTime($today->format('Y-m-d'));
-        $end = $midnight->getTimestamp();
+    public function buildXML($records) {
+        assert(!empty($records));
+        $internal2xml = array(
+            'enrollmentid'  =>  'enrollmentId',
+            'studentid'     =>  'studentId',
+            'courseid'      =>  'courseId',
+            'sectionid'     =>  'sectionId',
+            'startdate'     =>  'startDate',
+            'enddate'       =>  'endDate',
+            'status'        =>  'status',
+            'lastaccess'    =>  'lastCourseAccess',
+            'timespent'     =>  'timeSpentInClass',
+            'extensions'    =>  'extensions'
+            
+        );
+        $doc  = new DOMDocument('1.0', 'UTF-8');
+        $root = $doc->createElement('lmsEnrollments');
+        $root->setAttribute('university', '002010');
         
-        //now subtract one day from today's first second
-        $today->sub(new DateInterval('P1D'));
-        $yesterday = new DateTime($today->format('Y-m-d'));
-        $start = $yesterday->getTimestamp();
+        foreach($records as $k=>$rec){
+            $rec = new lmsEnrollmentRecord($rec);
+            $rec->validate();
 
-        return array($start, $end);
-    }
-    
+            $lmsEnollment = $doc->createElement('lmsEnrollment');
 
-    /**
-     * Get a list of all semesters 
-     * where {classes_start < time() < grades_due}
-     * @TODO this probably should be made inclusive,  
-     * lest we lose stats for the actual first and 
-     * last days of the semester
-     * 
-     * @return array stdClass of active semesters
-     */
-    public function get_active_ues_semesters(){
-        global $DB;
-        $time = time();
-        $semesters = $DB->get_records_sql('SELECT 
-                                                * 
-                                            FROM 
-                                                {enrol_ues_semesters}
-                                            WHERE 
-                                                classes_start < ? 
-                                            AND 
-                                                grades_due > ?'
-                                        , array($time,$time));
-
-        $s = array();
-        foreach($semesters as $semester){
-            $obj = semester::instantiate(array('ues_semester'=>$semester));
-            $s[$obj->ues_semester->id] = $obj;
+            foreach($internal2xml as $k => $v){
+                $node = $doc->createElement($v, $rec->$k);
+                $lmsEnollment->appendChild($node);
+            }
+            
+            $root->appendChild($lmsEnollment);
         }
+        $doc->appendChild($root);
         
-        return $this->enrollment->semesters = $s;
-    }
-    
-
-
-
-    /**
-     * this function is a utility method that helps optimize the overall 
-     * routine by limiting the number of people we check;
-     * 
-     * We do this by first getting a collection of potential users from current enrollment;
-     * Then, limit that collection to include only those users who have registered activity in the logs
-     * 
-     */
-    public function get_active_users(){
-       global $DB;
-       assert(is_numeric($this->start));
-       
-       //get one userid for anyone in the mdl_log table that has done anything
-       //in the temporal bounds
-       //get, also, the timestamp of the last time they were included in this 
-       //scan (so we keep a contiguous record of their activity)
-       $sql =  vsprintf("SELECT DISTINCT u.id
-                FROM 
-                    {log} log 
-                        join 
-                    {user} u 
-                        on log.userid = u.id 
-                WHERE 
-                    log.time > %s
-                AND 
-                    log.time < %s;",array($this->start,$this->end));
-       $this->active_users = $DB->get_records_sql($sql);
-       
-       return count($this->active_users) > 0 ? $this->active_users : false;
+        assert(get_class($doc) == 'DOMDocument');
+        
+        return $doc;
     }
     
 
     /**
-     * utility function that takes in an array of [active] semesterids and queries
-     * the db for enrollment records on a per-[ues]section basis;
-     * The result set of this query is limited by the return value of 
-     * @see get_active_users
-     * @global type  $DB
-     * @param  array $semesterids  integer semester ids, presumably for active semesters
-     * @return array stdClass | false
+     * @TODO learn how to do this the Moodle way
+     * NOTE: this is a destructive operation in the 
+     * sense that the old file, if exists, will be overwritten WITHOUT
+     * warning. This is by design, as we never want more than 
+     * one disk copy of this data around.
+     * 
+     * @param DOMDocument $contents
      */
-    public function get_semester_data($semesterids){
-        global $DB;
-        $active_users = $this->get_active_users();
-
-        //use the idnumbers of the active users to reduce the number of rows we're working with;
-        if(!$active_users){
-            add_to_log(1, 'ap_reports', 'no active users');
+    public function create_file($contents)  {
+        
+        global $CFG;
+        $contents->formatOutput = true;
+        $file = $CFG->dataroot.$this->filename;
+        $handle = fopen($file, 'w');
+        assert($handle !=false);
+        $success = fwrite($handle, $contents->saveXML());
+        fclose($handle);
+        if(!$success){
+            add_to_log(1, 'ap_reports', 'error writing to filesystem');
             return false;
         }
-        $active_ids = array_keys($active_users);
-        
-        $sql = vsprintf(
-            "SELECT
-                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number, '_', u.idnumber) AS enrollmentId,
-                u.id AS studentId, 
-                usem.id AS semesterid,
-                usem.year,
-                usem.name,
-                uc.department,
-                uc.cou_number,
-                us.sec_number AS sectionId,
-                c.id AS mdl_courseid,
-                us.id AS ues_sectionid,
-                'A' AS status,
-                
-                CONCAT(usem.year, '_', usem.name, '_', uc.department, '_', uc.cou_number, '_', us.sec_number) AS uniqueCourseSection
-            FROM {course} AS c
-                INNER JOIN {context}                  AS ctx  ON c.id = ctx.instanceid
-                INNER JOIN {role_assignments}         AS ra   ON ra.contextid = ctx.id
-                INNER JOIN {user}                     AS u    ON u.id = ra.userid
-                INNER JOIN {enrol_ues_sections}       AS us   ON c.idnumber = us.idnumber
-                INNER JOIN {enrol_ues_students}       AS ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN {enrol_ues_semesters}      AS usem ON usem.id = us.semesterid
-                INNER JOIN {enrol_ues_courses}        AS uc   ON uc.id = us.courseid
-                
-                
-            WHERE 
-                ra.roleid IN (5)
-                AND usem.id in(%s)
-                AND ustu.status = 'enrolled'
-                AND u.id IN(%s)
-            ORDER BY uniqueCourseSection"
-                , array(implode(',',$semesterids)
-                        , implode(',', $active_ids))
-                );
-        
-        $rows = $DB->get_records_sql($sql);
-        
-        return count($rows) > 0 ? $rows : false;
+        return true;
+   
     }
     
+
     
     /**
-     * builds a tree-like multidimensional array from semesters, 
-     * ues_sections with users as the leaves of the tree
-     * @return array
+     * Cleans up the apreport_enrol table, if needed before writing new data;
+     * There should never be more than one record per day per user per course 
+     * 
+     * @global type $DB
      */
-    public function build_user_tree(){
-        assert(!empty($this->enrollment->semesters));
-        
-        $datarow = $this->get_semester_data(array_keys($this->enrollment->semesters));
-        
-        if(empty($this->enrollment->students)){
-            $this->enrollment->students = array();
-        }
-        
-        foreach($datarow as $row){
-            
-            $ues_course              = new ues_courses_tbl();
-            $ues_course->cou_number  = $row->cou_number;
-            $ues_course->department  = $row->department;
-
-            $ues_section             = new ues_sections_tbl();
-            $ues_section->sec_number = $row->sectionid;
-            $ues_section->id         = $row->ues_sectionid;
-            $ues_section->semesterid = $row->semesterid;
-
-            $mdl_course              = new mdl_course();
-            $mdl_course->id          = $row->mdl_courseid;
-
-            $course                  = new course();
-            $course->mdl_course      = $mdl_course;
-            $course->ues_course      = $ues_course;
-            $course->ues_section     = $ues_section;
-            
-            if(!array_key_exists($row->studentid, $this->enrollment->students)){
-                $s = new mdl_user();
-                $s->id = $row->studentid;
-                
-                $student = new student();
-                $student->mdl_user = $s;
-                
-                $this->enrollment->students[$student->mdl_user->id] = $student;
-            }
-            
-            $this->enrollment->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
-            
-        }
-
-        return $this->enrollment->students;
-        
-    }
-    
-/*----------------------------------------------------------------------------*/    
-/*                              Calculate Time Spent                          */    
-/*----------------------------------------------------------------------------*/
-
-    /**
-     * get activity records for active users from the DB.
-     * This data will be used to calculate 'timeSpentInclass'
-     * @global type $DB Moodle DB
-     * @return array stdClass {log} records
-     */
-    public function get_log_activity(){
+    private function delete_enrollment_data(){
         global $DB;
-        $sql = vsprintf(
-               "SELECT 
-                   log.id AS logid
-                   ,usect.id AS sectionid
-                   ,usect.semesterid AS semesterid
-                   ,log.time AS time
-                   ,log.userid
-                   ,log.course
-                   ,log.action
-                FROM 
-                    {enrol_ues_sections} usect
-                LEFT JOIN
-                    {course} course ON course.idnumber = usect.idnumber
-                LEFT JOIN
-                    {log} log on course.id = log.course
-                WHERE 
-                    log.time > %s 
-                    AND 
-                    log.time < %s AND (log.course > 1 OR log.action = 'login')
-                ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
-        $activity_records = $DB->get_records_sql($sql);
-
-        return empty($activity_records) ? false : $activity_records;
+        $range = array($this->start, $this->end);
+        $table = 'apreport_enrol';
+        $where = vsprintf("lastaccess >= %s AND lastaccess < %s",$range);
+        
+        $count = $DB->get_records_select($table,$where);
+        
+        if(count($count) > 0){
+            $DB->delete_records_select($table,$where);
+        }
+        return true;
+        
     }
     
-    /**
-     * take the flat log records and move them into place in the enrollment tree
-     * @param array stdClass $logs
-     */
-    public function populate_activity_tree(){
-        $logs = $this->get_log_activity();
-        $count = 0;
-        foreach($logs as $log){
-            if($log->course == 1 and $log->action != 'login'){
-                continue;
-            }
-            if(array_key_exists($log->userid, $this->enrollment->students)){
-                $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
-                $count++;
-            }
-        }
-        
-        
-        return $count > 0 ? $this->enrollment : false;
-    }
+
     
     /**
      * parse log records an a per user basis to calculate 'timeSpentInClass'
@@ -449,56 +281,32 @@ class lmsEnrollment extends apreport{
 /*                              Persist Data                                  */    
 /*----------------------------------------------------------------------------*/    
 
-
-    
-    
-    
     /**
-     * save enrollment data, prepared from the enrollment tree, to the database
-     * in our dedicated table. This is the last step in the creation of enrollment data.
-     * @see prepare_enrollment_records
-     * @global type $DB
-     * @param array $records of type lmsEnrollmentRecord
-     * @return array errors
+     * wrapper/convenience method called by @see run() and @see preview_today()
+     * When this function exits, user tree structure is built and the timespent 
+     * information has been calculated and stored in it.
+     * @return boolean true on success, flase on failure
      */
-    public function save_enrollment_activity_records(){
-        
-        global $DB;
-        $inserts = array();
-        foreach($this->enrollment->students as $student){
-            foreach($student->courses as $course){
-                if(!isset($course->ap_report)){
-                    continue;
-                }else{
-//                    echo "<hr/>";
-//                    print_r($course);
-                    //prevent a DB write no nulls error by setting 0 for 
-                    //the case when someone has merely touched a course once
-                    if(!isset($course->ap_report->agg_timespent)){
-                        $course->ap_report->agg_timespent = 0;
-                    }
-                    $course->ap_report->timestamp = time();
-
-                    $inserts[] = $DB->insert_record(
-                            'apreport_enrol', 
-                            $course->ap_report, 
-                            true, 
-                            true
-                            );
-                }
-                
-                
-            }
-            
+    public function get_enrollment(){
+        $semesters = $this->enrollment->get_active_ues_semesters();
+        if(empty($semesters)){
+            add_to_log(1, 'ap_reports', 'no active semesters');
+            return false;
         }
-
-        return $inserts;
+        $this->enrollment->get_active_users($this->start, $this->end);
+        $data = $this->enrollment->get_semester_data(array_keys($semesters),
+                array_keys($this->enrollment->active_users));
+        if(!$data){
+            add_to_log(1, 'ap_reports', 'no user activity');
+            return false;
+        }
+        $tree     = $this->enrollment->get_active_students($this->start, $this->end);
+        $activity = $this->populate_activity_tree();
+        $timespt  = $this->calculate_time_spent();
         
-    }
-    
-/*----------------------------------------------------------------------------*/    
-/*                              Fetch/report-building methods                 */    
-/*----------------------------------------------------------------------------*/
+        return !empty($tree) and !empty($activity) and !empty($timespt);
+
+    }    
     
     /**
      * fetches time spent from apreport_enrol 
@@ -565,63 +373,6 @@ class lmsEnrollment extends apreport{
         return $enrollments;
     }
     
-
-    /**
-     * Defines an array of caseSensitive mappings from 
-     * internal class member names to XSD-required names.
-     * Using these, we build a document of activity records
-     * @param $records array of lmsenrollmentRecords
-     * @TODO include schema definition
-     * @return DOMDocument
-     */
-    public function buildXML($records) {
-        assert(!empty($records));
-        $internal2xml = array(
-            'enrollmentid'  =>  'enrollmentId',
-            'studentid'     =>  'studentId',
-            'courseid'      =>  'courseId',
-            'sectionid'     =>  'sectionId',
-            'startdate'     =>  'startDate',
-            'enddate'       =>  'endDate',
-            'status'        =>  'status',
-            'lastaccess'    =>  'lastCourseAccess',
-            'timespent'     =>  'timeSpentInClass',
-            'extensions'    =>  'extensions'
-            
-        );
-        $doc  = new DOMDocument('1.0', 'UTF-8');
-        $root = $doc->createElement('lmsEnrollments');
-        $root->setAttribute('university', '002010');
-        
-        foreach($records as $k=>$rec){
-            $rec = new lmsEnrollmentRecord($rec);
-            $rec->validate();
-
-            $lmsEnollment = $doc->createElement('lmsEnrollment');
-
-            foreach($internal2xml as $k => $v){
-                $node = $doc->createElement($v, $rec->$k);
-                $lmsEnollment->appendChild($node);
-            }
-            
-            $root->appendChild($lmsEnollment);
-        }
-        $doc->appendChild($root);
-        
-        assert(get_class($doc) == 'DOMDocument');
-        
-        return $doc;
-    }
-    
-    
-    
-    
-/*----------------------------------------------------------------------------*/    
-/*               WRAPPER / CONVENIENCE METHODS                                */
-/*----------------------------------------------------------------------------*/
-
-    
-    
     /**
      * main getter for enrollment data as xml
      * @return string
@@ -632,43 +383,139 @@ class lmsEnrollment extends apreport{
         $xml = $this->buildXML($records);
         
         return $xml;
+    }    
+
+    /**
+     * get activity records for active users from the DB.
+     * This data will be used to calculate 'timeSpentInclass'
+     * @global type $DB Moodle DB
+     * @return array stdClass {log} records
+     */
+    public function get_log_activity(){
+        global $DB;
+        $sql = vsprintf(
+               "SELECT 
+                   log.id AS logid
+                   ,usect.id AS sectionid
+                   ,usect.semesterid AS semesterid
+                   ,log.time AS time
+                   ,log.userid
+                   ,log.course
+                   ,log.action
+                FROM 
+                    {enrol_ues_sections} usect
+                LEFT JOIN
+                    {course} course ON course.idnumber = usect.idnumber
+                LEFT JOIN
+                    {log} log on course.id = log.course
+                WHERE 
+                    log.time > %s 
+                    AND 
+                    log.time < %s AND (log.course > 1 OR log.action = 'login')
+                ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
+        $activity_records = $DB->get_records_sql($sql);
+
+        return empty($activity_records) ? false : $activity_records;
+    }
+
+    /**
+     * take the flat log records and move them into place in the enrollment tree
+     * @param array stdClass $logs
+     */
+    public function populate_activity_tree(){
+        $logs = $this->get_log_activity();
+        $count = 0;
+        foreach($logs as $log){
+            if($log->course == 1 and $log->action != 'login'){
+                continue;
+            }
+            if(array_key_exists($log->userid, $this->enrollment->students)){
+                $this->enrollment->students[$log->userid]->activity[$log->logid] = $log;
+                $count++;
+            }
+        }
+        
+        
+        return $count > 0 ? $this->enrollment : false;
     }
     
-    
     /**
-     * @TODO learn how to do this the Moodle way
-     * NOTE: this is a destructive operation in the 
-     * sense that the old file, if exists, will be overwritten WITHOUT
-     * warning. This is by design, as we never want more than 
-     * one disk copy of this data around.
-     * 
-     * @param DOMDocument $contents
+     * wraps most calls made by @see run(), but parameterizes the report to 
+     * return results for the current day beginning at 0:00 and ending at time().
+     * NB that the records created by this method do not constitute a complete 
+     * day's report, and so will be dropped the next time @see run() or is called 
+     * or the next time it, itself, is called (the daily cron run will wipe out 
+     * records persisted by this method).
+     * @return boolean ture on success, false on failure
      */
-    public function create_file($contents)  {
+    public function preview_today(){
+        $today = new DateTime();
+        $midnight = new DateTime($today->format('Y-m-d'));
+        $this->start = $midnight->getTimestamp();
+        $this->end = time();
+        $this->filename = '/preview.xml';
+        add_to_log(1, 'ap_reports', 'preview');
         
-        global $CFG;
-        $contents->formatOutput = true;
-        $file = $CFG->dataroot.$this->filename;
-        $handle = fopen($file, 'w');
-        assert($handle !=false);
-        $success = fwrite($handle, $contents->saveXML());
-        fclose($handle);
-        if(!$success){
-            add_to_log(1, 'ap_reports', 'error writing to filesystem');
+        $e = $this->get_enrollment();
+        $x = $this->save_enrollment_data();
+        if($e and $x){
+            return $x;
+        }else{
             return false;
         }
-        return true;
-   
-    }
+    }    
     
     /**
-     * wrapper/convenience method called by @see run() and @see preview_today()
-     * When this function exits, user tree structure is built and the timespent 
-     * information has been calculated and stored in it.
-     * @return boolean true on success, flase on failure
+     * @TODO let the start and complete flags be simple boolean rather than timestamps
+     * @TODO the boolean set_configs could be made more granular
+     * @TODO continue refactoring this wrapper to allow better communication back
+     * to the caller for better end-user messages
+     * @global type $CFG
+     * @global type $DB
+     * @return boolean
      */
-    public function get_enrollment(){
-        $semesters = $this->get_active_ues_semesters();
+    public function run(){
+        set_config('apreport_got_xml', false);
+        set_config('apreport_got_enrollment', false);        
+        set_config('apreport_job_start', microtime(true));
+        
+        //if there has been no activity, that is not a failure of this system
+        if(!$this->enrollment->get_active_users($this->start,$this->end)){
+            $doc = new DOMDocument();
+            $doc->appendChild(new DOMElement('lmsEnrollments', "No Data. Check for user activity in the moodle log table"));
+            set_config('apreport_job_complete', microtime(true));
+            return $doc;
+        }
+        
+        if(!$this->get_enrollment()){
+            add_to_log(1, 'ap_reports', 'get_enrollment failure');
+            return false;
+        }
+        set_config('apreport_got_enrollment', true);
+        
+        $xml = $this->save_enrollment_data();
+        
+        if(!$xml){
+            add_to_log(1, 'ap_reports', 'no user activity');
+
+            return false;
+        }
+        set_config('apreport_got_xml', true);
+        
+        set_config('apreport_job_complete', microtime(true));
+        add_to_log(1, 'ap_reports', 'complete');
+        return $xml;
+    }
+    
+    public function run_arbitrary_day($start, $end){
+        
+        
+        
+        $this->start = $start;
+        $this->end = $end;
+        add_to_log(1, 'ap_reports', 'backfill_'.$start);
+        
+        $semesters = $this->enrollment->get_active_ues_semesters();
         if(empty($semesters)){
             add_to_log(1, 'ap_reports', 'no active semesters');
             return false;
@@ -676,36 +523,67 @@ class lmsEnrollment extends apreport{
         $data = $this->get_semester_data(array_keys($semesters));
         if(!$data){
             add_to_log(1, 'ap_reports', 'no user activity');
-            return false;
+            return 'no data';
         }
-        $tree     = $this->build_user_tree();
-        $activity = $this->populate_activity_tree();
-        $timespt  = $this->calculate_time_spent();
+        $tree = $this->enrollment->get_active_students($this->start, $this->end);
+        if(empty($tree)){
+            return 'no students';
+        }
+        if(!$this->populate_activity_tree()){
+            return 'no activity';
+        }
         
-        return !empty($tree) and !empty($activity) and !empty($timespt);
+        $this->calculate_time_spent();
+        
+        $x = $this->save_enrollment_data();
+        if($x){
+            return 'success';
+        }else{
+            return 'save fail';
+        }
+    }
 
-    }
-    
     /**
-     * Cleans up the apreport_enrol table, if needed before writing new data;
-     * There should never be more than one record per day per user per course 
-     * 
+     * save enrollment data, prepared from the enrollment tree, to the database
+     * in our dedicated table. This is the last step in the creation of enrollment data.
+     * @see prepare_enrollment_records
      * @global type $DB
+     * @param array $records of type lmsEnrollmentRecord
+     * @return array errors
      */
-    private function delete_enrollment_data(){
+    public function save_enrollment_activity_records(){
+        
         global $DB;
-        $range = array($this->start, $this->end);
-        $table = 'apreport_enrol';
-        $where = vsprintf("lastaccess >= %s AND lastaccess < %s",$range);
-        
-        $count = $DB->get_records_select($table,$where);
-        
-        if(count($count) > 0){
-            $DB->delete_records_select($table,$where);
+        $inserts = array();
+        foreach($this->enrollment->students as $student){
+            foreach($student->courses as $course){
+                if(!isset($course->ap_report)){
+                    continue;
+                }else{
+
+                    //prevent a DB write no nulls error by setting 0 for 
+                    //the case when someone has merely touched a course once
+                    if(!isset($course->ap_report->agg_timespent)){
+                        $course->ap_report->agg_timespent = 0;
+                    }
+                    $course->ap_report->timestamp = time();
+
+                    $inserts[] = $DB->insert_record(
+                            'apreport_enrol', 
+                            $course->ap_report, 
+                            true, 
+                            true
+                            );
+                }
+                
+                
+            }
+            
         }
-        return true;
+
+        return $inserts;
         
-    }
+    }    
     
     /**
      * convenience/wrapper method called by @see run() and @see preview_today
@@ -743,111 +621,8 @@ class lmsEnrollment extends apreport{
         }
         
         return $xml;
-    }
+    }    
 
-    public function run_arbitrary_day($start, $end){
-        
-        
-        
-        $this->start = $start;
-        $this->end = $end;
-        add_to_log(1, 'ap_reports', 'backfill_'.$start);
-        
-        $semesters = $this->get_active_ues_semesters();
-        if(empty($semesters)){
-            add_to_log(1, 'ap_reports', 'no active semesters');
-            return false;
-        }
-        $data = $this->get_semester_data(array_keys($semesters));
-        if(!$data){
-            add_to_log(1, 'ap_reports', 'no user activity');
-            return 'no data';
-        }
-        $tree = $this->build_user_tree();
-        if(empty($tree)){
-            return 'no students';
-        }
-        if(!$this->populate_activity_tree()){
-            return 'no activity';
-        }
-        
-        $this->calculate_time_spent();
-        
-        $x = $this->save_enrollment_data();
-        if($x){
-            return 'success';
-        }else{
-            return 'save fail';
-        }
-    }
-    
-    /**
-     * wraps most calls made by @see run(), but parameterizes the report to 
-     * return results for the current day beginning at 0:00 and ending at time().
-     * NB that the records created by this method do not constitute a complete 
-     * day's report, and so will be dropped the next time @see run() or is called 
-     * or the next time it, itself, is called (the daily cron run will wipe out 
-     * records persisted by this method).
-     * @return boolean ture on success, false on failure
-     */
-    public function preview_today(){
-        $today = new DateTime();
-        $midnight = new DateTime($today->format('Y-m-d'));
-        $this->start = $midnight->getTimestamp();
-        $this->end = time();
-        $this->filename = '/preview.xml';
-        add_to_log(1, 'ap_reports', 'preview');
-        
-        $e = $this->get_enrollment();
-        $x = $this->save_enrollment_data();
-        if($e and $x){
-            return $x;
-        }else{
-            return false;
-        }
-    }
-    
-    /**
-     * @TODO let the start and complete flags be simple boolean rather than timestamps
-     * @TODO the boolean set_configs could be made more granular
-     * @TODO continue refactoring this wrapper to allow better communication back
-     * to the caller for better end-user messages
-     * @global type $CFG
-     * @global type $DB
-     * @return boolean
-     */
-    public function run(){
-        set_config('apreport_got_xml', false);
-        set_config('apreport_got_enrollment', false);        
-        set_config('apreport_job_start', microtime(true));
-        
-        //if there has been no activity, that is not a failure of this system
-        if(!$this->get_active_users()){
-            $doc = new DOMDocument();
-            $doc->appendChild(new DOMElement('lmsEnrollments', "No Data. Check for user activity in the moodle log table"));
-            set_config('apreport_job_complete', microtime(true));
-            return $doc;
-        }
-        
-        if(!$this->get_enrollment()){
-            add_to_log(1, 'ap_reports', 'get_enrollment failure');
-            return false;
-        }
-        set_config('apreport_got_enrollment', true);
-        
-        $xml = $this->save_enrollment_data();
-        
-        if(!$xml){
-            add_to_log(1, 'ap_reports', 'no user activity');
-
-            return false;
-        }
-        set_config('apreport_got_xml', true);
-        
-        set_config('apreport_job_complete', microtime(true));
-        add_to_log(1, 'ap_reports', 'complete');
-        return $xml;
-    }
     
     
 
@@ -855,124 +630,10 @@ class lmsEnrollment extends apreport{
 
 
 
-class user{
-    public $id;    
-    public $apid; //FK into apreports_enrol table
-    public $last_update;
-    public $time_spent;
-    public $activity;//log records
-}
 
 
 
-/**
- * parent class for all user-facing data records.
- * Contains formatting methods that ensure adherence to the end-user XML schema
- */
-class reportRecord{
-    public $enrollmentid;
-    public $studentid;
-    public $sectionid;
-    public $courseid;
-    
-    public static function format_year($y){
-        return substr($y, strlen($y) - 2);
-    }
-    
-    public static function format_section_number($s){
-        return sprintf("%03u",(int)$s);
-    }
-    
-    public static function format_department($d){
-        return sprintf("%-4s",$d);
-    }
-    
-    public static function format_enrollmentid($y,$sid, $cid, $snum){
-        $year_part  = self::format_year($y);
-        $mdlcourseid= self::format_5d_courseid($cid);
-        $snum = self::format_section_number($snum);
-        return $year_part.$sid.$mdlcourseid.$snum;
-    }
-    
-    public static function format_courseid($d, $s){
-        $department = self::format_department($d);
-        $sectionnum = self::format_section_number($s);
-        return $department."".$sectionnum;
-    }
-    
-    public static function format_5d_courseid($d){
-        return sprintf('%05d', $d);
-    }
-    
-    public static function format_ap_date($ts){
-        return strftime('%m/%d/%Y',$ts);
-    }
-    
-    public static function format_ap_datetime($ts){
-        return strftime('%m/%d/%Y %H:%M:%S',$ts);
-    }
-}
 
-class lmsEnrollmentRecord extends reportRecord{
-    
-    //see schema @ tests/enrollemnts.xsd for source of member names
-    /**
-     * this is getting out of control
-     * break this out into internal names and a formatter function for xml output
-     * @var type 
-     */
-    public $id;
-    public $semesterid; //from ues_semester
-    public $year;       //from ues_semester
-    public $name;       //from ues_semester
-    public $session_key;//from ues_semester
-    public $status;
-    public $lastaccess;
-    public $timespent;
-    public $extensions;
-    public $sectionnumber;
-    public $coursenumber;
-    public $department;
-    public $startdate;
-    public $enddate;
-    
-    public function __construct($record){
-        
-        if(!is_array($record)){
-            $record = (array)$record;
-        }
-        
-        $fields = get_class_vars('lmsEnrollmentRecord');
-        
-        foreach($fields as $field => $value){
-            if(array_key_exists($field, $record)){
-                $this->$field = $record[$field];
-            }
-        }
-  
-    }
-    
-    public function validate(){
-        
-        $this->studentid        = (int)$this->studentid;
-        $this->timeSpentInClass = (int)$this->timespent;
-        $this->enrollmentid     = $this->id;
-        $this->courseid         = self::format_courseid($this->department, $this->coursenumber);
-        $this->lastaccess       = self::format_ap_datetime($this->lastaccess);
-        $this->startdate        = self::format_ap_date($this->startdate);
-        $this->enddate          = self::format_ap_date($this->enddate);
-        
-        
-        $this->enrollmentid     = self::format_enrollmentid($this->year
-                                                            , $this->studentid
-                                                            , $this->coursenumber
-                                                            , $this->sectionid
-                                                            );
-
-    }
-    
-
-}
 
 
 

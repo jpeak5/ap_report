@@ -184,6 +184,68 @@ class mdl_user extends tbl_model{
 }
 
 /**
+ * wrapper class around ues_semesters and a 
+ * collection of courses for a given semester;
+ * 
+ */
+class semester{
+    
+
+    /**
+     *
+     * @var ues_semester_tbl 
+     */
+    public $ues_semester;   //ues record
+    /**
+     *
+     * @var array course 
+     */
+    public $courses;        //array of courses
+    
+    /**
+     * 
+     * @param array $params keyed as follows: 
+     * 'ues_semester' => ues_semester object,
+     * 'courses' => array of course objects
+     * 
+     */
+    public static function instantiate(array $params){
+        $inst = new self();
+        if(array_key_exists('ues_semester', $params)){
+            $inst->ues_semester = ues_semester_tbl::instantiate($params['ues_semester']);
+        }
+        
+        if(array_key_exists('courses', $params)){
+            foreach($params['courses'] as $course){
+                if(get_class($course) == 'course'){
+                    $inst->courses[] = $course;
+                }else{
+                    mtrace("expected a course object, but got something different; handle this condition");
+                }
+                
+            }
+        }
+        
+        return $inst;
+    }
+    
+    /**
+     * 
+     * @param ues_semester_tbl $sem
+     * @param type $courses
+     */
+    public static function make_test_instance($sem, $courses){
+        $inst = new self();
+        $inst->courses = $courses;
+        $inst->ues_semestertest = $sem;
+        foreach($inst->courses as $c){
+            $c->ues_section->semesterid = $sem->id;
+        }
+        return $inst;
+    }
+    
+}
+/**
  * @TODO repurpose/rename the ues_studenttest member 
  * to hold references to the corresponding recordsin ues_students
  * to enable bidirectional lookup
@@ -296,103 +358,5 @@ class course extends tbl_model{
         
     }
     
-}
-/**
- * wrapper class around ues_semesters and a 
- * collection of courses for a given semester;
- * 
- */
-class semester{
-    
-
-    /**
-     *
-     * @var ues_semester_tbl 
-     */
-    public $ues_semester;   //ues record
-    /**
-     *
-     * @var array course 
-     */
-    public $courses;        //array of courses
-    
-    /**
-     * 
-     * @param array $params keyed as follows: 
-     * 'ues_semester' => ues_semester object,
-     * 'courses' => array of course objects
-     * 
-     */
-    public static function instantiate(array $params){
-        $inst = new self();
-        if(array_key_exists('ues_semester', $params)){
-            $inst->ues_semester = ues_semester_tbl::instantiate($params['ues_semester']);
-        }
-        
-        if(array_key_exists('courses', $params)){
-            foreach($params['courses'] as $course){
-                if(get_class($course) == 'course'){
-                    $inst->courses[] = $course;
-                }else{
-                    mtrace("expected a course object, but got something different; handle this condition");
-                }
-                
-            }
-        }
-        
-        return $inst;
-    }
-    
-    /**
-     * 
-     * @param ues_semester_tbl $sem
-     * @param type $courses
-     */
-    public static function make_test_instance($sem, $courses){
-        $inst = new self();
-        $inst->courses = $courses;
-        $inst->ues_semestertest = $sem;
-        foreach($inst->courses as $c){
-            $c->ues_section->semesterid = $sem->id;
-        }
-        return $inst;
-    }
-    
-}
-
-class enrollment_model {
-    /**
-     *
-     * @var array(semester) 
-     */
-    public $semesters;
-    /**
-     *
-     * @var array(course) 
-     */
-    public $courses;
-    /**
-     *
-     * @var array(student) 
-     */
-    public $students;
-    
-    //table abstractions
-//    public $ues_sections;
-//    public $ues_courses;
-//    public $ues_students;
-//    public $ues_semesters;
-//    public $mdl_courses;
-//    public $mdl_logs;
-//    public $mdl_users;
- 
-    
-    public function get_enrollment_tree_student_leaves(){
-        
-    }
-    public function get_enrollment_tree_course_leaves(){
-        
-    }
- 
 }
 ?>

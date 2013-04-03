@@ -1,5 +1,5 @@
 <?php
-require_once('classes.php');
+require_once('lib.php');
 
 class user_activity_segment{
     public $userid;

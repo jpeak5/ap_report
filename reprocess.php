@@ -125,7 +125,7 @@ if(is_siteadmin($USER)){
 //        $marker = time();
 //        while($marker >= $earliest){
 //            $daily = new lmsEnrollment();
-//            list($start, $end) = lmsEnrollment::get_yesterday(strftime('%F',$marker));
+//            list($start, $end) = apreport_util::get_yesterday(strftime('%F',$marker));
 //            $status = $daily->run_arbitrary_day($start,$end);
 //            $marker = $daily->start;
 //
