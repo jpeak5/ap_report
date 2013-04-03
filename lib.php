@@ -751,7 +751,6 @@ class lmsEnrollment extends apreport{
         
         $this->start = $start;
         $this->end = $end;
-        $this->filename = '/'.$start.'.xml';
         add_to_log(1, 'ap_reports', 'backfill_'.$start);
         
         $semesters = $this->get_active_ues_semesters();
