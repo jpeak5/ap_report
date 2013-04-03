@@ -115,39 +115,39 @@ if(is_siteadmin($USER)){
         }
         
     }else{
-        $semesters = $report->get_active_ues_semesters();
-        $earliest = time();
-        foreach($semesters as $semester){
-            $earliest = $semester->ues_semester->classes_start < $earliest ? $semester->ues_semester->classes_start : $earliest;
-            
-        }
-        
-        $marker = time();
-        while($marker >= $earliest){
-            $daily = new lmsEnrollment();
-            list($start, $end) = lmsEnrollment::get_yesterday(strftime('%F',$marker));
-            $status = $daily->run_arbitrary_day($start,$end);
-            $marker = $daily->start;
-
-            $data[] = array( 
-                'day'=>strftime('%F', $marker),
-                'status'=>$status);
-        }
-        
-    
-    
-        $table = new html_table();
-        $table_data = array();
-        foreach($data as $datum){
-            $cells = array();
-            $cells[] = new html_table_cell($datum['day']);
-            $cells[] = new html_table_cell($datum['status']);
-            $row = new html_table_row($cells);
-            $table_data[] = $row;
-        }
-        $table->head = array('day', 'status');
-        $table->data = $table_data;
-        echo html_writer::table($table);
+//        $semesters = $report->get_active_ues_semesters();
+//        $earliest = time();
+//        foreach($semesters as $semester){
+//            $earliest = $semester->ues_semester->classes_start < $earliest ? $semester->ues_semester->classes_start : $earliest;
+//            
+//        }
+//        
+//        $marker = time();
+//        while($marker >= $earliest){
+//            $daily = new lmsEnrollment();
+//            list($start, $end) = lmsEnrollment::get_yesterday(strftime('%F',$marker));
+//            $status = $daily->run_arbitrary_day($start,$end);
+//            $marker = $daily->start;
+//
+//            $data[] = array( 
+//                'day'=>strftime('%F', $marker),
+//                'status'=>$status);
+//        }
+//        
+//    
+//    
+//        $table = new html_table();
+//        $table_data = array();
+//        foreach($data as $datum){
+//            $cells = array();
+//            $cells[] = new html_table_cell($datum['day']);
+//            $cells[] = new html_table_cell($datum['status']);
+//            $row = new html_table_row($cells);
+//            $table_data[] = $row;
+//        }
+//        $table->head = array('day', 'status');
+//        $table->data = $table_data;
+//        echo html_writer::table($table);
         
     }
     

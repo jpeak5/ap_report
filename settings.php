@@ -26,7 +26,7 @@ if ($hassiteconfig) {
     $preview = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'preview'));
     $a->preview = $preview->out(false);
     
-    $backfill = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'backfill'));
+    $backfill = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'nothing'));
     $a->backfill = $backfill->out(false);
     
     
