@@ -70,7 +70,6 @@ class lmsEnrollment extends apreport{
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
     /**
-     * Default configuration (via cron) is to call without params, resulting in 
      * stats harvesting for yesterday.
      * @param int $start timestamp for start of the range of interest
      * @param int $end   timestamp for end   of the range of interest
@@ -469,7 +468,7 @@ class lmsEnrollment extends apreport{
      * @TODO let the start and complete flags be simple boolean rather than timestamps
      * @TODO the boolean set_configs could be made more granular
      * @TODO continue refactoring this wrapper to allow better communication back
-     * to the caller for better end-user messages
+     * to the caller for better end-user messages (ie remove intermediary wrappers)
      * @global type $CFG
      * @global type $DB
      * @return boolean
