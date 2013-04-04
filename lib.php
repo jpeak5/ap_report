@@ -627,7 +627,56 @@ class lmsEnrollment extends apreport{
 
 }
 
+/**
+ * The LMS section group file contains data from the LMS system regarding the sections that have been
+setup within the course sections. A section typically consists of two or more groups. However, an entire
+section may be contained within a single group, or a section may not contain any groups. In the latter
+case, a section group record should be sent with empty group id and group name fields.
+The data captured in the LMS section group file includes the id and name of the group, the section the
+group belongs to, the id, name, and email address of the primary instructor for the section, as well as
+the id, name, and email address of the instructor, teacher assistant, or coach assigned to the group.
+This data feed should include data for all of the sections which contain students recruited by Academic
+Partnerships for the previous, current, and upcoming terms.
+ */
+class lmsSectionGroup_report{
+    
+    /**
+     *
+     * @var enrollment_model 
+     */
+    public $enrollment;
+    
+    public function __construct($e = null){
+        if(!isset($this->enrollment)){
+            $this->enrollment = $e;
+        }
+    }
+    
+}
 
+/**
+ * The LMS group membership file contains data from the LMS system matching up students with the
+section groups to which they belong. A student may belong to one or more groups within a section.
+This data feed should include the group assignments for all active students recruited by Academic
+Partnerships for the previous, current, and upcoming terms.
+ */
+class lmsGroupMembership{
+    /**
+     *
+     * @var enrollment_model 
+     */
+    public $enrollment;
+    
+    public function __construct($e = null){
+        $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
+    }
+
+    public function run(){
+        $this->enrollment->get_groups_with_students();
+        return true;
+    }
+    
+}
 
 
 

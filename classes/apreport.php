@@ -1,4 +1,5 @@
 <?php
+require_once('dbal.php');
 class apreport_util{
         /**
      * This method derives timestamps for the beginning and end of yesterday
@@ -125,5 +126,59 @@ class lmsEnrollmentRecord extends apreportRecord{
     }
     
 
+}
+
+class lmsGroupMembershipRecord extends tbl_model{
+  public $sectionid;
+  public $groupid;
+  public $studentid;
+  public $extensions;
+  
+  
+  public static $camels = array(
+      'sectionid'=>'sectionId',
+      'groupid'=>'groupId',
+      'studentid'=>'studentId',
+      'extensions'=>'extensions');
+  
+  /**
+   * 
+   * @param lmsGroupMembershipRecord $object
+   */
+  public static function camelize($object){
+      $camel = new stdClass();
+      foreach(get_object_vars($object) as $k=>$v){
+          if(array_key_exists($k,self::$camels)){
+              $caseProperty = self::$camels[$k];
+              $camel->$caseProperty = $v;
+          }
+      }
+      return $camel;
+  }
+  
+  /**
+   * 
+   * @param stdClass $object
+   */
+  public static function toXML($object){
+      $doc = new DOMDocument('1.0', 'UTF-8');
+      $f = $doc->createElement('lmsGroupMember');
+      
+      foreach(get_object_vars($object) as $key => $value){
+          if(in_array($key,array_values(self::$camels))){
+              $x = $doc->createElement($key, $value);
+              assert(get_class($x) == 'DOMElement');
+              $f->appendChild($x);
+              mtrace(sprintf("adding new node %s with value %s", $key, $value));
+             
+          }
+      }
+      $doc->appendChild($f);
+      mtrace(get_class($doc));
+      assert(get_class($doc) == 'DOMDocument');
+      return $doc;
+      
+  }
+  
 }
 ?>

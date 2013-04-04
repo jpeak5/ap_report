@@ -17,6 +17,11 @@ class enrollment_model {
      */
     public $students;
     
+    /**
+     *
+     * @var group[]
+     */
+    public $groups;
     
     /**
      *
@@ -37,6 +42,127 @@ class enrollment_model {
     public function __construct(){
         $this->semesters = self::get_active_ues_semesters();
         assert(!empty($this->semesters));
+        $this->courses   = self::get_all_courses(array_keys($this->semesters));
+    }
+    
+    public static function get_all_courses($semesterids){
+        global $DB;
+        $sql = sprintf("SELECT 
+                    usect.id            AS ues_sectionid,
+                    usect.sec_number    AS ues_sections_sec_number,  
+                    usect.idnumber      AS idnumber,
+                    c.id                AS mdl_courseid,
+                    c.shortname         AS mdl_course_shortname,
+                    usem.id             AS ues_semesterid,
+                    ucourse.department  AS ues_course_department,
+                    ucourse.cou_number  AS ues_cou_number
+                FROM {enrol_ues_sections} usect
+                INNER JOIN {enrol_ues_courses} ucourse
+                    on usect.courseid = ucourse.id
+                INNER JOIN {enrol_ues_semesters} usem
+                    on usect.semesterid = usem.id
+                INNER JOIN {course} c
+                    on usect.idnumber = c. idnumber
+                WHERE 
+                    usem.id IN(%s)
+                AND 
+                    usect.idnumber <> ''",
+                implode(',',$semesterids));
+        //verify courses
+        $courses = array();
+        
+        $rows = $DB->get_records_sql($sql);
+        foreach($rows as $row){
+            $course = new course();
+            
+            //build the course obj
+            $mc                 = new mdl_course();
+            $mc->id             = $row->mdl_courseid;
+            $mc->idnumber       = $row->idnumber;
+            $course->mdl_course = $mc;
+            
+            //build the ues section object
+            $usect              = new ues_sections_tbl();
+            $usect->id          = $row->ues_sectionid;
+            $usect->idnumber    = $row->idnumber;
+            $usect->sec_number  = $row->ues_sections_sec_number;
+            $usect->semesterid  = $row->ues_semesterid;
+            $course->ues_section= $usect;
+
+            $courses[$mc->id]   = $course;
+        }
+        
+        return $courses;
+        
+    }
+    
+    public function get_groups_with_students(){
+        $sql = sprintf("SELECT
+                    CONCAT(g.id,u.idnumber) AS userGroupId,
+                    c.id                    AS courseid,
+                    g.id                    AS groupId,
+                    u.idnumber              AS studentId,
+                    u.id                    AS userid,
+                    gm.id                   AS gmid,
+                    NULL AS extensions
+                FROM {course} AS c
+
+                    INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50                    
+                    INNER JOIN {groups} AS g ON c.id = g.courseid                    
+                    INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
+                    INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (5)
+                    INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
+                    
+                WHERE c.id IN(%s)",
+                implode(',',array_keys(self::get_all_courses(array_keys($this->semesters))))
+                );
+        
+        
+        global $DB;
+        $rows = $DB->get_records_sql($sql);
+        
+        if(!isset($this->groups)){
+            $this->groups = array();
+        }
+        foreach($rows as $row){
+
+                //make a group member
+                $mgm_gm = mdl_group_member::instantiate(array(
+                    'id'        =>$row->gmid,
+                    'userid'    =>$row->userid,
+                    'groupid'   =>$row->groupid
+                ));
+                
+                $mgm_mu = mdl_user::instantiate(array(
+                    'id'        =>$row->userid,
+                    'idnumber'  =>$row->studentid
+                ));
+                
+                $gm = group_member::instantiate(array(
+                    'mdl_user'  => $mgm_mu,
+                    'mdl_group_member' => $mgm_gm
+                ));
+
+            if(!array_key_exists($row->groupid,$this->groups)){
+                //make the group object and constituents
+                $mg = mdl_group::instantiate(array(
+                    'id'        =>$row->groupid,
+                    'courseid'  =>$row->courseid,
+                    ));
+                
+                $g = group::instantiate(array(
+                    'mdl_group'     => $mg, 
+                    'group_members' => array($gm->mdl_group_member->id=>$gm)
+                    ));
+                $this->groups[$row->groupid] = $g;
+            }
+            
+            $this->groups[$row->groupid]->group_members[$gm->mdl_group_member->id] = $gm;
+      
+
+        }
+        
+        return $this->groups;
     }
     
     public function get_active_students($start,$end){

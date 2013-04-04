@@ -286,14 +286,63 @@ class student extends tbl_model{
  * 
  */
 class course extends tbl_model{
+    /**
+     *
+     * @var mdl_course 
+     */
     public $mdl_course;
+    
+    /**
+     *
+     * @var ues_section 
+     */
     public $ues_section;
+    
+    /**
+     *
+     * @var ues_course 
+     */
     public $ues_course;
+    
+    /**
+     *
+     * @var ues_student[]
+     */
     public $ues_students;
+    
+    /**
+     *
+     * @var student[]
+     */
     public $students;
+    
+    /**
+     *
+     * @var group[]
+     */
+    public $groups;
+    
+    /**
+     *
+     * @var mdl_role_assignment[]
+     */
     public $role_assignments;
+    
+    /**
+     *
+     * @var mdl_context[]
+     */
     public $contexts;
+    
+    /**
+     *
+     * @var mdl_log[]
+     */
     public $mdl_logs;
+    
+    /**
+     * @var ap_report_table[]
+     */
     public $ap_report;
     
     public static function instantiate($params){
@@ -359,4 +408,59 @@ class course extends tbl_model{
     }
     
 }
+
+class group extends tbl_model{
+    
+
+    
+    
+    /**
+     *
+     * @var mdl_group 
+     */
+    public $mdl_group;
+    
+    /**
+     *
+     * @var group_member[]
+     */
+    public $group_members;
+    
+}
+class mdl_group extends tbl_model{
+    
+    public $id;
+    public $courseid;
+    public $name;
+    public $idnumber;
+    
+}
+
+class mdl_group_member extends tbl_model{
+    
+    public $id;
+    public $groupid;
+    public $userid;
+    public $timeadded;
+    
+    
+    
+}
+
+class group_member extends tbl_model{
+    
+    /**
+     *
+     * @var mdl_user
+     */
+    public $mdl_user;
+    
+    /**
+     *
+     * @var mdl_group_member
+     */
+    public $mdl_group_member;
+}
+
+
 ?>
