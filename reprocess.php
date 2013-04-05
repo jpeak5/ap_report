@@ -114,7 +114,13 @@ if(is_siteadmin($USER)){
             echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
         }
         
-    }else{
+    }elseif($mode = 'group_membership'){
+        $gm = new lmsGroupMembership();
+        if(($xdoc = $gm->run())!=false){
+            echo $xdoc->saveXML();
+        }else{
+            echo "failed updating groupmembership report";
+        }
 //        $semesters = $report->get_active_ues_semesters();
 //        $earliest = time();
 //        foreach($semesters as $semester){

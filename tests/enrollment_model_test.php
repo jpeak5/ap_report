@@ -9,7 +9,6 @@ class enrollment_model_testcase extends apreports_testcase{
     public function test_make_dummy_data(){
         global $DB;
         $this->resetAfterTest();
-        $this->make_dummy_data();
         
         $semesters = $DB->get_records('enrol_ues_semesters');
         $this->nonempty_array($semesters);
@@ -133,6 +132,13 @@ class enrollment_model_testcase extends apreports_testcase{
 
     }
     
-
+    public function test_get_groups_with_students(){
+        global $DB;
+        $this->assertEquals(2,count($DB->get_records('groups')));
+        $e = new enrollment_model();
+        $x = $e->get_groups_with_students();
+        $this->nonempty_array($x);
+//        mtrace(print_r($x));
+    }
 }
 ?>

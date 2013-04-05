@@ -37,12 +37,33 @@ abstract class apreport {
     public $end;
     public $filename;
 
-    /**
-     * 
-     * @return \DOMDocument this will be the document that is returned to the client
-     */
-    abstract protected function buildXML($records);
 
+
+    /**
+     * @TODO learn how to do this the Moodle way
+     * NOTE: this is a destructive operation in the 
+     * sense that the old file, if exists, will be overwritten WITHOUT
+     * warning. This is by design, as we never want more than 
+     * one disk copy of this data around.
+     * 
+     * @param DOMDocument $contents
+     */
+    public function create_file($contents, $filepath)  {
+        
+        global $CFG;
+        $contents->formatOutput = true;
+        $handle = fopen($filepath, 'w');
+        assert($handle !=false);
+        $success = fwrite($handle, $contents->saveXML());
+        fclose($handle);
+        if(!$success){
+            add_to_log(1, 'ap_reports', sprintf('error writing to filesystem at %s', $filepath));
+            return false;
+        }
+        return true;
+   
+    }
+    
 }
 
 
@@ -134,31 +155,7 @@ class lmsEnrollment extends apreport{
     }
     
 
-    /**
-     * @TODO learn how to do this the Moodle way
-     * NOTE: this is a destructive operation in the 
-     * sense that the old file, if exists, will be overwritten WITHOUT
-     * warning. This is by design, as we never want more than 
-     * one disk copy of this data around.
-     * 
-     * @param DOMDocument $contents
-     */
-    public function create_file($contents)  {
-        
-        global $CFG;
-        $contents->formatOutput = true;
-        $file = $CFG->dataroot.$this->filename;
-        $handle = fopen($file, 'w');
-        assert($handle !=false);
-        $success = fwrite($handle, $contents->saveXML());
-        fclose($handle);
-        if(!$success){
-            add_to_log(1, 'ap_reports', 'error writing to filesystem');
-            return false;
-        }
-        return true;
-   
-    }
+
     
 
     
@@ -596,6 +593,8 @@ class lmsEnrollment extends apreport{
      * @return boolean
      */
     public function save_enrollment_data(){
+        global $CFG;
+        
         $delete = $this->delete_enrollment_data();
         if(!$delete){
             add_to_log(1, 'ap_reports', 'db error: delete_records');
@@ -614,7 +613,8 @@ class lmsEnrollment extends apreport{
            return false; 
         }
         
-        if(!$this->create_file($xml)){
+        $file = $CFG->dataroot.$this->filename;
+        if(!$this->create_file($xml, $file)){
             add_to_log(1, 'ap_reports', 'error create_file');
             return false;
         }
@@ -660,7 +660,7 @@ section groups to which they belong. A student may belong to one or more groups 
 This data feed should include the group assignments for all active students recruited by Academic
 Partnerships for the previous, current, and upcoming terms.
  */
-class lmsGroupMembership{
+class lmsGroupMembership extends apreport{
     /**
      *
      * @var enrollment_model 
@@ -671,9 +671,25 @@ class lmsGroupMembership{
         $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
     }
 
+    public function getXML(){
+        $objects = array();
+        foreach($this->enrollment->groups as $group){
+            foreach($group->group_members as $gm){
+                $objects[] = lmsGroupMembershipRecord::instantiate($group);
+            }
+        }
+        $xdoc = lmsGroupMembershipRecord::toXMLDoc($objects);
+        return $xdoc;
+    }
+    
+    
     public function run(){
+        global $CFG;
         $this->enrollment->get_groups_with_students();
-        return true;
+        $content = $this->getXML();
+        $file = $CFG->dataroot.'/groups.xml';
+        
+        return $this->create_file($content, $file) ? $content : false;
     }
     
 }

@@ -160,24 +160,38 @@ class lmsGroupMembershipRecord extends tbl_model{
    * 
    * @param stdClass $object
    */
-  public static function toXML($object){
-      $doc = new DOMDocument('1.0', 'UTF-8');
-      $f = $doc->createElement('lmsGroupMember');
+  public static function toXMLElement($object){
+      $tmp = new DOMDocument('1.0', 'UTF-8');
+      $e   = $tmp->createElement('lmsGroupMember');
       
       foreach(get_object_vars($object) as $key => $value){
+          assert(in_array($key, array_values(self::$camels)));
           if(in_array($key,array_values(self::$camels))){
-              $x = $doc->createElement($key, $value);
-              assert(get_class($x) == 'DOMElement');
-              $f->appendChild($x);
-              mtrace(sprintf("adding new node %s with value %s", $key, $value));
-             
+              $e->appendChild($tmp->createElement($key, $value));
           }
       }
-      $doc->appendChild($f);
-      mtrace(get_class($doc));
-      assert(get_class($doc) == 'DOMDocument');
-      return $doc;
+      return $e;
       
+  }
+  
+  /**
+   * 
+   * @param lmsGroupMembershpRecord[] $records
+   */
+  public static function toXMLDoc($records){
+      $xdoc = new DOMDocument();
+      $root = $xdoc->createElement('lmsGroupMembers');
+      $root->setAttribute('university', '002010');
+      
+      
+      foreach($records as $record){
+          $camel = self::camelize($record);
+          
+          $elemt = $xdoc->importNode(self::toXMLElement($camel),true);
+          $root->appendChild($elemt);
+      }
+      $xdoc->appendChild($root);
+      return $xdoc;
   }
   
 }

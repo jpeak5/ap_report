@@ -12,16 +12,21 @@ class lmsGroupMembership_testcase extends apreports_testcase{
         $this->assertInstanceOf('enrollment_model',$gm->enrollment);
     }
     
+    
     public function test_run(){
+        global $CFG;
         $gm = new lmsGroupMembership();
-        $this->assertTrue($gm->run());
+        $this->assertInstanceOf('enrollment_model', $gm->enrollment);
         
+//        mtrace(print_r($gm->enrollment));
+        $this->assertTrue($gm->run());
+//        $gm->run();
+
         $this->nonempty_array($gm->enrollment->groups);
         $this->assertEquals(2, count($gm->enrollment->groups[666]->group_members));
-//        foreach($gm->enrollment->groups as $g){
-//            $this->assertTrue(array_key_exists($g->mdl_group->id, array(666,7)),'check dataset entries for groups table');
-//        }
         
+        $file = $CFG->dataroot.'/groups.xml';
+        $this->assertFileExists($file);
     }
     
     public function test_lmsGroupMembershipRecord_camelize(){
@@ -41,30 +46,51 @@ class lmsGroupMembership_testcase extends apreports_testcase{
         $this->assertSame($arr['extensions'], $camel->extensions);
     }
     
-    public function test_toXML(){
+    public function test_toXMLElement(){
         $arr   = array(
                 'sectionid'=>10,
                 'groupid'=>666,
                 'studentid'=>456654654,
                 'extensions'=>'');
         $camel = lmsGroupMembershipRecord::camelize(lmsGroupMembershipRecord::instantiate($arr));
-        $frag   = lmsGroupMembershipRecord::toXML($camel);
-        print_r($camel);
-        $this->assertInstanceOf('DOMDocument', $frag);
+        $frag  = lmsGroupMembershipRecord::toXMLElement($camel);
+        $this->assertInstanceOf('DOMElement', $frag);
+        $doc   = new DOMDocument();
+        $root  = $doc->createElement('lmsGroupMembers');
+        $root->setAttribute('university', 'test');
+        $root->appendChild($doc->importNode($frag,true));
         
-        $doc = new DOMDocument();
-        
-        $node = $frag->getElementsByTagName('lmsGroupMember');
-        $this->assertEquals(1,$node->length);
-        $new = $doc->importNode($node->item(0),true);
-        
-        $root = $doc->createElement('lmsGroupMembers');
-        $root->appendChild($new);
+        //finish duocument
         $doc->appendChild($root);
         $doc->formatOutput = true;
-        print_r($doc->saveXML());
+        $this->assertTrue($doc->schemaValidate('tests/schema/lmsGroupMembership.xsd'));
+        
     }
     
+    public function test_toXMLDoc(){
+        $arr   = array(
+                    array(
+                        'sectionid'=>10,
+                        'groupid'=>666,
+                        'studentid'=>456654654,
+                        'extensions'=>''
+                        ),
+                    array(
+                        'sectionid'=>11,
+                        'groupid'=>6667,
+                        'studentid'=>457645635,
+                        'extensions'=>''
+                    )
+                );
+        $class_obj = array();
+        foreach($arr as $a){
+            $class_obj[] = lmsGroupMembershipRecord::instantiate($a);
+        }
+        
+        $xdoc = lmsGroupMembershipRecord::toXMLDoc($class_obj);
+        $this->assertTrue($xdoc->schemaValidate('tests/schema/lmsGroupMembership.xsd'));
+        
+    }
 }
 
 

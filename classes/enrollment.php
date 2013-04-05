@@ -96,9 +96,14 @@ class enrollment_model {
         
     }
     
+        
     public function get_groups_with_students(){
-        $sql = sprintf("SELECT
-                    CONCAT(g.id,u.idnumber) AS userGroupId,
+        if(!isset($this->semesters)){
+            mtrace("calling get groups without having first populated semesters");
+            $this->get_active_ues_semesters();
+        }
+        $sql = sprintf("SELECT DISTINCT
+                    CONCAT(g.id,'-',u.idnumber) AS userGroupId,
                     c.id                    AS courseid,
                     g.id                    AS groupId,
                     u.idnumber              AS studentId,
@@ -117,10 +122,10 @@ class enrollment_model {
                 implode(',',array_keys(self::get_all_courses(array_keys($this->semesters))))
                 );
         
-        
+//        die($sql);
         global $DB;
         $rows = $DB->get_records_sql($sql);
-        
+        assert(count($rows) > 0);
         if(!isset($this->groups)){
             $this->groups = array();
         }

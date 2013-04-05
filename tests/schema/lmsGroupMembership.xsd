@@ -8,6 +8,7 @@
             <xs:sequence minOccurs="0" maxOccurs="unbounded">
                 <xs:element ref="lmsGroupMember"/>
             </xs:sequence>
+            <xs:attribute ref="university" use="required"/>
         </xs:complexType>
     </xs:element>
 

@@ -7,7 +7,7 @@
         <xs:element ref="lmsEnrollment" maxOccurs="unbounded"/>
       </xs:sequence>
       <!--The university OPEID code-->
-      <xs:attribute name="university" use="required" type="xs:string"/>
+      <xs:attribute ref="university" use="required"/>
     </xs:complexType>
   </xs:element>
   <xs:element name="lmsEnrollment">
