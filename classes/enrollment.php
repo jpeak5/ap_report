@@ -25,6 +25,12 @@ class enrollment_model {
     
     /**
      *
+     * @var lmsGroupMembershipRecord[]
+     */
+    public $group_membership_records;
+    
+    /**
+     *
      * @var stdClass holds DB records of users 
      * users are considered active if they occur 
      * in mdl_log as having done anything in a course.
@@ -96,33 +102,134 @@ class enrollment_model {
         
     }
     
+
+    
+    public function get_group_members(){
+                $sql = "SELECT DISTINCT
+                            gm.id AS uuid,
+                            gm.groupid,
+                            gm.userid,
+                            g.courseid,
+                            u.idnumber AS studentid,
+                            c.idnumber,
+                            usect.sec_number AS ues_sectionnum
+                        FROM 
+                            (
+                                mdl_groups_members gm 
+                                LEFT JOIN mdl_groups g ON g.id = gm.groupid
+                                LEFT JOIN mdl_user u ON u.id = gm.userid
+                                LEFT JOIN mdl_course c ON c.id = g.courseid
+                            )
+                            INNER JOIN mdl_enrol_ues_sections usect ON c.idnumber = usect.idnumber
+                            LEFT JOIN mdl_enrol_ues_courses ";
         
-    public function get_groups_with_students(){
-        if(!isset($this->semesters)){
-            mtrace("calling get groups without having first populated semesters");
-            $this->get_active_ues_semesters();
+        global $DB;
+        $members = $DB->get_recrods_sql($sql);
+        
+        foreach($members as $member){
+            if(!array_key_exists($member->groupid, $this->groups)){
+                $this->groups[$member->groupid] = new group();
+            }
+            if(!array_key_exists($this->groups[$member->groupid]->group_members[$member->uuid])){
+                $this->groups[$member->groupid]->group_members[$member->uuid] = new group_member();
+                $mdl_user = mdl_user::instantiate(array('id'=>$member->userid,'idnumber'=>$member->userid));
+                $mdl_group_member = mdl_group_member::instantiate(array(
+                    'id'=>$member->uuid,
+                    'groupid'=>$member->groupid,
+                    'userid'=>$member->userid
+                    ));
+                $group_member = group_member::instantiate(array('mdl_user'=>$mdl_user,
+                    'mdl_group_member'=>$mdl_group_member));
+                $this->groups[$member->groupid]->group_members[$member->uuid]=$group_member;
+            }
+            
         }
-        $sql = sprintf("SELECT DISTINCT
-                    CONCAT(g.id,'-',u.idnumber) AS userGroupId,
-                    c.id                    AS courseid,
-                    g.id                    AS groupId,
-                    u.idnumber              AS studentId,
-                    u.id                    AS userid,
-                    gm.id                   AS gmid,
+        
+    }
+    
+    public function get_group_membership_report(){
+            
+
+        $sql = "SELECT
+                    
+                    CONCAT(gm.id,c.idnumber) AS userGroupId,
+                    c.id AS courseid,                    
+                    us.sec_number AS sectionId,
+                    g.id AS groupId,
+                    gm.id AS gmid,
+                    u.idnumber AS studentId,
+                    u.id AS userid,
+                    gm.groupid AS groupid,
                     NULL AS extensions
                 FROM {course} AS c
-
-                    INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50                    
-                    INNER JOIN {groups} AS g ON c.id = g.courseid                    
+                    INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
+                        AND us.idnumber IS NOT NULL
+                        AND c.idnumber IS NOT NULL
+                        AND us.idnumber <> ''
+                        AND c.idnumber <> ''
+                    INNER JOIN {enrol_ues_courses} AS uc ON uc.id = us.courseid
+                    INNER JOIN {enrol_ues_semesters} AS usem ON usem.id = us.semesterid
+                    INNER JOIN {groups} AS g ON c.id = g.courseid
+                    INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
                     INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
                     INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (5)
                     INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
-                    
-                WHERE c.id IN(%s)",
-                implode(',',array_keys(self::get_all_courses(array_keys($this->semesters))))
-                );
+                WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
+                        AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                GROUP BY userGroupId";
         
-//        die($sql);
+        global $DB;
+        $rows = $DB->get_records_sql($sql);
+        assert(count($rows) > 0);
+        if(!isset($this->groups)){
+            $this->groups = array();
+        }
+        foreach($rows as $row){
+            $rec = new lmsGroupMembershipRecord();
+            $rec->groupid = $row->groupid;
+            $rec->sectionid = $row->sectionid;
+            $rec->studentid = $row->studentid;
+            if(!isset($this->group_membership_records[$rec->groupid])){
+                $this->group_membership_records[$rec->groupid] = array();
+            }
+            $this->group_membership_records[$rec->groupid][$row->usergroupid] = $rec;
+        }
+//print_r($this->group_membership_records);
+//        die();
+        return $this->group_membership_records;
+    
+    }
+    
+    public function get_groups_with_students(){
+
+        $sql = "SELECT
+                    
+                    CONCAT(gm.id,c.idnumber) AS userGroupId,
+                    c.id AS courseid,                    
+                    us.sec_number AS sectionId,
+                    g.id AS groupId,
+                    gm.id AS gmid,
+                    u.idnumber AS studentId,
+                    u.id AS userid,
+                    gm.groupid AS groupid,
+                    NULL AS extensions
+                FROM {course} AS c
+                    INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
+                        AND us.idnumber IS NOT NULL
+                        AND c.idnumber IS NOT NULL
+                        AND us.idnumber <> ''
+                        AND c.idnumber <> ''
+                    INNER JOIN {enrol_ues_courses} AS uc ON uc.id = us.courseid
+                    INNER JOIN {enrol_ues_semesters} AS usem ON usem.id = us.semesterid
+                    INNER JOIN {groups} AS g ON c.id = g.courseid
+                    INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
+                    INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
+                    INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (5)
+                    INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
+                WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
+                        AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                GROUP BY userGroupId";
+        
         global $DB;
         $rows = $DB->get_records_sql($sql);
         assert(count($rows) > 0);

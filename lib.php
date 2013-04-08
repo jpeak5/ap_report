@@ -670,25 +670,32 @@ class lmsGroupMembership extends apreport{
     public function __construct($e = null){
         $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
     }
-
+    
     public function getXML(){
+
         $objects = array();
-        foreach($this->enrollment->groups as $group){
-            foreach($group->group_members as $gm){
-                $objects[] = lmsGroupMembershipRecord::instantiate($group);
+        foreach($this->enrollment->group_membership_records as $key=>$records){
+            foreach($records as $record){
+            mtrace(sprintf("printing key %s", $key));
+                $objects[] = lmsGroupMembershipRecord::instantiate($record);
             }
         }
+        
+        assert(count($objects) > 0);
         $xdoc = lmsGroupMembershipRecord::toXMLDoc($objects);
+
         return $xdoc;
     }
     
     
     public function run(){
-        global $CFG;
-        $this->enrollment->get_groups_with_students();
-        $content = $this->getXML();
-        $file = $CFG->dataroot.'/groups.xml';
         
+        global $CFG;
+        $this->enrollment->get_group_membership_report();
+        $content = $this->getXML();
+        $content->format = true;
+        $file = $CFG->dataroot.'/groups.xml';
+        mtrace(sprintf("final file = %s",$content->saveXML()));
         return $this->create_file($content, $file) ? $content : false;
     }
     
