@@ -154,12 +154,13 @@ class enrollment_model {
                     
                     CONCAT(gm.id,c.idnumber) AS userGroupId,
                     c.id AS courseid,                    
-                    us.sec_number AS sectionId,
+                    us.sec_number AS ues_sectionId,
                     g.id AS groupId,
                     gm.id AS gmid,
                     u.idnumber AS studentId,
                     u.id AS userid,
                     gm.groupid AS groupid,
+                    CONCAT(us.id,'-',uc.department,'_',uc.cou_number,'_',us.sec_number) AS sectionid,
                     NULL AS extensions
                 FROM {course} AS c
                     INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber

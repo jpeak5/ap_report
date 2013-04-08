@@ -676,7 +676,7 @@ class lmsGroupMembership extends apreport{
         $objects = array();
         foreach($this->enrollment->group_membership_records as $key=>$records){
             foreach($records as $record){
-            mtrace(sprintf("printing key %s", $key));
+//            mtrace(sprintf("printing key %s", $key));
                 $objects[] = lmsGroupMembershipRecord::instantiate($record);
             }
         }
@@ -695,7 +695,7 @@ class lmsGroupMembership extends apreport{
         $content = $this->getXML();
         $content->format = true;
         $file = $CFG->dataroot.'/groups.xml';
-        mtrace(sprintf("final file = %s",$content->saveXML()));
+//        mtrace(sprintf("final file = %s",$content->saveXML()));
         return $this->create_file($content, $file) ? $content : false;
     }
     
