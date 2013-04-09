@@ -30,5 +30,7 @@ $string['last_run_end']         = "Last Run Completed";
 $string['storage_path']         = "Path to store files";
 $string['storage_path_desc']    = "Path should exist, should be writable by the webserver. This plugin will not create the directory.";
 $string['with_cron']            = "Run with cron?";
-$string['with_cron_desc']       = "If checke, reports data will be collected during cron. If left unchecked, values for time window start and end will be ignored";
+$string['with_cron_desc']       = "If checked, reports data will be collected during cron. If left unchecked, values for time window start and end will be ignored";
+
+$string['group_membership']     = 'Run [Group Membership]({$a->group_membership}) job.';
 ?>

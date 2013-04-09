@@ -151,10 +151,17 @@ if ($hassiteconfig) {
                     'enrollment',
                     PARAM_FILE)
             );
+
+    
+    $settings->add(
+        new admin_setting_heading(
+                'group_membership_header', 
+                'Group Membership Report',  get_string('group_membership',$plugin, $a)
+                ));
     
     $ADMIN->add('localplugins', $settings);
 
-    
+
     
 }
 
