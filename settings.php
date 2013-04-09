@@ -20,7 +20,7 @@ if ($hassiteconfig) {
     
     $a = new stdClass();
     
-    $repro_url = new moodle_url('/local/ap_report/reprocess.php');
+    $repro_url = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'reprocess'));
     $a->url = $repro_url->out(false);
     
     $preview = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'preview'));
@@ -166,6 +166,25 @@ if ($hassiteconfig) {
                 'section_groups_header', 
                 'Section Groups Report',  get_string('section_groups_header_desc',$plugin, $a)
                 ));
+    
+    //config selects for primary inst/coach
+    global $DB;
+    $pi_defaults = array('3');
+
+    $roles = $DB->get_records_menu('role');
+    $settings->add(
+            new admin_setting_configmultiselect('apreport_primy_inst_roles','Primary Instructor Roles', 
+                    'roles that should be considered when querying for groups primary instructor members'
+                    , $pi_defaults, $roles)
+            );
+    
+    
+    $coach_defaults = array(4,19,20,21);
+    $settings->add(
+            new admin_setting_configmultiselect('apreport_coach_roles','Coach Roles', 
+                    'roles that should be considered when querying for groups COACH members'
+                    , $coach_defaults, $roles)
+            );
     
     $ADMIN->add('localplugins', $settings);
 
