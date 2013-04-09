@@ -143,7 +143,7 @@ class lmsGroupMembershipRecord extends tbl_model{
   
   /**
    * 
-   * @param lmsGroupMembershipRecord $object
+   * @param tbl_model $object
    */
   public static function camelize($object){
       $camel = new stdClass();
@@ -194,5 +194,9 @@ class lmsGroupMembershipRecord extends tbl_model{
       return $xdoc;
   }
   
+}
+
+class lmsSectionGroup{
+    
 }
 ?>

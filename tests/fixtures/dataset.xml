@@ -24,6 +24,13 @@
         <column>idnumber</column>
         <column>username</column>
         <row>
+<!--        this is a tesacher-->
+            <value>999</value>
+            <value>teacher-0@example.com</value>
+            <value>666777555</value>
+            <value>teacher-0</value>
+        </row>
+        <row>
             <value>465</value>
             <value>student-0@example.com</value>
             <value>472725024</value>
@@ -185,6 +192,12 @@
             <value>8251</value>
             <value>333</value>
         </row>
+        <row>
+            <value>5</value>
+            <value>3</value>
+            <value>999</value>
+            <value>2042</value>
+        </row>
     </table>
     <table name="log">
         <column>id</column>
@@ -195,14 +208,14 @@
         <row>
             <!--begin user 465 session 0-->
             <value>1</value>
-            <value>1365345486</value>
+            <value>1365431886</value>
             <value>465</value>
             <value>1</value>
             <value>login</value>
         </row>
         <row>
             <value>2</value>
-            <value>1365345496</value>
+            <value>1365431896</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -210,7 +223,7 @@
         <row>
             <!--timespent(2326) = 10-->
             <value>3</value>
-            <value>1365345506</value>
+            <value>1365431906</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -218,7 +231,7 @@
         <row>
             <!--timespent(2326) = 20-->
             <value>4</value>
-            <value>1365345516</value>
+            <value>1365431916</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -226,7 +239,7 @@
         <row>
             <!--timespent(2326) = 30-->
             <value>5</value>
-            <value>1365345526</value>
+            <value>1365431926</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -234,7 +247,7 @@
         <row>
             <!--timespent(2326) = 40-->
             <value>6</value>
-            <value>1365345536</value>
+            <value>1365431936</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -243,7 +256,7 @@
             <!--SWITCH courses-->
             <!--timespent(9850) = 0-->
             <value>7</value>
-            <value>1365345546</value>
+            <value>1365431946</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -251,7 +264,7 @@
         <row>
             <!--timespent(9850) = 10-->
             <value>8</value>
-            <value>1365345556</value>
+            <value>1365431956</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -259,7 +272,7 @@
         <row>
             <!--timespent(9850) = 20-->
             <value>9</value>
-            <value>1365345566</value>
+            <value>1365431966</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -267,7 +280,7 @@
         <row>
             <!--timespent(9850) = 24-->
             <value>10</value>
-            <value>1365345570</value>
+            <value>1365431970</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -275,7 +288,7 @@
         <row>
             <!--timespent(9850) = 27-->
             <value>11</value>
-            <value>1365345573</value>
+            <value>1365431973</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -284,7 +297,7 @@
             <!--SWITCH courses-->
             <!--timespent(2326) = 40 (should remain unchanged until next action)-->
             <value>12</value>
-            <value>1365345575</value>
+            <value>1365431975</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -292,7 +305,7 @@
         <row>
             <!--timespent(2326) = 45-->
             <value>13</value>
-            <value>1365345580</value>
+            <value>1365431980</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -300,7 +313,7 @@
         <row>
             <!--timespent(2326) = 58-->
             <value>14</value>
-            <value>1365345593</value>
+            <value>1365431993</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -310,7 +323,7 @@
             <!--lastaccess(2326) should be 1364302993-->
             <!--lastaccess(9850) should be 1364302973-->
             <value>15</value>
-            <value>1365342993</value>
+            <value>1365429393</value>
             <value>465</value>
             <value>1</value>
             <value>login</value>
@@ -318,7 +331,7 @@
         <row>
             <!--lastaccess(9850) should be 1364304000-->
             <value>16</value>
-            <value>1365343000</value>
+            <value>1365429400</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -326,7 +339,7 @@
         <row>
             <!--timespent(9850) = 37-->
             <value>17</value>
-            <value>1365343010</value>
+            <value>1365429410</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -334,7 +347,7 @@
         <row>
             <!--SWITCH courses-->
             <value>18</value>
-            <value>1365343020</value>
+            <value>1365429420</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -342,7 +355,7 @@
         <row>
             <!--timespent(2326) = 63-->
             <value>19</value>
-            <value>1365343025</value>
+            <value>1365429425</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -378,6 +391,12 @@
             <value>46</value>
             <value>666</value>
             <value>8251</value>
+            <value>1358143200</value>
+        </row>
+        <row>
+            <value>47</value>
+            <value>666</value>
+            <value>999</value>
             <value>1358143200</value>
         </row>
     </table>
