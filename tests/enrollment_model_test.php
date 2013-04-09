@@ -134,7 +134,7 @@ class enrollment_model_testcase extends apreports_testcase{
     
     public function test_get_groups_with_students(){
         global $DB;
-        $this->assertEquals(2,count($DB->get_records('groups')));
+        $this->assertEquals(3,count($DB->get_records('groups')));
         $e = new enrollment_model();
         $x = $e->get_groups_with_students();
         $this->nonempty_array($x);

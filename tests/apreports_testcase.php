@@ -77,7 +77,7 @@ abstract class apreports_testcase extends advanced_testcase{
         //test role-assignments count
         $ras = $DB->get_records('role_assignments');
         $this->nonempty_array($ras);
-        $this->assertEquals(5, count($ras));
+        $this->assertEquals(7, count($ras));
         
         //test mdl_courses count
         $mdl_courses_count = $DB->get_records('course');
@@ -86,10 +86,10 @@ abstract class apreports_testcase extends advanced_testcase{
         
         //test mdl_user count
         $mdl_user_count = $DB->get_records('user');
-        $this->assertEquals(7,count($mdl_user_count));
+        $this->assertEquals(9,count($mdl_user_count));
         foreach($mdl_user_count as $u){
             
-            $this->assertTrue(in_array($u->id, array(1,2,465,8251,9584,9541,999)), sprintf("userid %d not found in array of expected values", $u->id));
+            $this->assertTrue(in_array($u->id, array(1,2,465,8251,9584,9541,999,555,5566)), sprintf("userid %d not found in array of expected values", $u->id));
         }
         
         //test mdl_logs count
@@ -100,19 +100,19 @@ abstract class apreports_testcase extends advanced_testcase{
         //test mdl_groups
         $groups = $DB->get_records('groups');
         $this->nonempty_array($groups);
-        $this->assertEquals(2, count($groups));
+        $this->assertEquals(3, count($groups));
         
         //test mdl_groups_members
         $gmember = $DB->get_records('groups_members');
         $this->nonempty_array($gmember);
-        $this->assertEquals(3,count($gmember));
+        $this->assertEquals(5,count($gmember));
         
         
         //test group membership
         $members_01 = $DB->get_records('groups_members', array('groupid'=>666));
-        $this->assertEquals(3,count($members_01));
+        $this->assertEquals(4,count($members_01));
         foreach($members_01 as $m){
-            $this->assertTrue(in_array($m->userid, array(465, 8251,999)));
+            $this->assertTrue(in_array($m->userid, array(465, 8251,999,555)));
         }
         
         //assert role relationships

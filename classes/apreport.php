@@ -28,6 +28,7 @@ class apreportRecord{
     public $studentid;
     public $sectionid;
     public $courseid;
+    public $extensions;
     
     public static function format_year($y){
         return substr($y, strlen($y) - 2);
@@ -141,62 +142,43 @@ class lmsGroupMembershipRecord extends tbl_model{
       'studentid'=>'studentId',
       'extensions'=>'extensions');
   
-  /**
-   * 
-   * @param tbl_model $object
-   */
-  public static function camelize($object){
-      $camel = new stdClass();
-      foreach(get_object_vars($object) as $k=>$v){
-          if(array_key_exists($k,self::$camels)){
-              $caseProperty = self::$camels[$k];
-              $camel->$caseProperty = $v;
-          }
-      }
-      return $camel;
-  }
+
   
-  /**
-   * 
-   * @param stdClass $object
-   */
-  public static function toXMLElement($object){
-      $tmp = new DOMDocument('1.0', 'UTF-8');
-      $e   = $tmp->createElement('lmsGroupMember');
-      
-      foreach(get_object_vars($object) as $key => $value){
-          assert(in_array($key, array_values(self::$camels)));
-          if(in_array($key,array_values(self::$camels))){
-              $e->appendChild($tmp->createElement($key, $value));
-          }
-      }
-      return $e;
-      
-  }
-  
-  /**
-   * 
-   * @param lmsGroupMembershpRecord[] $records
-   */
-  public static function toXMLDoc($records){
-      $xdoc = new DOMDocument();
-      $root = $xdoc->createElement('lmsGroupMembers');
-      $root->setAttribute('university', '002010');
-      
-      
-      foreach($records as $record){
-          $camel = self::camelize($record);
-          
-          $elemt = $xdoc->importNode(self::toXMLElement($camel),true);
-          $root->appendChild($elemt);
-      }
-      $xdoc->appendChild($root);
-      return $xdoc;
-  }
+
   
 }
 
-class lmsSectionGroup{
+class lmsSectionGroupRecord extends tbl_model{
+    
+    public $groupid,
+            $groupname,
+            $courseid , 
+            $sectionid,
+            $primaryinstructorid,
+            $primaryinstructorfname,
+            $primaryinstructorlname,
+            $primaryinstructoremail,
+            $coachid,
+            $coachfirstname,
+            $coachlastname,
+            $coachemail;
+    
+    public static $camels = array(
+        'sectionid'             =>'sectionId',
+        'groupid'               =>'groupId',
+        'groupname'             =>'groupName',
+        'courseid'              =>'courseId',
+        'primaryinstructorid'   =>'primaryInstructorId',
+        'primaryinstructorfname'=>'primaryInstructorFName',
+        'primaryinstructorlname'=>'primaryInstructorLName',
+        'primaryinstructoremail'=>'primaryInstructorEmail',
+        'couchid'               =>'coachId',
+        'coachfirstname'        =>'coachFirstName',
+        'coachlastname'         =>'coachLastName',
+        'coachemail'            =>'coachEmail',
+        'extensions'            =>'extensions'
+        );
+    
     
 }
 ?>

@@ -31,6 +31,23 @@ class enrollment_model {
     
     /**
      *
+     * @var lmsSectionGroupRecord[]
+     */
+    public $groups_primary_instructors;
+    
+    /**
+     *
+     * @var lmsSectionGroupRecord[]
+     */
+    public $groups_coaches;
+    
+    /**
+     *
+     * @var lmsSectionGroupRecord[] 
+     */
+    public $sectionGroupRecords;
+    /**
+     *
      * @var stdClass holds DB records of users 
      * users are considered active if they occur 
      * in mdl_log as having done anything in a course.
@@ -526,6 +543,134 @@ class enrollment_model {
        $this->active_users = $DB->get_records_sql($sql);
        
        return count($this->active_users) > 0 ? $this->active_users : false;
+    }
+    
+    /**
+     * Note that this method follows a 'first come, first served strategy. The first occurence of a user 
+     * for a group will become THE user for the group; all others will be ignored
+     * @global type $DB
+     * @return lmsSectionGroupRecord[]
+     */
+    public function get_groups_primary_instructors() {
+        $sql = "SELECT
+                    CONCAT(g.id,u.idnumber) AS userGroupId,
+                    us.sec_number AS sectionId,
+                    g.id AS groupId,
+                    g.name AS groupName,
+                    CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                    u.idnumber AS primaryInstructorId,
+                    u.firstname AS primaryInstructorFname,
+                    u.lastname AS primaryInstructorLname,
+                    u.email AS primaryInstructorEmail,
+                    NULL AS coachId,
+                    NULL AS coachFirstName,
+                    NULL AS coachLastName,
+                    NULL AS coachEmail,
+                    NULL AS extensions
+                FROM {course} AS c
+                    INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
+                        AND us.idnumber IS NOT NULL
+                        AND c.idnumber IS NOT NULL
+                        AND us.idnumber <> ''
+                        AND c.idnumber <> ''
+                    INNER JOIN {enrol_ues_courses} AS uc ON uc.id = us.courseid
+                    INNER JOIN {enrol_ues_semesters} AS usem ON usem.id = us.semesterid
+                    INNER JOIN {groups} AS g ON c.id = g.courseid
+                    INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
+                    INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
+                    INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (3)
+                    INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
+                WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
+                    AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                GROUP BY userGroupId";
+        
+        global $DB;
+  
+        foreach($DB->get_records_sql($sql) as $rec){
+            $inst = lmsSectionGroupRecord::instantiate((array)$rec);
+            if(empty($this->groups_primary_instructors[$inst->groupid])){
+                $this->groups_primary_instructors[$inst->groupid] = $inst;
+            }else{
+                continue;
+            }
+        }
+        
+        return empty($this->groups_primary_instructors) ? false : $this->groups_primary_instructors;
+        
+    }
+    
+    /**
+     * Note that this method follows a 'first come, first served strategy. The first occurence of a user 
+     * for a group will become THE user for the group; all others will be ignored
+     * @global type $DB
+     * @return lmsSectionGroupRecord[]
+     */
+    public function get_groups_coaches(){
+        $sql = "SELECT
+                        CONCAT(g.id,u.idnumber) AS userGroupId,
+                        c.id AS courseid,
+                        g.name AS sectionId,
+                        g.id AS groupId,
+                        g.name AS groupName,
+                        CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                        NULL AS primaryInstructorId,
+                        NULL AS primaryInstructorFname,
+                        NULL AS primaryInstructorLname,
+                        NULL AS primaryInstructorEmail,
+                        u.idnumber AS coachId,
+                        u.firstname AS coachFirstName,
+                        u.lastname AS coachLastName,
+                        u.email AS coachEmail,
+                        NULL AS extensions
+                    FROM {course} AS c
+                        INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
+                            AND us.idnumber IS NOT NULL
+                            AND c.idnumber IS NOT NULL
+                            AND us.idnumber <> ''
+                            AND c.idnumber <> ''
+                        INNER JOIN {enrol_ues_courses} AS uc ON uc.id = us.courseid
+                        INNER JOIN {enrol_ues_semesters} AS usem ON usem.id = us.semesterid
+                        INNER JOIN {groups} AS g ON c.id = g.courseid
+                        INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
+                        INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
+                        INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (4,19,20,21)
+                        INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
+                    WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
+                        AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                    GROUP BY userGroupId";
+        
+        global $DB;
+  
+        foreach($DB->get_records_sql($sql) as $rec){
+            $coach = lmsSectionGroupRecord::instantiate((array)$rec);
+            if(empty($this->groups_coaches[$coach->groupid])){
+                $this->groups_coaches[$coach->groupid] = $coach;
+            }else{
+                continue;
+            }
+        }
+        
+        return empty($this->groups_coaches) ? false : $this->groups_coaches;
+        
+    }
+    public function merge_instructors_coaches(){
+        $instructors = $this->get_groups_primary_instructors();
+        $coaches = $this->get_groups_coaches();
+
+        foreach($instructors as $inst){
+            if(array_key_exists($inst->groupid, $coaches)){
+                $inst->coachid          = $coaches[$inst->groupid]->coachid;
+                $inst->coachfirstname   = $coaches[$inst->groupid]->coachfirstname;
+                $inst->coachlastname    = $coaches[$inst->groupid]->coachlastname;
+                $inst->coachemail       = $coaches[$inst->groupid]->coachemail;
+            }
+            $this->sectionGroupRecords[] = $inst;
+        }
+        return $this->sectionGroupRecords;
+    }
+    
+    public function get_section_groups(){
+        return $this->merge_instructors_coaches();
     }
  
 }

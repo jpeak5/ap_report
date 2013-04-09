@@ -682,7 +682,7 @@ class lmsGroupMembership extends apreport{
         }
         
         assert(count($objects) > 0);
-        $xdoc = lmsGroupMembershipRecord::toXMLDoc($objects);
+        $xdoc = lmsGroupMembershipRecord::toXMLDoc($objects, 'lmsGroupMembers', 'lmsGroupMember');
 
         return $xdoc;
     }
@@ -702,7 +702,25 @@ class lmsGroupMembership extends apreport{
 }
 
 
-
+class lmsSectionGroup extends apreport{
+    public $enrollment;
+    
+    public function __construct($e = null){
+        $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
+    }
+    
+    public function run(){
+        global $CFG;
+        $xdoc = lmsSectionGroupRecord::toXMLDoc($this->enrollment->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
+        if(($xdoc)!=false){
+            if($this->create_file($xdoc, $CFG->dataroot.'/sectionGroup.xml')!=false){
+                return $xdoc;
+            }
+        }
+        return false;
+    }
+    
+}
 
 
 

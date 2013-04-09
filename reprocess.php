@@ -155,24 +155,21 @@ if(is_siteadmin($USER)){
 //        $table->data = $table_data;
 //        echo html_writer::table($table);
         
-    }
-    
+    }elseif($mode == 'section_group'){
+        $sg = new lmsSectionGroup();
 
-
-    
-    
-    
-    
-    
-
-}elseif($mode == 'section_group'){
-    $sg = new lmsSectionGroup();
         if(($xdoc = $sg->run())!=false){
-            echo $xdoc->saveXML();
+//            echo $xdoc->saveXML();
+            echo render_table($xdoc,
+                    $xdoc->getElementsByTagName('lmsSectionGroup'), 
+                    lmsSectionGroupRecord::$camels);
+            
         }else{
             echo "failed updating groupmembership report";
         }
     
+}
+
 }else{
     /**
      * @TODO fix the link to point at site root
@@ -183,4 +180,28 @@ if(is_siteadmin($USER)){
 
 echo $OUTPUT->footer();
 
+
+function render_table($xml,$element_list,$fields){
+    $table = new html_table();
+            $table->head = $fields;
+            $data = array();
+            $xpath = new DOMXPath($xml);
+            foreach($element_list as $record){
+                $cells = array();
+                foreach($table->head as $field){
+                    $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
+                }
+                $row = new html_table_row($cells);
+                $data[] = $row;
+            }
+
+            $table->data = $data;
+            $display = html_writer::table($table);
+
+            $display .= html_writer::tag('h4', 'Raw XML:');
+            $row_count = 40;
+            $xml->formatOutput = true;
+            $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
+            return $display;
+}
 ?>

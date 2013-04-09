@@ -14,6 +14,62 @@ class tbl_model{
         }
         return $inst;
     }
+    
+  /**
+   * 
+   * @param tbl_model $object
+   */
+  public static function camelize($object){
+      $camel = new stdClass();
+      foreach(get_object_vars($object) as $k=>$v){
+          if(array_key_exists($k,static::$camels)){
+              $caseProperty = static::$camels[$k];
+              $camel->$caseProperty = $v;
+          }
+      }
+      return $camel;
+  }
+  
+/**
+   * 
+   * @param stdClass $object
+   * @param string $element_name name of the element to return
+   */
+  public static function toXMLElement($object, $element_name){
+      $tmp = new DOMDocument('1.0', 'UTF-8');
+      $e   = $tmp->createElement($element_name);
+      
+      foreach(get_object_vars($object) as $key => $value){
+          assert(in_array($key, array_values(static::$camels)));
+          if(in_array($key,array_values(static::$camels))){
+              $e->appendChild($tmp->createElement($key, $value));
+          }
+      }
+      return $e;
+      
+  }
+  
+  /**
+   * 
+   * @param tbl_model[] $records
+   * @param string $root_name the name that the inheriting report uses as its XML root element
+   * @param string $child_name name that the inheriting report uses as child container element
+   */
+  public static function toXMLDoc($records, $root_name, $child_name){
+      $xdoc = new DOMDocument();
+      $root = $xdoc->createElement($root_name);
+      $root->setAttribute('university', '002010');
+      
+      
+      foreach($records as $record){
+          $camel = self::camelize($record);
+          
+          $elemt = $xdoc->importNode(static::toXMLElement($camel,$child_name),true);
+          $root->appendChild($elemt);
+      }
+      $xdoc->appendChild($root);
+      return $xdoc;
+  }
 }
 
 

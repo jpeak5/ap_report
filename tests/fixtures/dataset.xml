@@ -20,36 +20,66 @@
     </table>
     <table name="user">
         <column>id</column>
+        <column>firstname</column>
+        <column>lastname</column>
         <column>email</column>
         <column>idnumber</column>
         <column>username</column>
         <row>
 <!--        this is a tesacher-->
             <value>999</value>
+            <value>teacher-0</value>
+            <value>exampleuser</value>
             <value>teacher-0@example.com</value>
             <value>666777555</value>
             <value>teacher-0</value>
         </row>
         <row>
+            <!--        this is a tesacher-->
+            <value>5566</value>
+            <value>teacher-1</value>
+            <value>exampleuser</value>
+            <value>teacher-1@example.com</value>
+            <value>666777545</value>
+            <value>teacher-1</value>
+        </row>
+        <row>
+<!--        this is a group 'coach'-->
+            <value>555</value>
+            <value>coach-0</value>
+            <value>exampleuser</value>
+            <value>coach-0@example.com</value>
+            <value>123777555</value>
+            <value>coach-0</value>
+        </row>
+        <row>
             <value>465</value>
+            <value>student-0</value>
+            <value>exampleuser</value>
             <value>student-0@example.com</value>
             <value>472725024</value>
             <value>student-0</value>
         </row>
         <row>
             <value>8251</value>
+            <value>student-1</value>
+            <value>exampleuser</value>
             <value>student-1@example.com</value>
             <value>163360288</value>
             <value>student-1</value>
         </row>
         <row>
             <value>9584</value>
+            <value>student-2</value>
+            <value>exampleuser</value>
             <value>student-2@example.com</value>
             <value>253071515</value>
             <value>student-2</value>
         </row>
         <row>
             <value>9541</value>
+            <value>student-3</value>
+            <value>exampleuser</value>
             <value>student-3@example.com</value>
             <value>700188683</value>
             <value>student-3</value>
@@ -196,6 +226,18 @@
             <value>5</value>
             <value>3</value>
             <value>999</value>
+            <value>2042</value>
+        </row>
+        <row>
+            <value>6</value>
+            <value>4</value>
+            <value>555</value>
+            <value>2042</value>
+        </row>
+        <row>
+            <value>7</value>
+            <value>3</value>
+            <value>5566</value>
             <value>2042</value>
         </row>
     </table>
@@ -371,6 +413,11 @@
             <value>control-01</value>
         </row>
         <row>
+            <value>667</value>
+            <value>2326</value>
+            <value>control-02</value>
+        </row>
+        <row>
             <value>7</value>
             <value>2326</value>
             <value>control-02</value>
@@ -399,5 +446,17 @@
             <value>999</value>
             <value>1358143200</value>
         </row>
+        <row>
+            <value>48</value>
+            <value>666</value>
+            <value>555</value>
+            <value>1358143200</value>
+        </row>  
+        <row>
+            <value>49</value>
+            <value>667</value>
+            <value>5566</value>
+            <value>1358143200</value>
+        </row>  
     </table>
 </dataset>

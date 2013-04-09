@@ -54,7 +54,7 @@ class lmsGroupMembership_testcase extends apreports_testcase{
                 'studentid'=>456654654,
                 'extensions'=>'');
         $camel = lmsGroupMembershipRecord::camelize(lmsGroupMembershipRecord::instantiate($arr));
-        $frag  = lmsGroupMembershipRecord::toXMLElement($camel);
+        $frag  = lmsGroupMembershipRecord::toXMLElement($camel,'lmsGroupMember');
         $this->assertInstanceOf('DOMElement', $frag);
         $doc   = new DOMDocument();
         $root  = $doc->createElement('lmsGroupMembers');
@@ -88,7 +88,7 @@ class lmsGroupMembership_testcase extends apreports_testcase{
             $class_obj[] = lmsGroupMembershipRecord::instantiate($a);
         }
         
-        $xdoc = lmsGroupMembershipRecord::toXMLDoc($class_obj);
+        $xdoc = lmsGroupMembershipRecord::toXMLDoc($class_obj,'lmsGroupMembers', 'lmsGroupMember');
         
         $this->assertTrue($xdoc->schemaValidate('tests/schema/lmsGroupMembership.xsd'));
         
