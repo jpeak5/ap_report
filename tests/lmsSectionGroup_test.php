@@ -6,6 +6,14 @@ require_once('apreports_testcase.php');
 
 class lmsSectionGroup_testcase extends apreports_testcase{
     
+    public function setup(){
+        parent::setup();
+        global $CFG;
+//        mtrace('assuming config values for SectionGroups report');
+        $CFG->apreport_primy_inst_roles = '3';
+        $CFG->apreport_coach_roles ='4,19,20,21';
+    }
+    
     public function test_get_groups_primary_instructors(){
         global$DB;
         $enr = new enrollment_model();
@@ -54,7 +62,6 @@ class lmsSectionGroup_testcase extends apreports_testcase{
         $unit = new lmsSectionGroup();
         $xdoc = $unit->run();
         $this->assertInstanceOf('DOMDocument', $xdoc);
-        mtrace(print_r($xdoc->saveXML()));
     }
     
 }

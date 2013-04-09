@@ -1,14 +1,18 @@
 <?php
 
+/**
+ * This class contains most of the complex queries used to 
+ * retrieve the datasets used in AP reports
+ */
 class enrollment_model {
     /**
      *
-     * @var array(semester) 
+     * @var semester[]
      */
     public $semesters;
     /**
      *
-     * @var array(course) 
+     * @var course[] 
      */
     public $courses;
     /**
@@ -67,6 +71,7 @@ class enrollment_model {
         assert(!empty($this->semesters));
         $this->courses   = self::get_all_courses(array_keys($this->semesters));
     }
+    
     
     public static function get_all_courses($semesterids){
         global $DB;
@@ -552,7 +557,8 @@ class enrollment_model {
      * @return lmsSectionGroupRecord[]
      */
     public function get_groups_primary_instructors() {
-        $sql = "SELECT
+        global $CFG;
+        $sql = sprintf("SELECT
                     CONCAT(g.id,u.idnumber) AS userGroupId,
                     us.sec_number AS sectionId,
                     g.id AS groupId,
@@ -578,12 +584,12 @@ class enrollment_model {
                     INNER JOIN {groups} AS g ON c.id = g.courseid
                     INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
                     INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
-                    INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (3)
+                    INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (%s)
                     INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
                 WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
                     AND usem.grades_due > UNIX_TIMESTAMP(NOW())
-                GROUP BY userGroupId";
-        
+                GROUP BY userGroupId", $CFG->apreport_primy_inst_roles);
+
         global $DB;
   
         foreach($DB->get_records_sql($sql) as $rec){
@@ -606,7 +612,8 @@ class enrollment_model {
      * @return lmsSectionGroupRecord[]
      */
     public function get_groups_coaches(){
-        $sql = "SELECT
+        global $CFG;
+        $sql = sprintf("SELECT
                         CONCAT(g.id,u.idnumber) AS userGroupId,
                         c.id AS courseid,
                         g.name AS sectionId,
@@ -633,11 +640,11 @@ class enrollment_model {
                         INNER JOIN {groups} AS g ON c.id = g.courseid
                         INNER JOIN {context} AS ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
                         INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
-                        INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (4,19,20,21)
+                        INNER JOIN {user} AS u ON u.id = ra.userid AND ra.roleid IN (%s)
                         INNER JOIN {groups_members} AS gm ON g.id = gm.groupid AND u.id = gm.userid
                     WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
                         AND usem.grades_due > UNIX_TIMESTAMP(NOW())
-                    GROUP BY userGroupId";
+                    GROUP BY userGroupId",$CFG->apreport_coach_roles);
         
         global $DB;
   
@@ -656,7 +663,12 @@ class enrollment_model {
     public function merge_instructors_coaches(){
         $instructors = $this->get_groups_primary_instructors();
         $coaches = $this->get_groups_coaches();
-
+        if(!$instructors){
+            return false;
+        }elseif(!$coaches){
+            return $this->sectionGroupRecords = $instructors;
+        }
+        
         foreach($instructors as $inst){
             if(array_key_exists($inst->groupid, $coaches)){
                 $inst->coachid          = $coaches[$inst->groupid]->coachid;

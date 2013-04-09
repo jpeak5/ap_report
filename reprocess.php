@@ -29,27 +29,25 @@ $PAGE->set_heading($header);
 
 echo $OUTPUT->header();
 
-$reprocess = !isset($mode);
-$preview   = (isset($mode) and ($mode == 'preview'));
-$backfill  = isset($mode) and $mode == 'backfill';
-
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
+//------------------------ BEGIN VIEW BRANCHES -------------------------------//
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
 
 
 if(is_siteadmin($USER)){
 
-    $report = new lmsEnrollment();
-//    mtrace(sprintf("mode = %s, reprocess = %s, Preview =, backfill = ",$mode,(int)$reprocess,(int)$preview,(int)$backfill));
-    
     
     //get records
-    if($reprocess or $mode == 'preview'){
-        
+    if($mode == 'reprocess' or $mode == 'preview'){
+        mtrace('running reprocess or preview');
+        $report = new lmsEnrollment();    
         $xml = !isset($mode ) ? $report->run() : $report->preview_today();
         
         $a = new stdClass();
         $a->start = strftime('%F %T',$report->start);
         $a->end   = strftime('%F %T',$report->end);
-        
         
         echo html_writer::tag('h2', 'Current Enrollment');
         
@@ -73,15 +71,12 @@ if(is_siteadmin($USER)){
                             )
                     );
             $file_loc = isset($mode) ? $CFG->dataroot.'/preview.xml' : $CFG->dataroot.'/'.$CFG->apreport_enrol_xml.'.xml';
-            echo html_writer::tag(
-                    'p', 
+            echo html_writer::tag('p', 
                     get_string('file_location', 'local_ap_report', $file_loc));
 
             $records = $xml->getElementsByTagName('lmsEnrollment');
 
-
-            $table = new html_table();
-            $table->head = array(
+            $fields = array(
                 'enrollmentId',
                 'studentId', 
                 'courseId',
@@ -93,100 +88,70 @@ if(is_siteadmin($USER)){
                 'timeSpentInClass',
                 'extensions',
                 );
-            $data = array();
-            $xpath = new DOMXPath($xml);
-            foreach($records as $record){
-                $cells = array();
-                foreach($table->head as $field){
-                    $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
-                }
-                $row = new html_table_row($cells);
-                $data[] = $row;
-            }
-
-            $table->data = $data;
-            echo html_writer::table($table);
-
-
-            echo html_writer::tag('h4', 'Raw XML:');
-            $row_count = 40;
-            $xml->formatOutput = true;
-            echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
+            echo render_table($xml, $records, $fields);
+            
         }
         
     }elseif($mode == 'group_membership'){
         $gm = new lmsGroupMembership();
         if(($xdoc = $gm->run())!=false){
-            echo $xdoc->saveXML();
+            echo render_table($xdoc, $xdoc->getElementsByTagName('lmsGroupMember'), lmsGroupMembershipRecord::$camels);
         }else{
             echo "failed updating groupmembership report";
         }
-//        $semesters = $report->get_active_ues_semesters();
-//        $earliest = time();
-//        foreach($semesters as $semester){
-//            $earliest = $semester->ues_semester->classes_start < $earliest ? $semester->ues_semester->classes_start : $earliest;
-//            
-//        }
-//        
-//        $marker = time();
-//        while($marker >= $earliest){
-//            $daily = new lmsEnrollment();
-//            list($start, $end) = apreport_util::get_yesterday(strftime('%F',$marker));
-//            $status = $daily->run_arbitrary_day($start,$end);
-//            $marker = $daily->start;
-//
-//            $data[] = array( 
-//                'day'=>strftime('%F', $marker),
-//                'status'=>$status);
-//        }
-//        
-//    
-//    
-//        $table = new html_table();
-//        $table_data = array();
-//        foreach($data as $datum){
-//            $cells = array();
-//            $cells[] = new html_table_cell($datum['day']);
-//            $cells[] = new html_table_cell($datum['status']);
-//            $row = new html_table_row($cells);
-//            $table_data[] = $row;
-//        }
-//        $table->head = array('day', 'status');
-//        $table->data = $table_data;
-//        echo html_writer::table($table);
-        
-    }elseif($mode == 'section_group'){
-        $sg = new lmsSectionGroup();
 
+    }elseif($mode == 'section_groups'){
+        $sg = new lmsSectionGroup();
         if(($xdoc = $sg->run())!=false){
-//            echo $xdoc->saveXML();
             echo render_table($xdoc,
                     $xdoc->getElementsByTagName('lmsSectionGroup'), 
                     lmsSectionGroupRecord::$camels);
-            
         }else{
-            echo "failed updating groupmembership report";
+            echo "failed updating section groups report";
         }
     
-}
+    }elseif($mode == 'coursework'){
+        $cw = new lmsCoursework();
+        if(($xdoc = $cw->run())!=false){
+            echo render_table($xdoc,
+                    $xdoc->getElementsByTagName('lmsCourseWorkItem'), 
+                    lmsSectionGroupRecord::$camels);
+        }else{
+            echo "failed updating LMS Coursework report";
+        }
+    
+    }else{
+        print_error('unknownmode', 'local_ap_report', '/');
+    }
 
 }else{
     /**
      * @TODO fix the link to point at site root
      * @TODO define a lang file
      */
-    print_error('nopermission', local_ap_report, '/');
+    print_error('nopermission', 'local_ap_report', '/');
 }
 
 echo $OUTPUT->footer();
 
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
+//--------------------------- HELPERS   --------------------------------------//
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
+//----------------------------------------------------------------------------//
 
 function render_table($xml,$element_list,$fields){
     $table = new html_table();
+            $display = "";
             $table->head = $fields;
             $data = array();
             $xpath = new DOMXPath($xml);
-            foreach($element_list as $record){
+            
+            $display .= "returning only the first 100 table rows";
+            for ($i=0; $i<100; $i++){
+                $record = $element_list->item($i);
                 $cells = array();
                 foreach($table->head as $field){
                     $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
@@ -196,7 +161,7 @@ function render_table($xml,$element_list,$fields){
             }
 
             $table->data = $data;
-            $display = html_writer::table($table);
+            $display .= html_writer::table($table);
 
             $display .= html_writer::tag('h4', 'Raw XML:');
             $row_count = 40;

@@ -627,32 +627,8 @@ class lmsEnrollment extends apreport{
 
 }
 
-/**
- * The LMS section group file contains data from the LMS system regarding the sections that have been
-setup within the course sections. A section typically consists of two or more groups. However, an entire
-section may be contained within a single group, or a section may not contain any groups. In the latter
-case, a section group record should be sent with empty group id and group name fields.
-The data captured in the LMS section group file includes the id and name of the group, the section the
-group belongs to, the id, name, and email address of the primary instructor for the section, as well as
-the id, name, and email address of the instructor, teacher assistant, or coach assigned to the group.
-This data feed should include data for all of the sections which contain students recruited by Academic
-Partnerships for the previous, current, and upcoming terms.
- */
-class lmsSectionGroup_report{
-    
-    /**
-     *
-     * @var enrollment_model 
-     */
-    public $enrollment;
-    
-    public function __construct($e = null){
-        if(!isset($this->enrollment)){
-            $this->enrollment = $e;
-        }
-    }
-    
-}
+
+
 
 /**
  * The LMS group membership file contains data from the LMS system matching up students with the
@@ -701,7 +677,17 @@ class lmsGroupMembership extends apreport{
     
 }
 
-
+/**
+ * The LMS section group file contains data from the LMS system regarding the sections that have been
+setup within the course sections. A section typically consists of two or more groups. However, an entire
+section may be contained within a single group, or a section may not contain any groups. In the latter
+case, a section group record should be sent with empty group id and group name fields.
+The data captured in the LMS section group file includes the id and name of the group, the section the
+group belongs to, the id, name, and email address of the primary instructor for the section, as well as
+the id, name, and email address of the instructor, teacher assistant, or coach assigned to the group.
+This data feed should include data for all of the sections which contain students recruited by Academic
+Partnerships for the previous, current, and upcoming terms.
+ */
 class lmsSectionGroup extends apreport{
     public $enrollment;
     
@@ -719,6 +705,21 @@ class lmsSectionGroup extends apreport{
         }
         return false;
     }
+    
+}
+
+
+/**
+ *  The LMS coursework file contains data from the LMS system tracking each student’s progress with
+    assigned tasks over the term of a course. A separate data record exists for each
+    section/student/coursework item combination in the LMS. For each coursework item, It includes the id
+    and name of the item, due date and submitted date, the number of points possible and points received,
+    and the grade category and category weight.
+    This data feed should include the coursework for all active students recruited by Academic Partnerships
+    for the previous, current, and upcoming terms.
+ * 
+ */
+class lmsCoursework extends apreport{
     
 }
 

@@ -35,4 +35,6 @@ $string['with_cron_desc']       = "If checked, reports data will be collected du
 $string['group_membership']     = 'Run [Group Membership]({$a->group_membership}) job.';
 $string['section_groups_header_desc']
                                 = 'View [Section Groups Report]({$a->section_groups})';
+$string['unknownmode']          = "Unknown value given for process mode";
+$string['nopermission']         = "You don't have permission to access this page";
 ?>

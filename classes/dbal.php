@@ -60,6 +60,9 @@ class tbl_model{
       $root = $xdoc->createElement($root_name);
       $root->setAttribute('university', '002010');
       
+      if(empty($records)){
+          return false;
+      }
       
       foreach($records as $record){
           $camel = self::camelize($record);
