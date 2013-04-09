@@ -33,4 +33,6 @@ $string['with_cron']            = "Run with cron?";
 $string['with_cron_desc']       = "If checked, reports data will be collected during cron. If left unchecked, values for time window start and end will be ignored";
 
 $string['group_membership']     = 'Run [Group Membership]({$a->group_membership}) job.';
+$string['section_groups_header_desc']
+                                = 'View [Section Groups Report]({$a->section_groups})';
 ?>

@@ -114,7 +114,7 @@ if(is_siteadmin($USER)){
             echo html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
         }
         
-    }elseif($mode = 'group_membership'){
+    }elseif($mode == 'group_membership'){
         $gm = new lmsGroupMembership();
         if(($xdoc = $gm->run())!=false){
             echo $xdoc->saveXML();
@@ -165,6 +165,14 @@ if(is_siteadmin($USER)){
     
     
 
+}elseif($mode == 'section_group'){
+    $sg = new lmsSectionGroup();
+        if(($xdoc = $sg->run())!=false){
+            echo $xdoc->saveXML();
+        }else{
+            echo "failed updating groupmembership report";
+        }
+    
 }else{
     /**
      * @TODO fix the link to point at site root

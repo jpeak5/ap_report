@@ -29,9 +29,10 @@ if ($hassiteconfig) {
     $group_membership = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'group_membership'));
     $a->group_membership = $group_membership->out(false);
     
+    $section_groups = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'section_groups'));
+    $a->section_groups = $section_groups->out(false);
     
-    
-//    $reproc = html_writer::tag('a', 'Reprocess', array('href'=>$a->url));
+
     
     $settings->add(
             new admin_setting_heading(
@@ -157,6 +158,13 @@ if ($hassiteconfig) {
         new admin_setting_heading(
                 'group_membership_header', 
                 'Group Membership Report',  get_string('group_membership',$plugin, $a)
+                ));
+    
+    
+    $settings->add(
+        new admin_setting_heading(
+                'section_groups_header', 
+                'Section Groups Report',  get_string('section_groups_header_desc',$plugin, $a)
                 ));
     
     $ADMIN->add('localplugins', $settings);
