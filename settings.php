@@ -41,14 +41,6 @@ if ($hassiteconfig) {
                     get_string('preview',$plugin, $a)
                     ));
 
-//    $settings->add(
-//            new admin_setting_configcheckbox(
-//                    'local_apreport_with_cron',
-//                    $_s('with_cron'),
-//                    $_s('with_cron_desc'),
-//                    0
-//                    ));
-    
     $stop  = $CFG->apreport_job_complete;
     $start = $CFG->apreport_job_start;
     
