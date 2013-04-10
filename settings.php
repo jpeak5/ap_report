@@ -161,6 +161,7 @@ if ($hassiteconfig) {
     
     //config selects for primary inst/coach
     global $DB;
+    //@TODO double check the default values are being used
     $pi_defaults = array('3');
 
     $roles = $DB->get_records_menu('role');
@@ -170,7 +171,7 @@ if ($hassiteconfig) {
                     , $pi_defaults, $roles)
             );
     
-    
+    //@TODO double check the default values are being used
     $coach_defaults = array(4,19,20,21);
     $settings->add(
             new admin_setting_configmultiselect('apreport_coach_roles','Coach Roles', 
