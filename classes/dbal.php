@@ -1,6 +1,29 @@
 <?php
 
 class tbl_model{
+    
+    public static function instantiate_from_tablename($name, $params){
+        global $DB;
+        $cols = $DB->get_columns($name);
+        $keys = array();
+        foreach($cols as $col){
+            $keys[] = $col->name;
+//            mtrace(sprintf("adding column %s", $col->name));
+        }
+        
+        $inst = new self();
+
+        if(!is_array($params)){
+            $params = (array)$params;
+        }
+        foreach($params as $k=>$v){
+            if(in_array($k, $keys)){
+                $inst->$k = $v;
+            }
+        }
+        return $inst;
+    }
+    
     public static function instantiate($params){
         $inst = new static();
         $keys = get_object_vars($inst);
