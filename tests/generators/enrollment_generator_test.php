@@ -8,6 +8,18 @@ class enrollment_generator_testcase extends advanced_testcase{
         $this->assertTrue(true);
     }
     
+    public function test_dbal_tbl_model(){
+        $params = array(
+            'name'=>'test quiz',
+            'timeclose'=>time(),
+            'grade'=>100,
+            'id'=>1,
+            'course'=>2236
+        );
+        $q = tbl_model::instantiate_from_tablename('quiz', $params);
+        
+    }
+    
     
     public function test_insert_users(){
         global $DB;
