@@ -250,14 +250,14 @@
         <row>
             <!--begin user 465 session 0-->
             <value>1</value>
-            <value>1365431886</value>
+            <value>1365518286</value>
             <value>465</value>
             <value>1</value>
             <value>login</value>
         </row>
         <row>
             <value>2</value>
-            <value>1365431896</value>
+            <value>1365518296</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -265,7 +265,7 @@
         <row>
             <!--timespent(2326) = 10-->
             <value>3</value>
-            <value>1365431906</value>
+            <value>1365518306</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -273,7 +273,7 @@
         <row>
             <!--timespent(2326) = 20-->
             <value>4</value>
-            <value>1365431916</value>
+            <value>1365518316</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -281,7 +281,7 @@
         <row>
             <!--timespent(2326) = 30-->
             <value>5</value>
-            <value>1365431926</value>
+            <value>1365518326</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -289,7 +289,7 @@
         <row>
             <!--timespent(2326) = 40-->
             <value>6</value>
-            <value>1365431936</value>
+            <value>1365518336</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -298,7 +298,7 @@
             <!--SWITCH courses-->
             <!--timespent(9850) = 0-->
             <value>7</value>
-            <value>1365431946</value>
+            <value>1365518346</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -306,7 +306,7 @@
         <row>
             <!--timespent(9850) = 10-->
             <value>8</value>
-            <value>1365431956</value>
+            <value>1365518356</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -314,7 +314,7 @@
         <row>
             <!--timespent(9850) = 20-->
             <value>9</value>
-            <value>1365431966</value>
+            <value>1365518366</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -322,7 +322,7 @@
         <row>
             <!--timespent(9850) = 24-->
             <value>10</value>
-            <value>1365431970</value>
+            <value>1365518370</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -330,7 +330,7 @@
         <row>
             <!--timespent(9850) = 27-->
             <value>11</value>
-            <value>1365431973</value>
+            <value>1365518373</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -339,7 +339,7 @@
             <!--SWITCH courses-->
             <!--timespent(2326) = 40 (should remain unchanged until next action)-->
             <value>12</value>
-            <value>1365431975</value>
+            <value>1365518375</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -347,7 +347,7 @@
         <row>
             <!--timespent(2326) = 45-->
             <value>13</value>
-            <value>1365431980</value>
+            <value>1365518380</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -355,7 +355,7 @@
         <row>
             <!--timespent(2326) = 58-->
             <value>14</value>
-            <value>1365431993</value>
+            <value>1365518393</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -365,7 +365,7 @@
             <!--lastaccess(2326) should be 1364302993-->
             <!--lastaccess(9850) should be 1364302973-->
             <value>15</value>
-            <value>1365429393</value>
+            <value>1365515793</value>
             <value>465</value>
             <value>1</value>
             <value>login</value>
@@ -373,7 +373,7 @@
         <row>
             <!--lastaccess(9850) should be 1364304000-->
             <value>16</value>
-            <value>1365429400</value>
+            <value>1365515800</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -381,7 +381,7 @@
         <row>
             <!--timespent(9850) = 37-->
             <value>17</value>
-            <value>1365429410</value>
+            <value>1365515810</value>
             <value>465</value>
             <value>9850</value>
             <value>view</value>
@@ -389,7 +389,7 @@
         <row>
             <!--SWITCH courses-->
             <value>18</value>
-            <value>1365429420</value>
+            <value>1365515820</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
@@ -397,7 +397,7 @@
         <row>
             <!--timespent(2326) = 63-->
             <value>19</value>
-            <value>1365429425</value>
+            <value>1365515825</value>
             <value>465</value>
             <value>2326</value>
             <value>view</value>
