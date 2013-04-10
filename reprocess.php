@@ -43,7 +43,7 @@ if(is_siteadmin($USER)){
     if($mode == 'reprocess' or $mode == 'preview'){
         mtrace('running reprocess or preview');
         $report = new lmsEnrollment();    
-        $xml = !isset($mode ) ? $report->run() : $report->preview_today();
+        $xml = $mode == 'reprocess' ? $report->run() : $report->preview_today();
         
         $a = new stdClass();
         $a->start = strftime('%F %T',$report->start);
