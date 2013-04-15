@@ -1,6 +1,7 @@
 <?php
 global $CFG;
 require_once ($CFG->dirroot.'/local/ap_report/tests/generators/enrollment_generator.php');
+require_once ($CFG->dirroot.'/local/ap_report/tests/apreports_testcase.php');
 
 
 class enrollment_generator_testcase extends advanced_testcase{
@@ -20,6 +21,23 @@ class enrollment_generator_testcase extends advanced_testcase{
         
     }
     
+    public function test_create_quiz(){
+        $this->resetAfterTest();
+        $unit = new enrollment_dataset_generator();
+        $q = $unit->create_quiz();
+        $this->assertNotEmpty($q);
+        
+        $qzs = array_values($q);
+        
+        $quiz_cols    = array('id','intro','name','timeclose','grade','course','questions');
+//        array_unshift($qzs, $quiz_cols);
+        $ds = array('quiz'=>array($quiz_cols,$qzs));
+        mtrace(print_r($ds));
+//        die();
+        $dataset = $this->createArrayDataSet($ds);
+        $this->loadDataSet($dataset);
+    }
+    
     
     public function test_insert_users(){
         global $DB;
@@ -37,6 +55,25 @@ class enrollment_generator_testcase extends advanced_testcase{
 //        $this->loadDataSet($dataset);
     }
     
+    public function test_create_coursework_scenario(){
+        $unit = new enrollment_dataset_generator();
+        $xdoc = $unit->create_coursework_scenario();
+        $xdoc->format = true;
+        mtrace($xdoc->saveXML());
+    }
+    
+    public function test_get_sequence_start(){
+        $unit = new enrollment_dataset_generator();
+        $ts = $unit->get_sequence_start();
+//        mtrace(sprintf('sequence start = %d', $ts));
+        $this->assertTrue(is_int($ts));
+    }
+    
+    public function test_generate_activity_sequence(){
+        $unit = new enrollment_dataset_generator();
+        $logs = $unit->generate_activity_sequence();
+        $this->assertNotEmpty($logs);
+    }
 }
 
 ?>

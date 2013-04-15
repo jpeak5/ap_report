@@ -434,4 +434,50 @@
             <value>1358143200</value>
         </row>
     </table>
+    <table name="grade_items">
+        <column>id</column>
+        <column>courseid</column>
+        <column>itemtype</column>
+        <column>itemmodule</column>
+        <column>iteminstance</column>
+        <column>aggregationcoef</column>
+    </table>
+    <table name="grade_grades">
+        <column>finalgrade</column>
+        <column>userid</column>
+        <column>itemid</column>
+    </table>
+    <table name="grade_categories">
+        <column>id</column>
+        <column>fullname</column>
+        <column>courseid</column>
+    </table>
+    <table name="quiz">
+        <column>id</column>
+        <column>intro</column>
+        <column>name</column>
+        <column>timeclose</column>
+        <column>grade</column>
+        <column>course</column>
+        <row>
+            <value>1</value>
+            <value>intro-test-1</value>
+            <value>quiz-test-1</value>
+            <value>1366106515</value>
+            <value>100</value>
+            <value>2326</value>
+        </row>
+        <row>
+            <value>2</value>
+            <value>intro-test-2</value>
+            <value>quiz-test-2</value>
+            <value>1366078942</value>
+            <value>10</value>
+            <value>2326</value>
+        </row>
+    </table>
+    <table name="quiz_attempts">
+        <column>id</column>
+        <column>quiz</column>
+    </table>
 </dataset>

@@ -140,5 +140,17 @@ class enrollment_model_testcase extends apreports_testcase{
         $this->nonempty_array($x);
 //        mtrace(print_r($x));
     }
+    
+    public function test_coursework_get_quiz(){
+        $e = new enrollment_model();
+        
+        $qzs = $e->coursework_get_quiz($e->get_all_courses($e->get_active_ues_semesters(null, true), true));
+        $this->nonempty_array($qzs);
+        $keys = array_keys($qzs);
+        $sample = $qzs[$keys[0]];
+        $this->assertTrue(object_property_exists($sample, 'itemname'));
+        
+    }
 }
+
 ?>
