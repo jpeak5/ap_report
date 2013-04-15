@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/ap_report/db" VERSION="2013041120" COMMENT="XMLDB file for ap_reports local plugin"
+<XMLDB PATH="local/ap_report/db" VERSION="2013041515" COMMENT="XMLDB file for ap_reports local plugin"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
     >
@@ -30,7 +30,7 @@
                 <FIELD NAME="courseid" TYPE="char" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="reference to moodle courseid; when joined for output, this should yeild: A unique identifier for the course; it must match course ID from SIS" PREVIOUS="studentid" NEXT="sectionid"/>
                 <FIELD NAME="sectionid" TYPE="int" LENGTH="8" NOTNULL="true" SEQUENCE="false" COMMENT="reference to [ues] section number; when joined, it should yeild: A unique identifier for the section; it must match the section ID from the SIS" PREVIOUS="courseid" NEXT="itemtype"/>
                 <FIELD NAME="itemtype" TYPE="char" LENGTH="25" NOTNULL="true" SEQUENCE="false" COMMENT="string representing the module type; possible values include “Assignment”, “Assessment”, “Quiz”, “Posting”, or “Other”" PREVIOUS="sectionid" NEXT="itemid"/>
-                <FIELD NAME="itemid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id number for the item; this should be unique within its type-context; AP-spec: A unique identifier for the coursework item" PREVIOUS="itemtype" NEXT="itemname"/>
+                <FIELD NAME="itemid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="id number for the item; this should be unique within its type-context; AP-spec: A unique identifier for the coursework item" PREVIOUS="itemtype" NEXT="itemname"/>
                 <FIELD NAME="itemname" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AP-spec: The name or description of the coursework item" PREVIOUS="itemid" NEXT="duedate"/>
                 <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="unix time stamp" PREVIOUS="itemname" NEXT="datesubmitted"/>
                 <FIELD NAME="datesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="unix time stamp; Date assignment or quiz turned in, posting completed, or assessment done" PREVIOUS="duedate" NEXT="pointspossible"/>
