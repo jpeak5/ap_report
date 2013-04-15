@@ -144,11 +144,15 @@ class enrollment_dataset_generator{
         /**
          * grade tables: grade_item, grade_categories, grade_grades
          */
-        $mgi_cols       = array('id','courseid', 'itemtype', 'itemmodule', 'iteminstance', 'aggregationcoef');
-        $mgc_cols       = array('id','fullname','courseid');
+        $mgi_cols       = array('id','courseid', 'itemtype', 'itemmodule', 'iteminstance', 'aggregationcoef', 'categoryid');
+        $mgc_cols       = array('id','fullname','courseid', 'timecreated','timemodified');
         $mgg_cols       = array('finalgrade', 'userid', 'itemid');
         
         $mgi_rows = $mgc_rows = $mgg_rows = array();
+        
+        $mgi_rows[]     = array(1,2326,'mod','quiz',1,1,9);
+        $mgc_rows[]     = array(432,'categ fullname',9, time()-rand(100,10000),time());
+        $mgg_rows[]     = array(95,465,1);
         
         
         /**
@@ -161,7 +165,8 @@ class enrollment_dataset_generator{
         $quiz_rows[]  = array(1,'intro-test-1','quiz-test-1',time()+rand(0,100000), 100, 2326,'question dfjkskjgf');
         $quiz_rows[]  = array(2,'intro-test-2','quiz-test-2',time()+rand(0,100000), 10, 2326, 'question 1 gfshsf');
 
-        $qatt_cols    = array('id','quiz');
+        $qatt_cols    = array('id','quiz', 'timefinish', 'layout');
+        $qatt_rows[]  = array(84,1,time()-10, 'default layout (reqd field)');
         
         //build xml file
         $xdoc = new DOMDocument();
