@@ -23,10 +23,11 @@ class apreport_util{
  * parent class for all user-facing data records.
  * Contains formatting methods that ensure adherence to the end-user XML schema
  */
-class apreportRecord{
+class apreportRecord extends tbl_model{
     public $enrollmentid;
-    public $studentid;
     public $sectionid;
+    public $groupid;
+    public $studentid;
     public $courseid;
     public $extensions;
     
@@ -84,7 +85,6 @@ class lmsEnrollmentRecord extends apreportRecord{
     public $status;
     public $lastaccess;
     public $timespent;
-    public $extensions;
     public $sectionnumber;
     public $coursenumber;
     public $department;
@@ -106,7 +106,9 @@ class lmsEnrollmentRecord extends apreportRecord{
         }
   
     }
-    
+    /**
+     * @TODO refactor this to take advantage of the tbl_model::camelize() method
+     */
     public function validate(){
         
         $this->studentid        = (int)$this->studentid;
@@ -129,31 +131,18 @@ class lmsEnrollmentRecord extends apreportRecord{
 
 }
 
-class lmsGroupMembershipRecord extends tbl_model{
-  public $sectionid;
-  public $groupid;
-  public $studentid;
-  public $extensions;
-  
+class lmsGroupMembershipRecord extends apreportRecord{
   
   public static $camels = array(
       'sectionid'=>'sectionId',
       'groupid'=>'groupId',
       'studentid'=>'studentId',
       'extensions'=>'extensions');
-  
-
-  
-
-  
 }
 
-class lmsSectionGroupRecord extends tbl_model{
+class lmsSectionGroupRecord extends apreportRecord{
     
-    public $groupid,
-            $groupname,
-            $courseid , 
-            $sectionid,
+    public  $groupname,
             $primaryinstructorid,
             $primaryinstructorfname,
             $primaryinstructorlname,
@@ -178,7 +167,33 @@ class lmsSectionGroupRecord extends tbl_model{
         'coachemail'            =>'coachEmail',
         'extensions'            =>'extensions'
         );
-    
-    
+}
+
+class lmsCourseworkRecord extends apreportRecord{
+    public $itemtype,
+            $itemid, 
+            $itemname, 
+            $duedate, 
+            $datesubmitted,
+            $pointspossible,
+            $pointsrecieved,
+            $gradecategory,
+            $categoryweight,
+            $extensions;
+    public static $camels = array(
+        'enrollmentid'      => 'enrollmentId',
+        'studentid'         =>'studentId',
+        'courseid'          =>'courseId',
+        'sectionid'         =>'sectionId',
+        'itemtype'          =>'itemType',
+        'itemid'            =>'itemId',
+        'itemname'          =>'itemName',
+        'duedate'           =>'dueDate',
+        'pointspossible'    =>'pointsPossible',
+        'pointsrecieved'    =>'pointsRecieved',
+        'gradecategory'     =>'gradeCategory',
+        'categoryweight'    =>'categoryWeight',
+        'extensions'        =>'extensions'
+    );
 }
 ?>

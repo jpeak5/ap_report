@@ -57,6 +57,13 @@ class enrollment_model {
      * in mdl_log as having done anything in a course.
      */
     public $active_users;
+    
+    /**
+     * holds mdl_course.id ofo each current course
+     * used in lmsCoursework report
+     * @var int[] 
+     */
+    public $current_courseids;
     //table abstractions
 //    public $ues_sections;
 //    public $ues_courses;
@@ -72,8 +79,9 @@ class enrollment_model {
         $this->courses   = self::get_all_courses(array_keys($this->semesters));
     }
     
+
     
-    public static function get_all_courses($semesterids){
+    public static function get_all_courses($semesterids, $ids_only=false){
         global $DB;
         $sql = sprintf("SELECT 
                     usect.id            AS ues_sectionid,
@@ -100,6 +108,11 @@ class enrollment_model {
         $courses = array();
         
         $rows = $DB->get_records_sql($sql);
+        if($ids_only){
+            $ids = array_keys($rows);
+            return !empty($ids) ? $ids : false;
+        }
+        
         foreach($rows as $row){
             $course = new course();
             
@@ -496,7 +509,7 @@ class enrollment_model {
      * 
      * @return array stdClass of active semesters
      */
-    public static function get_active_ues_semesters($time=null){
+    public static function get_active_ues_semesters($time=null, $ids_only=false){
         global $DB;
         $time = isset($time) ? $time : time();
         $sql = vsprintf("SELECT 
@@ -509,6 +522,12 @@ class enrollment_model {
                                 grades_due >= %d"
                         , array($time,$time));
         $semesters = $DB->get_records_sql($sql);
+        
+        //shortcut breakout
+        if($ids_only){
+            $ids = array_keys($semesters);
+            return !empty($ids) ? $ids : false;
+        }
 //die(print_r($sql));
         assert(count($semesters) > 0);
         $s = array();
@@ -686,54 +705,122 @@ class enrollment_model {
     }
  
     /**
-     * 
+     * @param int[] $cids
      */
-    public function coursework_get_quizzes($cid){
-        $sql = sprintf("SELECT
-            DISTINCT(mma.id) AS quizAttemptId,
-            mm.id AS courseModuleId,
-            CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
-            u.username as pawsId,
-            u.idnumber AS studentId,
-            CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
-            us.sec_number AS sectionId,
-            'quiz' AS itemType,
-            mm.name AS itemName,
-            mm.timeclose AS dueDate,
-            mma.timefinish AS dateSubmitted,
-            mm.grade AS pointsPossible,
-            mgg.finalgrade AS pointsReceived,
-            mgc.fullname AS gradeCategory,
-            (cats.categoryWeight * 100) AS categoryWeight,
-            NULL AS extensions
-        FROM mdl_course c
-            INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-            INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-            INNER JOIN mdl_user u ON ustu.userid = u.id
-            INNER JOIN mdl_quiz mm ON mm.course = c.id
-            INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-            INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-            INNER JOIN mdl_grade_items mgi ON
-                mgi.courseid = c.id AND
-                mgi.itemtype = 'mod' AND
-                mgi.itemmodule = 'quiz' AND
-                mgi.iteminstance = mm.id
-            INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-            LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-            LEFT JOIN mdl_quiz_attempts mma ON mm.id = mma.quiz AND u.id = mma.userid
-            LEFT JOIN
-                (SELECT
-                    mgi2.courseid AS catscourse,
-                    mgi2.id AS catsid,
-                    mgi2.iteminstance AS catcatid,
-                    mgi2.aggregationcoef AS categoryWeight
-                FROM mdl_grade_items mgi2
-                    INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
-                    AND mgi2.itemtype = 'category')
-                cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
-        WHERE c.id = %d", $cid);
+    public function coursework_get_quiz($cids){
+        global $DB;
+        $recs = array();
+        
+        foreach($cids as $cid){
+            $sql = sprintf("SELECT
+                DISTINCT(mma.id) AS quizAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS itemid,                
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'quiz' AS itemType,
+                
+                mm.name AS itemName,
+                mm.timeclose AS dueDate,
+                mma.timefinish AS dateSubmitted,
+                mm.grade AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM mdl_course c
+                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN mdl_user u ON ustu.userid = u.id
+                INNER JOIN mdl_quiz mm ON mm.course = c.id
+                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+                INNER JOIN mdl_grade_items mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'quiz' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN mdl_quiz_attempts mma ON mm.id = mma.quiz AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM mdl_grade_items mgi2
+                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = %d", $cid, $cid);
+            $crecs = $DB->get_records_sql($sql);
+            $recs = array_merge($recs, $crecs);
+            if($cid == 4355){
+                die($sql);
+            }
+        }
+        return $recs;
     }
     
+    /**
+     * @param int[] $cids
+     */
+    public function coursework_get_assignment($cids){
+        global $DB;
+        $recs = array();
+        foreach($cids as $cid){
+            $sql = sprintf("SELECT
+                        DISTINCT(mma.id) AS modAttemptId,
+                        mm.id AS courseModuleId,
+                        CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                        u.username as pawsId,
+                        u.idnumber AS studentId,
+                        CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                        us.sec_number AS sectionId,
+                        'assignment' AS itemType,
+                        mm.name AS itemName,
+                        mm.duedate AS dueDate,
+                        mma.timemodified AS dateSubmitted,
+                        mm.grade AS pointsPossible,
+                        mgg.finalgrade AS pointsReceived,
+                        mgc.fullname AS gradeCategory,
+                        (cats.categoryWeight * 100) AS categoryWeight,
+                        NULL AS extensions
+                    FROM mdl_course c
+                        INNER JOIN mdl_assign mm ON mm.course = c.id
+                        INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+                        INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                        INNER JOIN mdl_user u ON ustu.userid = u.id
+                        INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+                        INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+                        INNER JOIN mdl_grade_items mgi ON
+                            mgi.courseid = c.id AND
+                            mgi.itemtype = 'mod' AND
+                            mgi.itemmodule = 'assign' AND
+                            mgi.iteminstance = mm.id
+                        INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                        LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                        LEFT JOIN mdl_assign_submission mma ON mm.id = mma.assignment AND u.id = mma.userid
+                        LEFT JOIN
+                            (SELECT
+                                mgi2.courseid AS catscourse,
+                                mgi2.id AS catsid,
+                                mgi2.iteminstance AS catcatid,
+                                mgi2.aggregationcoef AS categoryWeight
+                            FROM mdl_grade_items mgi2
+                                INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                                AND mgi2.itemtype = 'category')
+                            cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+                    WHERE c.id = '%d'", $cid,$cid);
+        
+                    $recs = array_merge($recs,$DB->get_records_sql($sql));
+        }
+        return $recs;
+    }
 }
 
 

@@ -179,22 +179,18 @@ if ($hassiteconfig) {
                     , $coach_defaults, $roles)
             );
     
+    $settings->add(
+        new admin_setting_heading(
+                'lmsCoursework_header', 
+                'lmsCoursework Report',  get_string('lmsCoursework_header_desc',$plugin, $a)
+                ));
+    
     $ADMIN->add('localplugins', $settings);
 
 
     
 }
 
-//class admin_setting_configtext_hour extends admin_setting_configtext{
-//    public function validate($data){
-//        if(parent::validate($data)){
-//            if($data <=23 and $data >=0){
-//                return true;
-//            }else{
-//                return false;
-//            }
-//        }
-//    }
-//}
+
 
 ?>

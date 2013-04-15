@@ -77,6 +77,7 @@ class tbl_model{
    * @param tbl_model[] $records
    * @param string $root_name the name that the inheriting report uses as its XML root element
    * @param string $child_name name that the inheriting report uses as child container element
+   * @return DOMDocument Description
    */
   public static function toXMLDoc($records, $root_name, $child_name){
       $xdoc = new DOMDocument();
