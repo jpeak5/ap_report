@@ -83,6 +83,7 @@ class enrollment_model {
     
     public static function get_all_courses($semesterids, $ids_only=false){
         global $DB;
+        
         $sql = sprintf("SELECT 
                     usect.id            AS ues_sectionid,
                     usect.sec_number    AS ues_sections_sec_number,  
@@ -109,7 +110,10 @@ class enrollment_model {
         
         $rows = $DB->get_records_sql($sql);
         if($ids_only){
-            $ids = array_keys($rows);
+            $ids = array();
+            foreach($rows as $row){
+                $ids[] = $row->mdl_courseid;
+            }
             return !empty($ids) ? $ids : false;
         }
         
@@ -526,6 +530,7 @@ class enrollment_model {
         //shortcut breakout
         if($ids_only){
             $ids = array_keys($semesters);
+
             return !empty($ids) ? $ids : false;
         }
 //die(print_r($sql));
@@ -704,73 +709,42 @@ class enrollment_model {
         return $this->merge_instructors_coaches();
     }
  
-    /**
-     * @param int[] $cids
-     */
-    public function coursework_get_quiz($cids){
-        global $DB;
-        $recs = array();
-        
-        foreach($cids as $cid){
-            //SQL held in a dedicated class to reduce code volume here
-            $sql = sprintf(coursework_queries::QUIZ, $cid, $cid);
-            $crecs = $DB->get_records_sql($sql);
-            $recs = array_merge($recs, $crecs);
-        }
-        return $recs;
-    }
+//    /**
+//     * @param int[] $cids
+//     */
+//    public function coursework_get_quiz($cids){
+//        global $DB;
+//        $recs = array();
+//
+//        foreach($cids as $cid){
+//            //SQL held in a dedicated class to reduce code volume here
+//            $sql = sprintf(coursework_queries::QUIZ, $cid, $cid);
+//            
+//            $recs = array_merge($recs, $DB->get_records_sql($sql));
+//        }
+//        mtrace($sql);
+//        echo sprintf("Got back %d records for quiz",count($recs));
+//        return $recs;
+//    }
+//    
+//    /**
+//     * @param int[] $cids
+//     */
+//    public function coursework_get_assignment($cids){
+//        global $DB;
+//        $recs = array();
+//        foreach($cids as $cid){
+//            $sql = sprintf(coursework_queries::ASSIGNMENT, $cid,$cid);
+//                    $recs = array_merge($recs,$DB->get_records_sql($sql));
+//        }
+//        return $recs;
+//    }
     
-    /**
-     * @param int[] $cids
-     */
-    public function coursework_get_assignment($cids){
+    public function coursework_get_subreport_dataset($cids,$qry){
         global $DB;
         $recs = array();
         foreach($cids as $cid){
-            $sql = sprintf("SELECT
-                        DISTINCT(mma.id) AS modAttemptId,
-                        mm.id AS courseModuleId,
-                        CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
-                        u.username as pawsId,
-                        u.idnumber AS studentId,
-                        CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
-                        us.sec_number AS sectionId,
-                        'assignment' AS itemType,
-                        mm.name AS itemName,
-                        mm.duedate AS dueDate,
-                        mma.timemodified AS dateSubmitted,
-                        mm.grade AS pointsPossible,
-                        mgg.finalgrade AS pointsReceived,
-                        mgc.fullname AS gradeCategory,
-                        (cats.categoryWeight * 100) AS categoryWeight,
-                        NULL AS extensions
-                    FROM mdl_course c
-                        INNER JOIN mdl_assign mm ON mm.course = c.id
-                        INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                        INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                        INNER JOIN mdl_user u ON ustu.userid = u.id
-                        INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                        INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                        INNER JOIN mdl_grade_items mgi ON
-                            mgi.courseid = c.id AND
-                            mgi.itemtype = 'mod' AND
-                            mgi.itemmodule = 'assign' AND
-                            mgi.iteminstance = mm.id
-                        INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                        LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                        LEFT JOIN mdl_assign_submission mma ON mm.id = mma.assignment AND u.id = mma.userid
-                        LEFT JOIN
-                            (SELECT
-                                mgi2.courseid AS catscourse,
-                                mgi2.id AS catsid,
-                                mgi2.iteminstance AS catcatid,
-                                mgi2.aggregationcoef AS categoryWeight
-                            FROM mdl_grade_items mgi2
-                                INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
-                                AND mgi2.itemtype = 'category')
-                            cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
-                    WHERE c.id = '%d'", $cid,$cid);
-        
+            $sql = sprintf($qry, $cid,$cid);
                     $recs = array_merge($recs,$DB->get_records_sql($sql));
         }
         return $recs;
