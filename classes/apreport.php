@@ -170,7 +170,11 @@ class lmsSectionGroupRecord extends apreportRecord{
 }
 
 class lmsCourseworkRecord extends apreportRecord{
-    public $itemtype,
+    public $enrollmentid,
+            $studentid,
+            $courseid,
+            $sectionid,
+            $itemtype,
             $itemid, 
             $itemname, 
             $duedate, 
