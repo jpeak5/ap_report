@@ -1,4 +1,5 @@
 <?php
+$string['local_ap_report']   = 'AP Reports';
 $string['apreports_settings']   = 'AP Reports Settings';
 $string['pluginname_desc']      = 'AP Reports Settings...- [Reprocess]({$a->url})';
 $string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->url})';

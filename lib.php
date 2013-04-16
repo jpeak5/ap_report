@@ -760,15 +760,16 @@ class lmsCoursework extends apreport{
     
 public static $subreports = array(
     'quiz',
+    'assign',
     'assignment',
-    'assign2',
     'database', 
     'forum',
     'forumng',
     'glossary',
     'hotpot',
     'kalvidassign',
-    'lesson'
+    'lesson',
+    'scorm'
     );
 
 
@@ -946,16 +947,17 @@ class apreport_report{
 class coursework_queries{
     public static $queries = array('quiz' =>
         "SELECT
-                DISTINCT(mma.id) AS quizAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
-                mgi.id AS itemid,                
+                mgi.id AS gradeItemid,                
+                mm.id AS itemId,                
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                 us.sec_number AS sectionId,
                 'quiz' AS itemType,
-                
                 mm.name AS itemName,
                 mm.timeclose AS dueDate,
                 mma.timefinish AS dateSubmitted,
@@ -989,18 +991,21 @@ class coursework_queries{
                         INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
-            WHERE c.id = %d",
+            WHERE c.id = '%d'",
         
         'assign' =>
                     "SELECT
-                        DISTINCT(mma.id) AS modAttemptId,
+                        DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                        mma.id AS modAttemptId,
                         mm.id AS courseModuleId,
+                        mgi.id AS gradeItemid,
+                        mm.id AS itemId,
                         CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                         u.username as pawsId,
                         u.idnumber AS studentId,
                         CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                         us.sec_number AS sectionId,
-                        'assignment' AS itemType,
+                        'assign' AS itemType,
                         mm.name AS itemName,
                         mm.duedate AS dueDate,
                         mma.timemodified AS dateSubmitted,
@@ -1035,10 +1040,14 @@ class coursework_queries{
                                 AND mgi2.itemtype = 'category')
                             cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
                     WHERE c.id = '%d'",
-        'assign2' =>
+
+        'assignment' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1079,10 +1088,14 @@ class coursework_queries{
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
+
         'database' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1126,8 +1139,11 @@ class coursework_queries{
         
         'forum' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1172,8 +1188,11 @@ class coursework_queries{
         
         'forumng' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1218,8 +1237,11 @@ class coursework_queries{
         
         'glossary' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1260,10 +1282,14 @@ class coursework_queries{
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
+
         'hotpot' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1306,7 +1332,8 @@ class coursework_queries{
             WHERE c.id = '%d'",
         'kalvidassign' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1351,8 +1378,11 @@ class coursework_queries{
         
         'lesson' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1394,7 +1424,56 @@ class coursework_queries{
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
         
-        
+        'scorm' =>
+"SELECT
+    DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+    CONCAT(u.idnumber, (IFNULL(mma.scoid,''))) AS modAttemptId,
+    mm.id AS courseModuleId,
+    CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+    u.username as pawsId,
+    u.idnumber AS studentId,
+    CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+    us.sec_number AS sectionId,
+    'scorm' AS itemType,
+    mm.name AS itemName,
+    mm.timeclose AS dueDate,
+    mma.timemodified AS dateStarted,
+    mma1.value AS timeElapsed,
+    mm.maxgrade AS pointsPossible,
+    mgg.finalgrade AS pointsReceived,
+    mgc.fullname AS gradeCategory,
+    (cats.categoryWeight * 100) AS categoryWeight,
+    NULL AS extensions
+FROM mdl_course c
+    INNER JOIN mdl_scorm mm ON mm.course = c.id
+    INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+    INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+    INNER JOIN mdl_user u ON ustu.userid = u.id
+    INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+    INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+    INNER JOIN mdl_grade_items mgi ON
+        mgi.courseid = c.id AND
+        mgi.itemtype = 'mod' AND
+        mgi.itemmodule = 'scorm' AND
+        mgi.iteminstance = mm.id
+    INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+    INNER JOIN mdl_scorm_scoes mms ON mm.id = mms.scorm
+    LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+    LEFT JOIN mdl_scorm_scoes_track mma ON mm.id = mma.scormid AND u.id = mma.userid AND mma.scoid = mms.id AND mma.element = 'cmi.score.raw'
+    LEFT JOIN mdl_scorm_scoes_track mma1 ON mm.id = mma1.scormid AND u.id = mma1.userid AND mma1.scoid = mms.id AND mma1.element = 'cmi.total_time'
+    LEFT JOIN mdl_scorm_scoes_track mma2 ON mm.id = mma2.scormid AND u.id = mma2.userid AND mma2.scoid = mms.id AND mma2.element = 'x.start.time'
+    LEFT JOIN
+        (SELECT
+            mgi2.courseid AS catscourse,
+            mgi2.id AS catsid,
+            mgi2.iteminstance AS catcatid,
+            mgi2.aggregationcoef AS categoryWeight
+        FROM mdl_grade_items mgi2
+            INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+            AND mgi2.itemtype = 'category')
+        cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+WHERE c.id = '%d'
+GROUP BY modAttemptId",
         
         
         );
