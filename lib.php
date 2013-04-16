@@ -72,7 +72,7 @@ abstract class apreport {
     public function update_job_status($comp, $stage, $status, $info=null, $sub=null) {
 
         $subcomp  = isset($sub) ? '_'.$sub  : null;
-        $info     = isset($info)? '  [INFO]: '.$info : null;
+        $info     = isset($info)? '  : '.$info : null;
         set_config('apreport_'.$comp.$subcomp, $stage.':  '.$status.$info);
     }
     
@@ -90,6 +90,7 @@ class apreport_job_stage{
     const PERSIST    = 'persist new data';
     const RETRIEVE   = 'retrieve data';
     const COMPLETE   = 'complete';
+    const ABORT      = 'aborted';
 }
 
 class lmsEnrollment extends apreport{
@@ -801,8 +802,8 @@ public function run(){
         
 //        $records = call_user_func(array($enr,'coursework_get_'.$type), $this->courses);
         $records = $enr->coursework_get_subreport_dataset($this->courses, $query);
-        if(count($records)<=1){
-            $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::EXCEPTION, "empty resultset");
+        if(count($records)<1){
+            $this->update_job_status_one($type, apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset");
             
         }else{
             $this->update_job_status_one($type, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
@@ -813,7 +814,11 @@ public function run(){
             }
             if($persist_success > 0){
                 $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
+            }else{
+                $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
+                continue;
             }
+            $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
         }
     }
     //set status message about the loop exit

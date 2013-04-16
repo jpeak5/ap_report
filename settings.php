@@ -192,7 +192,7 @@ if ($hassiteconfig) {
     $cwk_status .= "Subreports, current status:".$hr;
     
     $tbl = new html_table();
-    $tbl->head = array('Sub-report', 'Status');
+    $tbl->head = array('Sub-report', '&lt;stage&gt;: &lt;status&gt; [: &lt;info&gt;]');
     $data = array();
     
     foreach(lmsCoursework::$subreports as $sr){
@@ -207,7 +207,11 @@ if ($hassiteconfig) {
     }
     
     $tbl->data = $data;
-    $a->cwk_status = html_writer::table($tbl);
+    $a->cwk_status_sub = html_writer::table($tbl);
+    
+    //overall status
+    $stat = html_writer::tag('em', html_writer::tag('strong', $CFG->apreport_lmsCoursework));
+    $a->cwk_status = sprintf("Overall job status: %s", $stat);
     
     $settings->add(
         new admin_setting_heading(
