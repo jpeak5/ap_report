@@ -72,8 +72,8 @@ abstract class apreport {
     public function update_job_status($comp, $stage, $status, $info=null, $sub=null) {
 
         $subcomp  = isset($sub) ? '_'.$sub  : null;
-        $info     = isset($info)? '_'.$info : null;
-        set_config('apreport_'.$comp.$subcomp, $stage.'_'.$status.$info);
+        $info     = isset($info)? '  [INFO]: '.$info : null;
+        set_config('apreport_'.$comp.$subcomp, $stage.':  '.$status.$info);
     }
     
 }

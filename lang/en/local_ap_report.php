@@ -1,5 +1,4 @@
 <?php
-$string['local_ap_report']   = 'AP Reports';
 $string['apreports_settings']   = 'AP Reports Settings';
 $string['pluginname_desc']      = 'AP Reports Settings...- [Reprocess]({$a->url})';
 $string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->url})';
@@ -38,4 +37,7 @@ $string['section_groups_header_desc']
                                 = 'View [Section Groups Report]({$a->section_groups})';
 $string['unknownmode']          = "Unknown value given for process mode";
 $string['nopermission']         = "You don't have permission to access this page";
+
+//lmsCoursework
+$string['lmsCwk_header']        = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis<br/>{$a->cwk_status}';
 ?>

@@ -1,6 +1,8 @@
 <?php
 
 defined('MOODLE_INTERNAL') or die();
+
+
 global $CFG;
 $plugin = 'local_ap_report';
 
@@ -14,7 +16,8 @@ $_s = function($key,$a=null) use ($plugin){
 
 //global $ADMIN;
 if ($hassiteconfig) {
-
+    require_once dirname(__FILE__) . '/lib.php';
+    
     $settings = new admin_settingpage('local_ap_report', 'AP Reports');
     
     
@@ -179,11 +182,40 @@ if ($hassiteconfig) {
                     , $coach_defaults, $roles)
             );
     
+
+    $cwk_status = "";
+    $hr = html_writer::tag('hr',null);
+    $br = html_writer::tag('br',null);
+    $cwk_status .= "Subreports, current status:".$hr;
+    
+    $tbl = new html_table();
+    $tbl->head = array('Sub-report', 'Status');
+    $data = array();
+    
+    foreach(lmsCoursework::$subreports as $sr){
+        $cells = array();
+        
+        $r = 'apreport_lmsCoursework_'.$sr;
+
+        $k = html_writer::tag('strong', strtoupper($sr));
+        $cells[] = $k;
+        $cells[] = $CFG->$r;
+        $data[]  = new html_table_row($cells);
+    }
+    
+    $tbl->data = $data;
+    $a->cwk_status = html_writer::table($tbl);
+    
     $settings->add(
         new admin_setting_heading(
                 'lmsCoursework_header', 
-                'lmsCoursework Report',  get_string('lmsCoursework_header_desc',$plugin, $a)
+                'lmsCoursework Report',  get_string('lmsCwk_header',$plugin, $a)
                 ));
+    
+    
+
+    
+    
     
     $ADMIN->add('localplugins', $settings);
 
