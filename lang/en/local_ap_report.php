@@ -39,5 +39,5 @@ $string['unknownmode']          = "Unknown value given for process mode";
 $string['nopermission']         = "You don't have permission to access this page";
 
 //lmsCoursework
-$string['lmsCwk_header']        = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis. Click to [reprocess]({$a->cwk}).{$a->cwk_status}';
+$string['lmsCwk_header']        = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis. Click to [reprocess]({$a->cwk}).{$a->cwk_status_sub}{$a->cwk_status}';
 ?>
