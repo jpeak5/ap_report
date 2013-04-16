@@ -1206,7 +1206,7 @@ class coursework_queries{
                 u.idnumber AS studentId,
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                 us.sec_number AS sectionId,
-                'forum' AS itemType,
+                'forumng' AS itemType,
                 mm.name AS itemName,
                 mm.ratinguntil AS dueDate,
                 mmap.modified AS dateSubmitted,
@@ -1338,11 +1338,14 @@ class coursework_queries{
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
+
         'kalvidassign' =>
             "SELECT
                 DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
                 mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
                 u.idnumber AS studentId,
@@ -1396,17 +1399,17 @@ class coursework_queries{
                 u.idnumber AS studentId,
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                 us.sec_number AS sectionId,
-                'kalvidassign' AS itemType,
+                'lesson' AS itemType,
                 mm.name AS itemName,
-                mm.timedue AS dueDate,
-                mma.timemodified AS dateSubmitted,
+                mm.deadline AS dueDate,
+                mma.timeseen AS dateSubmitted,
                 mm.grade AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
             FROM mdl_course c
-                INNER JOIN mdl_kalvidassign mm ON mm.course = c.id
+                INNER JOIN mdl_lesson mm ON mm.course = c.id
                 INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
                 INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
                 INNER JOIN mdl_user u ON ustu.userid = u.id
@@ -1415,11 +1418,11 @@ class coursework_queries{
                 INNER JOIN mdl_grade_items mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
-                    mgi.itemmodule = 'kalvidassign' AND
+                    mgi.itemmodule = 'lesson' AND
                     mgi.iteminstance = mm.id
                 INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
                 LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_kalvidassign_submission mma ON mm.id = mma.vidassignid AND u.id = mma.userid
+                LEFT JOIN mdl_lesson_attempts mma ON mm.id = mma.lessonid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
@@ -1428,9 +1431,9 @@ class coursework_queries{
                         mgi2.aggregationcoef AS categoryWeight
                     FROM mdl_grade_items mgi2
                         INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
-                        AND mgi2.itemtype = 'category')
+                    AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
-            WHERE c.id = '%d'",
+                    WHERE c.id = '%d'",
         
         'scorm' =>
 "SELECT
