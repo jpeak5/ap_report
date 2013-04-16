@@ -35,6 +35,9 @@ if ($hassiteconfig) {
     $section_groups = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'section_groups'));
     $a->section_groups = $section_groups->out(false);
     
+    $cwk = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'coursework'));
+    $a->cwk = $cwk->out(false);
+    
 
     
     $settings->add(
