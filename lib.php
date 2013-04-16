@@ -878,7 +878,8 @@ public function run(){
         $ids =array();
         foreach($records as $rec){
             $rec->created = time();
-            $rec->sectionid = $rec->sectionid;
+            if($rec->gradecategory == '?')
+                $rec->gradecategory = 'root';
             $ids[] = $DB->insert_record('apreport_coursework', $rec, true,true);
         }
         return count($ids);
