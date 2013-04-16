@@ -946,7 +946,8 @@ class apreport_report{
 class coursework_queries{
     public static $queries = array('quiz' =>
         "SELECT
-                DISTINCT(mma.id) AS quizAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 mgi.id AS itemid,                
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
@@ -955,7 +956,6 @@ class coursework_queries{
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                 us.sec_number AS sectionId,
                 'quiz' AS itemType,
-                
                 mm.name AS itemName,
                 mm.timeclose AS dueDate,
                 mma.timefinish AS dateSubmitted,
@@ -989,11 +989,12 @@ class coursework_queries{
                         INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
-            WHERE c.id = %d",
+            WHERE c.id = '%d'",
         
         'assign' =>
                     "SELECT
-                        DISTINCT(mma.id) AS modAttemptId,
+                        DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                        mma.id AS modAttemptId,
                         mm.id AS courseModuleId,
                         CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                         u.username as pawsId,
@@ -1035,9 +1036,11 @@ class coursework_queries{
                                 AND mgi2.itemtype = 'category')
                             cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
                     WHERE c.id = '%d'",
+
         'assign2' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1079,9 +1082,11 @@ class coursework_queries{
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
+
         'database' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1126,7 +1131,8 @@ class coursework_queries{
         
         'forum' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1172,7 +1178,8 @@ class coursework_queries{
         
         'forumng' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1218,7 +1225,8 @@ class coursework_queries{
         
         'glossary' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1260,9 +1268,11 @@ class coursework_queries{
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
+
         'hotpot' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1306,7 +1316,8 @@ class coursework_queries{
             WHERE c.id = '%d'",
         'kalvidassign' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
@@ -1351,7 +1362,8 @@ class coursework_queries{
         
         'lesson' =>
             "SELECT
-                DISTINCT(mma.id) AS modAttemptId,
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
                 mm.id AS courseModuleId,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
                 u.username as pawsId,
