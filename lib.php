@@ -860,7 +860,11 @@ public function run(){
      */
     public static function get_scorm_datesubmitted($start, $interval){
         $date = new DateTime(strftime('%F %T',$start));
-        $end = $date->add($interval);
+
+        //remove microseconds...we don't care
+        $int = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', $interval));
+        
+        $end = $date->add($int);
         
         return $end->getTimestamp();
     }

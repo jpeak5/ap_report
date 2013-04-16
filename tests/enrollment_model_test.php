@@ -190,9 +190,9 @@ class enrollment_model_testcase extends apreports_testcase{
         $sec = 24;
         
         $start = new DateTime(strftime('%F %T',$t));
-        $intvl = new DateInterval('PT24S');
+        $intvl = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', 'PT24.0S'));
         
-        $unit = lmsCoursework::get_scorm_datesubmitted($t, $intvl);
+        $unit = lmsCoursework::get_scorm_datesubmitted($t, 'PT24.0S');
         
         $end = $start->add($intvl);
         $this->assertEquals($end->getTimestamp(), $t+24);
