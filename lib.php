@@ -1451,7 +1451,10 @@ class coursework_queries{
 "SELECT
     DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
     CONCAT(u.idnumber, (IFNULL(mma.scoid,''))) AS modAttemptId,
-    mm.id AS courseModuleId,
+            #    mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
     CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
     u.username as pawsId,
     u.idnumber AS studentId,
