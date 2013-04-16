@@ -114,7 +114,7 @@ if(is_siteadmin($USER)){
         $cw = new lmsCoursework();
         if(($xdoc = $cw->run())!=false){
             echo render_table($xdoc,
-                    $xdoc->getElementsByTagName('lmsCourseWorkItem'), 
+                    $xdoc->getElementsByTagName('lmsCourseworkItem'), 
                     lmsCourseworkRecord::$camels);
         }else{
             echo "failed updating LMS Coursework report";
