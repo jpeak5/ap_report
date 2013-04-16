@@ -177,13 +177,30 @@ class enrollment_model_testcase extends apreports_testcase{
         $this->assertGreaterThan(0,count($mgg));
         
         
-        $qzs = $e->coursework_get_quiz($courses);
-        $this->nonempty_array($qzs);
-        $keys = array_keys($qzs);
-        $sample = $qzs[$keys[0]];
-        $this->assertTrue(object_property_exists($sample, 'itemname'));
+//        $qzs = $e->coursework_get_quiz($courses);
+//        $this->nonempty_array($qzs);
+//        $keys = array_keys($qzs);
+//        $sample = $qzs[$keys[0]];
+//        $this->assertTrue(object_property_exists($sample, 'itemname'));
         
     }
+    
+    public function test_get_scorm_datesubmitted(){
+        $t = time();
+        $sec = 24;
+        
+        $start = new DateTime(strftime('%F %T',$t));
+        $intvl = new DateInterval('PT24S');
+        
+        $unit = lmsCoursework::get_scorm_datesubmitted($t, $intvl);
+        
+        $end = $start->add($intvl);
+        $this->assertEquals($end->getTimestamp(), $t+24);
+        $this->assertEquals($t+24, $unit);
+        
+    }
+    
+
 }
 
 ?>

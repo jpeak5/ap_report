@@ -740,12 +740,21 @@ class enrollment_model {
 //        return $recs;
 //    }
     
-    public function coursework_get_subreport_dataset($cids,$qry){
+    public function coursework_get_subreport_dataset($cids,$qry, $type){
         global $DB;
         $recs = array();
         foreach($cids as $cid){
             $sql = sprintf($qry, $cid,$cid);
                     $recs = array_merge($recs,$DB->get_records_sql($sql));
+        }
+        
+        //calculate SCORM date complete
+        if($type == 'scorm'){
+            foreach($recs as $rec){
+                if(isset($rec->timeelapsed) && isset($rec->datestarted)){
+                    $rec->datesubmitted = lmsCoursework::get_scorm_datesubmitted($rec->datestarted, $rec->timeelapsed);
+                }
+            }
         }
         return $recs;
     }
