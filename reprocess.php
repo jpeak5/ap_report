@@ -115,7 +115,7 @@ if(is_siteadmin($USER)){
         if(($xdoc = $cw->run())!=false){
             echo render_table($xdoc,
                     $xdoc->getElementsByTagName('lmsCourseWorkItem'), 
-                    lmsSectionGroupRecord::$camels);
+                    lmsCourseworkRecord::$camels);
         }else{
             echo "failed updating LMS Coursework report";
         }
@@ -144,29 +144,29 @@ echo $OUTPUT->footer();
 
 function render_table($xml,$element_list,$fields){
     $table = new html_table();
-            $display = "";
-            $table->head = $fields;
-            $data = array();
-            $xpath = new DOMXPath($xml);
-            
-            $display .= "returning only the first 100 table rows";
-            for ($i=0; $i<100; $i++){
-                $record = $element_list->item($i);
-                $cells = array();
-                foreach($table->head as $field){
-                    $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
-                }
-                $row = new html_table_row($cells);
-                $data[] = $row;
+        $display = "";
+        $table->head = $fields;
+        $data = array();
+        $xpath = new DOMXPath($xml);
+
+        $display .= "returning only the first 100 table rows";
+        for ($i=0; $i<100; $i++){
+            $record = $element_list->item($i);
+            $cells = array();
+            foreach($table->head as $field){
+                $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
             }
+            $row = new html_table_row($cells);
+            $data[] = $row;
+        }
 
-            $table->data = $data;
-            $display .= html_writer::table($table);
+        $table->data = $data;
+        $display .= html_writer::table($table);
 
-            $display .= html_writer::tag('h4', 'Raw XML:');
-            $row_count = 40;
-            $xml->formatOutput = true;
-            $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
-            return $display;
+        $display .= html_writer::tag('h4', 'Raw XML:');
+        $row_count = 40;
+        $xml->formatOutput = true;
+        $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
+        return $display;
 }
 ?>

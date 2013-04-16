@@ -801,7 +801,7 @@ public function run(){
         
 //        $records = call_user_func(array($enr,'coursework_get_'.$type), $this->courses);
         $records = $enr->coursework_get_subreport_dataset($this->courses, $query);
-        if(count($records)<1){
+        if(count($records)<=1){
             $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::EXCEPTION, "empty resultset");
             
         }else{
@@ -844,7 +844,7 @@ public function run(){
     }else{
         $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
         return false;
-    }
+    }                    
 }
 
 
@@ -872,11 +872,13 @@ public function run(){
         global $DB;
         return $DB->delete_records('apreport_coursework', array('itemtype'=>$itemtype));
     }
+    
     public function persist_db_records($records) {
         global $DB;
         $ids =array();
         foreach($records as $rec){
             $rec->created = time();
+            $rec->sectionid = $rec->sectionid;
             $ids[] = $DB->insert_record('apreport_coursework', $rec, true,true);
         }
         return count($ids);
