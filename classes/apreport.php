@@ -40,7 +40,7 @@ class apreportRecord extends tbl_model{
     }
     
     public static function format_department($d){
-        return sprintf("%-4s",$d);
+        return sprintf("%-6s",$d);
     }
     
     public static function format_enrollmentid($y,$sid, $cid, $snum){
@@ -180,7 +180,7 @@ class lmsCourseworkRecord extends apreportRecord{
             $duedate, 
             $datesubmitted,
             $pointspossible,
-            $pointsrecieved,
+            $pointsreceived,
             $gradecategory,
             $categoryweight,
             $extensions;
@@ -193,8 +193,9 @@ class lmsCourseworkRecord extends apreportRecord{
         'itemid'            =>'itemId',
         'itemname'          =>'itemName',
         'duedate'           =>'dueDate',
+        'datesubmitted'     =>'dateSubmitted',
         'pointspossible'    =>'pointsPossible',
-        'pointsrecieved'    =>'pointsRecieved',
+        'pointsreceived'    =>'pointsReceived',
         'gradecategory'     =>'gradeCategory',
         'categoryweight'    =>'categoryWeight',
         'extensions'        =>'extensions'
