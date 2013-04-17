@@ -1,6 +1,5 @@
 <?php
 
-//defined('MOODLE_INTERNAL') || die;
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
 require_once('classes/apreport.php');
@@ -14,18 +13,24 @@ function local_ap_report_cron(){
         
         $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
 
+        $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroups','lmsCoursework');
         
         if($current_hour == $acceptable_hour){
-        
-            mtrace("Begin generating AP Reports...");
-            $report = new lmsEnrollment();
-            mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
-                    strftime('%F %T',$report->start),
-                    strftime('%F %T',$report->end)
-                    ));
-            $report->run();
-            add_to_log(1, 'ap_reports', 'cron');
-            mtrace("done.");
+            foreach($reports as $r){
+                mtrace("Begin {$r} report...");
+                $report = new $r();
+                
+                if($r == 'lmsEnrollment'){
+                    mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
+                        strftime('%F %T',$report->start),
+                        strftime('%F %T',$report->end)
+                        ));
+                }
+                $report->run();
+                
+                add_to_log(1, $r, 'cron');
+                mtrace("done.");
+            }
         }
         return true;
 }
@@ -76,6 +81,13 @@ abstract class apreport {
         set_config('apreport_'.$comp.$subcomp, $stage.':  '.$status.$info);
     }
     
+}
+
+class apreport_error_severity{
+    const INFO   = 0;
+    const WARN   = 1;
+    const SEVERE = 2;
+    const FATAL  = 3;
 }
 
 class apreport_job_status{
@@ -529,9 +541,7 @@ class lmsEnrollment extends apreport{
     }
     
     public function run_arbitrary_day($start, $end){
-        
-        
-        
+
         $this->start = $start;
         $this->end = $end;
         add_to_log(1, 'ap_reports', 'backfill_'.$start);
@@ -677,7 +687,6 @@ class lmsGroupMembership extends apreport{
         $objects = array();
         foreach($this->enrollment->group_membership_records as $key=>$records){
             foreach($records as $record){
-//            mtrace(sprintf("printing key %s", $key));
                 $objects[] = lmsGroupMembershipRecord::instantiate($record);
             }
         }
@@ -696,7 +705,6 @@ class lmsGroupMembership extends apreport{
         $content = $this->getXML();
         $content->format = true;
         $file = $CFG->dataroot.'/groups.xml';
-//        mtrace(sprintf("final file = %s",$content->saveXML()));
         return $this->create_file($content, $file) ? $content : false;
     }
     
@@ -722,13 +730,40 @@ class lmsSectionGroup extends apreport{
     
     public function run(){
         global $CFG;
-        $xdoc = lmsSectionGroupRecord::toXMLDoc($this->enrollment->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
+        $xdoc = lmsSectionGroupRecord::toXMLDoc($this->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
         if(($xdoc)!=false){
             if($this->create_file($xdoc, $CFG->dataroot.'/sectionGroup.xml')!=false){
                 return $xdoc;
             }
         }
         return false;
+    }
+    
+    public function merge_instructors_coaches(){
+        $instructors = $this->enrollment->get_groups_primary_instructors();
+        $coaches = $this->enrollment->get_groups_coaches();
+        $section_groups = array();
+        
+        if(!$instructors){
+            return false;
+        }elseif(!$coaches){
+            return $instructors;
+        }
+        
+        foreach($instructors as $inst){
+            if(array_key_exists($inst->groupid, $coaches)){
+                $inst->coachid          = $coaches[$inst->groupid]->coachid;
+                $inst->coachfirstname   = $coaches[$inst->groupid]->coachfirstname;
+                $inst->coachlastname    = $coaches[$inst->groupid]->coachlastname;
+                $inst->coachemail       = $coaches[$inst->groupid]->coachemail;
+            }
+            $section_groups[] = $inst;
+        }
+        return $section_groups;
+    }
+    
+    public function get_section_groups(){
+        return $this->merge_instructors_coaches();
     }
     
 }
@@ -759,98 +794,114 @@ class lmsCoursework extends apreport{
     
     const INTERNAL_NAME = 'lmsCoursework';
     
-public static $subreports = array(
-    'quiz',
-    'assign',
-    'assignment',
-    'database', 
-    'forum',
-    'forumng',
-    'glossary',
-    'hotpot',
-    'kalvidassign',
-    'lesson',
-    'scorm'
+    public static $subreports = array(
+        'quiz',
+        'assign',
+        'assignment',
+        'database', 
+        'forum',
+        'forumng',
+        'glossary',
+        'hotpot',
+        'kalvidassign',
+        'lesson',
+        'scorm'
     );
 
 
 
-public $courses;
-public $errors;
-public $new_records;
-public function __construct(){
+    public $courses;
+    public $errors;
+    public $new_records;
     
-    $this->courses = enrollment_model::get_all_courses(enrollment_model::get_active_ues_semesters(null, true), true);
-}
-
-public function run(){
-    global $DB,$CFG;
-    $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS);
-    if(empty($this->courses)){
-        //this could happen on a day where there are zero semesters in session
-        $e = new apreport_status('lmsCoursework', CWK_NO_COURSES, 'no current courses', apreport_error_severity::FATAL);
-        $this->errors[] = $e;
-        $this->set_status();
-        $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::EXCEPTION, 'no courses');
-        return true;
+    public function __construct(){
+        $this->courses = enrollment_model::get_all_courses(enrollment_model::get_active_ues_semesters(null, true), true);
     }
-    $enr = new enrollment_model();
     
-    //get records, one report at a time with completion status
-    foreach(coursework_queries::$queries as $type => $query){
-        $records[$type] = array();
-        
-//        $records = call_user_func(array($enr,'coursework_get_'.$type), $this->courses);
-        $records = $enr->coursework_get_subreport_dataset($this->courses, $query, $type);
-        if(count($records)<1){
-            $this->update_job_status_one($type, apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset");
-            
-        }else{
-            $this->update_job_status_one($type, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
-            
-            //save to db
-            if($this->clean_db($type)){
-                $persist_success = $this->persist_db_records($records,$type);
-            }
-            if($persist_success > 0){
-                $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
-            }else{
-                $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
-                continue;
-            }
-            $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+    public function coursework_get_subreport_dataset($cids,$qry, $type){
+        global $DB;
+        $recs = array();
+        foreach($cids as $cid){
+            $sql = sprintf($qry, $cid,$cid);
+                    $recs = array_merge($recs,$DB->get_records_sql($sql));
         }
+        
+        //calculate SCORM date complete
+        if($type == 'scorm'){
+            foreach($recs as $rec){
+                if(isset($rec->timeelapsed) && isset($rec->datestarted)){
+                    $rec->datesubmitted = lmsCoursework::get_scorm_datesubmitted($rec->datestarted, $rec->timeelapsed);
+                }
+            }
+        }
+        return $recs;
     }
-    //set status message about the loop exit
-    $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+    
+    public function run(){
+        global $DB,$CFG;
+        $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS);
+        if(empty($this->courses)){
+            //this could happen on a day where there are zero semesters in session
+            $this->set_status();
+            $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::EXCEPTION, 'no courses');
+            return true;
+        }
+        $enr = new enrollment_model();
 
-    //read back from db
-    $dataset = $DB->get_records('apreport_coursework');
-    if(!empty($dataset)){
-        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
-    }else{
-        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::EXCEPTION, "no rows");
-        mtrace("dataset is empty");;
-        return false;
+        //get records, one report at a time with completion status
+        foreach(coursework_queries::$queries as $type => $query){
+            $records[$type] = array();
+            $records = $this->coursework_get_subreport_dataset($this->courses, $query, $type);
+
+            if(count($records)<1){
+                $this->update_job_status_one($type, apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset");
+
+            }else{
+                $this->update_job_status_one($type, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+
+                //save to db
+                if($this->clean_db($type)){
+                    $persist_success = $this->persist_db_records($records,$type);
+                }
+                if($persist_success > 0){
+                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
+                }else{
+                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
+                    continue;
+                }
+                $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            }
+        }
+        //set status message about the loop exit
+        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+
+        //read back from db
+        $dataset = $DB->get_records('apreport_coursework');
+        if(!empty($dataset)){
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
+        }else{
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::EXCEPTION, "no rows");
+            mtrace("dataset is empty");;
+            return false;
+        }
+
+        $cwks = array();
+        foreach($dataset as $d){
+            $cwks[] = lmsCourseworkRecord::instantiate($d);
+        }
+
+        //make xml
+        $xdoc = lmsCourseworkRecord::toXMLDoc($cwks, 'lmsCourseworkItems', 'lmsCourseworkItem');
+
+        //write the DB dataset to a FILE
+        if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            return $xdoc;
+        }else{
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
+            return false;
+        }                    
     }
-    
-    $cwks = array();
-    foreach($dataset as $d){
-        $cwks[] = lmsCourseworkRecord::instantiate($d);
-    }
-    
-    //make xml
-    $xdoc = lmsCourseworkRecord::toXMLDoc($cwks, 'lmsCourseworkItems', 'lmsCourseworkItem');
-    
-    //write the DB dataset to a FILE
-    if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
-        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
-        return $xdoc;
-    }else{
-        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
-        return false;
-    }                    
-}
 
 
     /**
@@ -906,66 +957,6 @@ public function run(){
         return count($ids);
     }
 
-}
-
-class apreport_status{
-    
-    /**
-     *
-     * @var apreport_report
-     */
-    public $report;
-    
-    /**
-     *
-     * @var apreport_cfg_msg | string
-     */
-    public $code;
-    /**
-     *
-     * @var string
-     */
-    public $info;
-    /**
-     *
-     * @var apreport_error_severity
-     */
-    public $severity;
-    
-    public function __construct($rep, $cod, $inf, $sev) {
-        $this->report   = $rep;
-        $this->code     = $cod;
-        $this->info     = $inf;
-        $this->severity = $sev;
-    }
-    
-}
-
-class apreport_error_severity{
-    const INFO   = 0;
-    const WARN   = 1;
-    const SEVERE = 2;
-    const FATAL  = 3;
-}
-
-/**
- * these constants' valuse can correlate to some lang string
- */
-class apreport_cfg_msg{
-    const STATUS_JOB_START = 'status_job_start';
-    const CWK_NO_COURSES = "cwk_no_courses";
-    const CWK_NO_QUIZZES = 'cwk_no_quizzes';
-    const BEGIN_PERSIST_DB = 'begin_db_persist';
-    const COMPLETE_PERSIST_DB = 'complete_db_persist';
-    const CWK_PERSIST_COMPLETE = 'persist_to_db_success';
-    const CWK_BEGIN_READ_NEW_DB = 'read_new_records';
-    const CWK_EMPTY_READ_NEW_DB = 'no_records';
-    const CWK_COMPL_READ_NEW_DB = 'compl_read_new_recs';
-    const CWK_FILE_WRITTEN = "coursewk_file_written";
-}
-
-class apreport_report{
-    const LMS_COURSEWORK = 'lmsCoursework';
 }
 
 class coursework_queries{
