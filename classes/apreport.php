@@ -187,7 +187,7 @@ class lmsCourseworkRecord extends apreportRecord{
             $categoryweight,
             $extensions;
     public static $camels = array(
-        'enrollmentid'      => 'enrollmentId',
+        'enrollmentid'      =>'enrollmentId',
         'studentid'         =>'studentId',
         'courseid'          =>'courseId',
         'sectionid'         =>'sectionId',

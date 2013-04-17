@@ -25,13 +25,18 @@ if ($hassiteconfig) {
     $preview = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'preview'));
     $a->preview = $preview->out(false);
     
-    $a->lsmEn_xml = $a->dataroot.'/'.$CFG->apreport_enrol_xml;
+    $backfill= new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'backfill'));
+    $a->backfill = $backfill->out(false);
+    
+    
 
     //init vars
     $a->lmsEn_instr ='';
     $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? strftime('%F %T', $CFG->apreport_job_complete) : null;
     $a->lmsEn_start = isset($CFG->apreport_job_start)    ? strftime('%F %T', $CFG->apreport_job_start)    : null;
     $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
+    
+    
     
     if(!$CFG->apreport_got_enrollment){
         $a->lmsEn_instr .= $_s('lmsEn_no_activity');
@@ -47,7 +52,7 @@ if ($hassiteconfig) {
     $lmsEn_linksList = html_writer::alist(array(
         html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')).$_s('lmsEn_reprocess_desc'),
         html_writer::link($a->preview,$_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
-        $a->lmsEn_xml.$_s('lmsEn_xml_desc'),
+        $CFG->dataroot.'/'.$CFG->apreport_enrol_xml.'.xml'.$_s('lmsEn_xml_desc'),
         html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))  .$_s('lmsEn_backfill_desc')
     ));
     $lmsEn_options .= $lmsEn_linksList;
@@ -135,18 +140,19 @@ if ($hassiteconfig) {
                 ));
     
     
-    $settings->add(
-        new admin_setting_heading(
-                'section_groups_header', 
-                $_s('lmsSecGrp_hdr'),  
-                $_s('section_groups_header_desc', $a)
-                ));
+
   
 //-------------------------- lmsSectionGroup ------------------------------//
     
     $section_groups = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'section_groups'));
     $a->section_groups = $section_groups->out(false);
     
+    $settings->add(
+        new admin_setting_heading(
+                'section_groups_header', 
+                $_s('lmsSecGrp_hdr'),  
+                $_s('section_groups_header_desc', $a)
+                ));
     
     //config selects for primary inst/coach
     //@TODO double check the default values are being used
