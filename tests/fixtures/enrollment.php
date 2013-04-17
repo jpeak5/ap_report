@@ -16,10 +16,6 @@ class user_activity_segment{
     }
 }
 
-
-
-
-
 /**
  * top-level of this fixture data structure
  * There should be only one of these

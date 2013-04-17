@@ -171,7 +171,6 @@ class enrollment_dataset_generator{
         //build xml file
         $xdoc = new DOMDocument();
         $root = $xdoc->createElement('dataset');
-        print_r($tables);
         foreach($tables as $table_key => $table_name){
             $t = $xdoc->createElement('table');
             $t->setAttribute('name', $table_name);

@@ -30,10 +30,7 @@ class enrollment_generator_testcase extends advanced_testcase{
         $qzs = array_values($q);
         
         $quiz_cols    = array('id','intro','name','timeclose','grade','course','questions');
-//        array_unshift($qzs, $quiz_cols);
         $ds = array('quiz'=>array($quiz_cols,$qzs));
-        mtrace(print_r($ds));
-//        die();
         $dataset = $this->createArrayDataSet($ds);
         $this->loadDataSet($dataset);
     }
@@ -43,29 +40,20 @@ class enrollment_generator_testcase extends advanced_testcase{
         global $DB;
         //precondition
         $this->assertEquals(2,count($DB->get_records('user')));
-//        
-//        $users = array(
-//            mdl_user::instantiate(array('id'=>9876, 'username'=>'student9876', 'idnumber'=>123456789)),
-//            mdl_user::instantiate(array('id'=>1234, 'username'=>'student1234', 'idnumber'=>987654231))
-//        );
-//        
-//        $this->createArrayDataSet($users);
-//        
-//        $dataset = $this->createXMLDataSet('tests/fixtures/dataset.xml');
-//        $this->loadDataSet($dataset);
+
     }
     
     public function test_create_coursework_scenario(){
         $unit = new enrollment_dataset_generator();
         $xdoc = $unit->create_coursework_scenario();
         $xdoc->format = true;
-        mtrace($xdoc->saveXML());
+
+
     }
     
     public function test_get_sequence_start(){
         $unit = new enrollment_dataset_generator();
         $ts = $unit->get_sequence_start();
-//        mtrace(sprintf('sequence start = %d', $ts));
         $this->assertTrue(is_int($ts));
     }
     

@@ -49,7 +49,8 @@ class lmsSectionGroup_testcase extends apreports_testcase{
         $coaches = $enr->get_groups_coaches();
         $this->nonempty_array($coaches);
         
-        $groups = $enr->merge_instructors_coaches();
+        $lmsSG = new lmsSectionGroup();
+        $groups = $lmsSG->merge_instructors_coaches();
         $this->nonempty_array($groups);
         
         foreach($groups as $g){
