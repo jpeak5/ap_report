@@ -192,6 +192,8 @@ class enrollment_model_testcase extends apreports_testcase{
         $start = new DateTime(strftime('%F %T',$t));
         $intvl = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', 'PT24.0S'));
         
+//        mtrace(preg_replace('/\.[0-9]+S/', 'S', 'PT24.0S'));
+        
         $unit = lmsCoursework::get_scorm_datesubmitted($t, 'PT24.0S');
         
         $end = $start->add($intvl);

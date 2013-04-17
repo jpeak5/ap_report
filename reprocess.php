@@ -129,7 +129,7 @@ if(is_siteadmin($USER)){
      * @TODO fix the link to point at site root
      * @TODO define a lang file
      */
-    print_error('nopermission', 'local_ap_report', '/');
+    print_error('apr_nopermission', 'local_ap_report', '/');
 }
 
 echo $OUTPUT->footer();

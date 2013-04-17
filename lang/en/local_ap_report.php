@@ -1,43 +1,65 @@
 <?php
-$string['apreports_settings']   = 'AP Reports Settings';
-$string['pluginname_desc']      = 'AP Reports Settings...- [Reprocess]({$a->url})';
-$string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->url})';
-$string['no_completion']        = '[Reprocess]({$a->url})';
 
-$string['preview']              = '[Preview]({$a->preview}) activity for today or [Reprocess]({$a->url}) yesterday\'s records. If you have just installed this plugin, you may also want to [refresh the group membership report]({$a->group_membership}) data.';
-$string['file_location']        = 'XML document is located at {$a}';
-$string['view_range_summary']   = 'Acvtivity for the time range beginning {$a->start} and ending {$a->end}';
-$string['no_activity__summary'] = 'No acvtivity for the time range beginning {$a->start} and ending {$a->end}; ensure that log data exists for this time range.';
+//common
+$string['mod_name']             = 'AP Report';
 
-$string['daily_run_time']       = 'Daily Run Time'; 
-$string['daily_run_time_dcr']   = 'When should cron trigger this job? The enrollment report never automatically queries activity occurring after the first second of today.'; 
-
-$string['range_start']          = 'Report Range Start';
-$string['range_start_dcr']      = 'Sets the starting time of an arbitrary time window for the purpose of running one-off reports. This setting does NOT affect the temporal parameters of daily cron runs of this job.';
-
-$string['range_end']            = 'Report Range End';
-$string['range_end_dcr']        = 'Sets the ending time of an arbitrary time window for the purpose of running one-off reports. This setting does NOT affect the temporal parameters of daily cron runs of this job.';
-
-$string['starttime']            = "Start time";
-$string['starttime_desc']       = "time to mark the beginning of the cron window";
-$string['endtime']              = "End Time";
-$string['endtime_desc']         = "Time to mark the end of the cron window";
-
-$string['last_run_start']       = "Last run started";
-$string['last_run_end']         = "Last Run Completed";
+$string['apr_daily_run_time']       = 'Daily Run Time'; 
+$string['apr_daily_run_time_dcr']   = 'When should cron trigger this job? The enrollment report never automatically queries activity occurring after the first second of today.'; 
 
 
-$string['storage_path']         = "Path to store files";
-$string['storage_path_desc']    = "Path should exist, should be writable by the webserver. This plugin will not create the directory.";
-$string['with_cron']            = "Run with cron?";
-$string['with_cron_desc']       = "If checked, reports data will be collected during cron. If left unchecked, values for time window start and end will be ignored";
+//----------- common Errors
+$string['apr_file_not_writable']= 'Failure saving activity statistics. Ensure that the file system is writable at {$a->mdl_dataroot}';
+$string['apr_unknownmode']          = "Unknown value given for process mode";
+$string['apr_nopermission']         = "You don't have permission to access this page";
 
-$string['group_membership']     = 'Run [Group Membership]({$a->group_membership}) job.';
+//lmsEnrollment
+$string['lmsEn_comp_stat_hdr']  = 'Completion Status';
+$string['lmsEn_hdr']            = 'lmsEnrollment';
+$string['lmsEn_filename']       = 'Filename';
+$string['lmsEn_filename_desc']  = 'give a name for the xml file (the extension is not required here).';
+$string['lmsEn_filename_deflt'] = 'enrollment';
+
+//----------- lmsEn Status
+$string['lmsEn_success']        = 'Last Run began at {$a->lmsEn_start} and completed at {$a->lmsEn_stop}. {$a->lmsEn_instr}';
+$string['lmsEn_job_unended']    = 'FAILURE! Last job began at {$a->lmsEn_start} and has not recorded a completion timestamp. {$a->lmsEn_instr}';
+$string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->reprocess})';
+$string['first_run']            = 'This appears to be the first run of the system as there is no old completion time set. ';
+$string['no_start_set']         = 'ERROR: job completion time is set as {$a->lmsEn_stop}, but no start time exists in the db.';
+$string['lmsEn_no_activity']    = "Failure getting enrollment data: Check to be sure that log data reflects user activity for the requested timeframe. ";
+
+
+//----------- lmsEn URLs
+$string['lmsEn_reprocess_url']  = 'Reprocess';
+$string['lmsEn_preview_url']    = 'Preview';
+$string['lmsEn_xml_url']        = 'XML';
+$string['lmsEn_backfill_url']   = 'Backfill';
+
+$string['lmsEn_reprocess_desc'] = ':  Re-run the enrollment job for yesterday\'s activity';
+$string['lmsEn_preview_desc']   = ':  View a report of activity for today.';
+$string['lmsEn_xml_desc']       = ':  Location of enrollment report xml';
+$string['lmsEn_backfill_desc']  = ':  If you have just installed this plugin, you may also want to refresh the group membership report data.';
+
+//lmsGroupMembership
+$string['lmsGM_hdr']            = 'lmsGroupMembership';
+$string['lmsGM_hdr_desc']       = 'Run [Group Membership]({$a->group_membership}) job.';
+
+//lmsSectionGroup
+$string['lmsSecGrp_hdr']        = 'lmsSectionGroups';
 $string['section_groups_header_desc']
                                 = 'View [Section Groups Report]({$a->section_groups})';
-$string['unknownmode']          = "Unknown value given for process mode";
-$string['nopermission']         = "You don't have permission to access this page";
+$string['lmsSecGrp_coach_sel']  = 'roles that should be considered when querying for groups COACH members';
+$string['lmsSecGrp_coach_roles']= 'Coach Roles';
+$string['lmsSecGrp_pi_roles']   = 'Primary Instructor Roles';
+$string['lmsSecGrp_pi_role_dsc']= 'roles that should be considered when querying for groups primary instructor members';
+
+
 
 //lmsCoursework
-$string['lmsCwk_header']        = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis. Click to [reprocess]({$a->cwk}).{$a->cwk_status_sub}{$a->cwk_status}';
+$string['lmsCwk_hdr']           = 'lmsCoursework Report';
+$string['lmsCwk_hdr_desc']      = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis. Click to [reprocess]({$a->cwk}).{$a->cwk_status_sub}{$a->cwk_status}';
+$string['cwk_status_all']       = "Overall job status";
+$string['lmsCwk_fq_prefix']     = 'apreport_lmsCoursework_';
+$string['lmsCwk_subrept_thead'] = 'Sub-report';
+$string['lmsCwk_status_thead']  = '&lt;stage&gt;: &lt;status&gt; [: &lt;info&gt;]';
+
 ?>
