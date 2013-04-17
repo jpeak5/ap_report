@@ -161,7 +161,7 @@ class lmsSectionGroupRecord extends apreportRecord{
         'primaryinstructorfname'=>'primaryInstructorFName',
         'primaryinstructorlname'=>'primaryInstructorLName',
         'primaryinstructoremail'=>'primaryInstructorEmail',
-        'couchid'               =>'coachId',
+        'coachid'               =>'coachId',
         'coachfirstname'        =>'coachFirstName',
         'coachlastname'         =>'coachLastName',
         'coachemail'            =>'coachEmail',

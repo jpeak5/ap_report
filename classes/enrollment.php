@@ -190,7 +190,6 @@ class enrollment_model {
             
 
         $sql = "SELECT
-                    
                     CONCAT(gm.id,c.idnumber) AS userGroupId,
                     c.id AS courseid,                    
                     us.sec_number AS ues_sectionId,
@@ -199,7 +198,7 @@ class enrollment_model {
                     u.idnumber AS studentId,
                     u.id AS userid,
                     gm.groupid AS groupid,
-                    CONCAT(us.id,'-',uc.department,'_',uc.cou_number,'_',us.sec_number) AS sectionid,
+                    CONCAT(us.id,'-',uc.department,'_',uc.cou_number,'_',us.sec_number) AS sectionid_uniq,
                     NULL AS extensions
                 FROM {course} AS c
                     INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
@@ -227,7 +226,7 @@ class enrollment_model {
         foreach($rows as $row){
             $rec = new lmsGroupMembershipRecord();
             $rec->groupid = $row->groupid;
-            $rec->sectionid = $row->sectionid;
+            $rec->sectionid = $row->ues_sectionid;
             $rec->studentid = $row->studentid;
             if(!isset($this->group_membership_records[$rec->groupid])){
                 $this->group_membership_records[$rec->groupid] = array();
@@ -709,37 +708,7 @@ class enrollment_model {
         return $this->merge_instructors_coaches();
     }
  
-//    /**
-//     * @param int[] $cids
-//     */
-//    public function coursework_get_quiz($cids){
-//        global $DB;
-//        $recs = array();
-//
-//        foreach($cids as $cid){
-//            //SQL held in a dedicated class to reduce code volume here
-//            $sql = sprintf(coursework_queries::QUIZ, $cid, $cid);
-//            
-//            $recs = array_merge($recs, $DB->get_records_sql($sql));
-//        }
-//        mtrace($sql);
-//        echo sprintf("Got back %d records for quiz",count($recs));
-//        return $recs;
-//    }
-//    
-//    /**
-//     * @param int[] $cids
-//     */
-//    public function coursework_get_assignment($cids){
-//        global $DB;
-//        $recs = array();
-//        foreach($cids as $cid){
-//            $sql = sprintf(coursework_queries::ASSIGNMENT, $cid,$cid);
-//                    $recs = array_merge($recs,$DB->get_records_sql($sql));
-//        }
-//        return $recs;
-//    }
-    
+
     public function coursework_get_subreport_dataset($cids,$qry, $type){
         global $DB;
         $recs = array();
