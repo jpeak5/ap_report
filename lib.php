@@ -9,30 +9,33 @@ require_once('classes/enrollment.php');
 
 function local_ap_report_cron(){
     global $CFG;
-        $current_hour = (int)date('H');
-        
-        $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
-
-        $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroups','lmsCoursework');
-        
-        if($current_hour == $acceptable_hour){
-            foreach($reports as $r){
-                mtrace("Begin {$r} report...");
-                $report = new $r();
-                
-                if($r == 'lmsEnrollment'){
-                    mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
-                        strftime('%F %T',$report->start),
-                        strftime('%F %T',$report->end)
-                        ));
-                }
-                $report->run();
-                
-                add_to_log(1, $r, 'cron');
-                mtrace("done.");
-            }
-        }
+    if($CFG->apreport_with_cron != 1){
         return true;
+    }
+    $current_hour = (int)date('H');
+
+    $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
+
+    $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroup','lmsCoursework');
+
+    if($current_hour == $acceptable_hour){
+        foreach($reports as $r){
+            print ("Begin {$r} report...");
+            $report = new $r();
+
+            if($r == 'lmsEnrollment'){
+                print (sprintf("Getting activity statistics for time range: %s -> %s",
+                    strftime('%F %T',$report->start),
+                    strftime('%F %T',$report->end)
+                    ));
+            }
+            $report->run();
+
+            add_to_log(1, $r, 'cron');
+            print("done.");
+        }
+    }
+    return true;
 }
 
 abstract class apreport {

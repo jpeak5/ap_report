@@ -17,16 +17,74 @@ if ($hassiteconfig) {
     $settings = new admin_settingpage('local_ap_report', $_s('mod_name'));
     $a = new stdClass();
     
+//----------------------------- GLOBAL SETTINGS ------------------------------//        
+    
+    /**
+     * A links section; 
+     * add a term to the array to have that url avail in the $a string var
+     */
+    
+    $alinks = array('reprocess', 'cron', 'preview','backfill');
+    
+    foreach($alinks as $alink){
+        $tmp = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>$alink));
+        $a->$alink = $tmp;
+    }
+
+    
+    $cron_desc = $_s(
+        'apr_with_cron_desc')
+        .html_writer::tag('br','')
+        .html_writer::link($a->cron, $_s('apr_cron_url'))
+        .$_s('apr_cron_desc');
+    
+ $settings->add(
+    new admin_setting_configcheckbox(
+        'apreport_with_cron',
+        $_s('apr_with_cron'),
+        $cron_desc,
+    0
+ ));
+
+     //lmsEn config controls
+    
+    /**
+     * quick util to generate hours
+     */
+    $hours = function(){
+        $i=0;
+        $hours = array();
+        while($i<24){
+            $hours[] = $i;
+            $i++;
+        }
+        return $hours;
+    };
+    
+    
+    $settings->add(
+            new admin_setting_configselect(
+                    'apreport_daily_run_time_h',
+                    $_s('apr_daily_run_time'),
+                    $_s('apr_daily_run_time_dcr'),
+                    1,
+                    $hours()
+            ));
+    
+    
+//    $settings->add(
+//            new admin_setting_configtext(
+//                    'apreport_enrol_xml', 
+//                    $_s('apc_file_pfx'), 
+//                    $_s('apc_file_pfx_desc'),
+//                    $_s('apc_file_pfx_deflt'),
+//                    PARAM_FILE)
+//            );
+
+    
 //----------------------------- lmsEnrollment --------------------------------//    
     
-    $repro_url = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'reprocess'));
-    $a->reprocess = $repro_url->out(false);
-    
-    $preview = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'preview'));
-    $a->preview = $preview->out(false);
-    
-    $backfill= new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'backfill'));
-    $a->backfill = $backfill->out(false);
+
     
     
 
@@ -50,10 +108,9 @@ if ($hassiteconfig) {
     //list text
     $lmsEn_options = '';
     $lmsEn_linksList = html_writer::alist(array(
-        html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')).$_s('lmsEn_reprocess_desc'),
-        html_writer::link($a->preview,$_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
-        $CFG->dataroot.'/'.$CFG->apreport_enrol_xml.'.xml'.$_s('lmsEn_xml_desc'),
-        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))  .$_s('lmsEn_backfill_desc')
+        html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')) .$_s('lmsEn_reprocess_desc'),
+        html_writer::link($a->preview, $_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
+        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))   .$_s('lmsEn_backfill_desc')
     ));
     $lmsEn_options .= $lmsEn_linksList;
     
@@ -92,40 +149,6 @@ if ($hassiteconfig) {
 
         
     
-    //lmsEn config controls
-    
-    /**
-     * quick util to generate hours
-     */
-    $hours = function(){
-        $i=0;
-        $hours = array();
-        while($i<24){
-            $hours[] = $i;
-            $i++;
-        }
-        return $hours;
-    };
-    
-    
-    $settings->add(
-            new admin_setting_configselect(
-                    'apreport_daily_run_time_h',
-                    $_s('apr_daily_run_time'),
-                    $_s('apr_daily_run_time_dcr'),
-                    1,
-                    $hours()
-            ));
-    
-    
-    $settings->add(
-            new admin_setting_configtext(
-                    'apreport_enrol_xml', 
-                    $_s('lmsEn_filename'), 
-                    $_s('lmsEn_filename_desc'),
-                    $_s('lmsEn_filename_deflt'),
-                    PARAM_FILE)
-            );
 
 //-------------------------- lmsGroupMembership ------------------------------//
     

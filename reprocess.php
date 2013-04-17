@@ -27,6 +27,12 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title($header);
 $PAGE->set_heading($header);
 
+if($mode=='cron'){
+        if(local_ap_report_cron()){
+            redirect(new moodle_url('/admin/settings.php', array('section'=>'local_ap_report')));
+        }
+}
+
 echo $OUTPUT->header();
 
 //----------------------------------------------------------------------------//

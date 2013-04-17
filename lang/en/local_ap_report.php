@@ -5,8 +5,10 @@ $string['mod_name']             = 'AP Report';
 
 $string['apr_daily_run_time']       = 'Daily Run Time'; 
 $string['apr_daily_run_time_dcr']   = 'When should cron trigger this job? The enrollment report never automatically queries activity occurring after the first second of today.'; 
-
-
+$string['apr_with_cron']            = "Enable Cron";
+$string['apr_with_cron_desc']       = "Should these jobs run with cron?";
+$string['apr_cron_url']             = 'Invoke cron...';
+$string['apr_cron_desc']            = ':  click to run the cron jobs provided by this plugin. Note that cron must be enabled on this page and the current hour must match that selected in the selector';
 //----------- common Errors
 $string['apr_file_not_writable']= 'Failure saving activity statistics. Ensure that the file system is writable at {$a->mdl_dataroot}';
 $string['apr_unknownmode']          = "Unknown value given for process mode";
@@ -15,9 +17,9 @@ $string['apr_nopermission']         = "You don't have permission to access this 
 //lmsEnrollment
 $string['lmsEn_comp_stat_hdr']  = 'Completion Status';
 $string['lmsEn_hdr']            = 'lmsEnrollment';
-$string['lmsEn_filename']       = 'Filename';
-$string['lmsEn_filename_desc']  = 'give a name for the xml file (the extension is not required here).';
-$string['lmsEn_filename_deflt'] = 'enrollment';
+//$string['lmsEn_filename']       = 'Filename';
+//$string['lmsEn_filename_desc']  = 'give a name for the xml file (the extension is not required here).';
+//$string['lmsEn_filename_deflt'] = 'enrollment';
 
 //----------- lmsEn Status
 $string['lmsEn_success']        = 'Last Run began at {$a->lmsEn_start} and completed at {$a->lmsEn_stop}. {$a->lmsEn_instr}';
@@ -38,6 +40,7 @@ $string['lmsEn_reprocess_desc'] = ':  Re-run the enrollment job for yesterday\'s
 $string['lmsEn_preview_desc']   = ':  View a report of activity for today.';
 $string['lmsEn_xml_desc']       = ':  Location of enrollment report xml';
 $string['lmsEn_backfill_desc']  = ':  If you have just installed this plugin, you may also want to refresh the group membership report data.';
+
 
 //lmsGroupMembership
 $string['lmsGM_hdr']            = 'lmsGroupMembership';
