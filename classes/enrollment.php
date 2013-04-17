@@ -227,7 +227,7 @@ class enrollment_model {
         foreach($rows as $row){
             $rec = new lmsGroupMembershipRecord();
             $rec->groupid = $row->groupid;
-            $rec->sectionid = $row->sectionid;
+            $rec->sectionid = $row->ues_sectionid;
             $rec->studentid = $row->studentid;
             if(!isset($this->group_membership_records[$rec->groupid])){
                 $this->group_membership_records[$rec->groupid] = array();
