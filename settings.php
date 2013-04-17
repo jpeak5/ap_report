@@ -27,17 +27,7 @@ if ($hassiteconfig) {
     
     $a->lsmEn_xml = $a->dataroot.'/'.$CFG->apreport_enrol_xml;
 
-    $lmsEn_options = '';
-    $lmsEn_linksList = html_writer::alist(array(
-        html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')).$_s('lmsEn_reprocess_desc'),
-        html_writer::link($a->preview,$_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
-        $a->lmsEn_xml.$_s('lmsEn_xml_desc'),
-        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))  .$_s('lmsEn_backfill_desc')
-    ));
-    
-    $lmsEn_options .= $lmsEn_linksList;
-    
-    
+    //init vars
     $a->lmsEn_instr ='';
     $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? strftime('%F %T', $CFG->apreport_job_complete) : null;
     $a->lmsEn_start = isset($CFG->apreport_job_start)    ? strftime('%F %T', $CFG->apreport_job_start)    : null;
@@ -50,8 +40,24 @@ if ($hassiteconfig) {
         $a->mdl_dataroot = $CFG->dataroot.'/ ';
         $a->lmsEn_instr .= $_s('apr_file_not_writable');
     }
+    //end init vars
+    
+    //list text
+    $lmsEn_options = '';
+    $lmsEn_linksList = html_writer::alist(array(
+        html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')).$_s('lmsEn_reprocess_desc'),
+        html_writer::link($a->preview,$_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
+        $a->lmsEn_xml.$_s('lmsEn_xml_desc'),
+        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))  .$_s('lmsEn_backfill_desc')
+    ));
+    $lmsEn_options .= $lmsEn_linksList;
+    
+    
+    
+
     
     /**
+     * lmsEN completion STATUS
      * Figure out what our current status is with respect to the last run
      */
     if(!isset($a->lmsEn_stop) and isset($a->lmsEn_start)){
@@ -78,6 +84,11 @@ if ($hassiteconfig) {
                     $lmsEn_options.$status_msg
                     ));    
     
+
+        
+    
+    //lmsEn config controls
+    
     /**
      * quick util to generate hours
      */
@@ -90,7 +101,7 @@ if ($hassiteconfig) {
         }
         return $hours;
     };
-        
+    
     
     $settings->add(
             new admin_setting_configselect(
