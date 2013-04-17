@@ -64,15 +64,7 @@ class enrollment_model {
      * @var int[] 
      */
     public $current_courseids;
-    //table abstractions
-//    public $ues_sections;
-//    public $ues_courses;
-//    public $ues_students;
-//    public $ues_semesters;
-//    public $mdl_courses;
-//    public $mdl_logs;
-//    public $mdl_users;
- 
+
     public function __construct(){
         $this->semesters = self::get_active_ues_semesters();
         assert(!empty($this->semesters));
@@ -683,50 +675,10 @@ class enrollment_model {
         return empty($this->groups_coaches) ? false : $this->groups_coaches;
         
     }
-    public function merge_instructors_coaches(){
-        $instructors = $this->get_groups_primary_instructors();
-        $coaches = $this->get_groups_coaches();
-        if(!$instructors){
-            return false;
-        }elseif(!$coaches){
-            return $this->sectionGroupRecords = $instructors;
-        }
-        
-        foreach($instructors as $inst){
-            if(array_key_exists($inst->groupid, $coaches)){
-                $inst->coachid          = $coaches[$inst->groupid]->coachid;
-                $inst->coachfirstname   = $coaches[$inst->groupid]->coachfirstname;
-                $inst->coachlastname    = $coaches[$inst->groupid]->coachlastname;
-                $inst->coachemail       = $coaches[$inst->groupid]->coachemail;
-            }
-            $this->sectionGroupRecords[] = $inst;
-        }
-        return $this->sectionGroupRecords;
-    }
-    
-    public function get_section_groups(){
-        return $this->merge_instructors_coaches();
-    }
+
  
 
-    public function coursework_get_subreport_dataset($cids,$qry, $type){
-        global $DB;
-        $recs = array();
-        foreach($cids as $cid){
-            $sql = sprintf($qry, $cid,$cid);
-                    $recs = array_merge($recs,$DB->get_records_sql($sql));
-        }
-        
-        //calculate SCORM date complete
-        if($type == 'scorm'){
-            foreach($recs as $rec){
-                if(isset($rec->timeelapsed) && isset($rec->datestarted)){
-                    $rec->datesubmitted = lmsCoursework::get_scorm_datesubmitted($rec->datestarted, $rec->timeelapsed);
-                }
-            }
-        }
-        return $recs;
-    }
+
 }
 
 
