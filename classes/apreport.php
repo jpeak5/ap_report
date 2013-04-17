@@ -195,7 +195,7 @@ class lmsCourseworkRecord extends apreportRecord{
         'itemid'            =>'itemId',
         'itemname'          =>'itemName',
         'duedate'           =>'dueDate',
-        'datesubmitted'     =>'dateSubmitted'
+        'datesubmitted'     =>'dateSubmitted',
         'pointspossible'    =>'pointsPossible',
         'pointsreceived'    =>'pointsReceived',
         'gradecategory'     =>'gradeCategory',
