@@ -47,8 +47,12 @@ class enrollment_generator_testcase extends advanced_testcase{
         $unit = new enrollment_dataset_generator();
         $xdoc = $unit->create_coursework_scenario();
         $xdoc->format = true;
-
-
+        /**
+         * uncomment to output the generated xml dataset
+         * to stdOut
+         */
+//        mtrace($xdoc->saveXML());
+        
     }
     
     public function test_get_sequence_start(){
@@ -62,6 +66,7 @@ class enrollment_generator_testcase extends advanced_testcase{
         $logs = $unit->generate_activity_sequence();
         $this->assertNotEmpty($logs);
     }
+    
 }
 
 ?>
