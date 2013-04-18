@@ -20,11 +20,11 @@ function local_ap_report_cron(){
 
     if($current_hour == $acceptable_hour){
         foreach($reports as $r){
-            print ("Begin {$r} report...");
+            mtrace("Begin {$r} report...");
             $report = new $r();
 
             if($r == 'lmsEnrollment'){
-                print (sprintf("Getting activity statistics for time range: %s -> %s",
+                mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
                     strftime('%F %T',$report->start),
                     strftime('%F %T',$report->end)
                     ));
@@ -32,7 +32,7 @@ function local_ap_report_cron(){
             $report->run();
 
             add_to_log(1, $r, 'cron');
-            print("done.");
+            mtrace("done.");
         }
     }
     return true;
@@ -104,6 +104,7 @@ class apreport_job_stage{
     const QUERY      = 'query';
     const PERSIST    = 'persist new data';
     const RETRIEVE   = 'retrieve data';
+    const SAVE_XML   = 'Save XML';
     const COMPLETE   = 'complete';
     const ABORT      = 'aborted';
 }
@@ -212,9 +213,9 @@ class lmsEnrollment extends apreport{
         $table = 'apreport_enrol';
         $where = vsprintf("lastaccess >= %s AND lastaccess < %s",$range);
         
-        $count = $DB->get_records_select($table,$where);
+        $toDelete = $DB->get_records_select($table,$where);
         
-        if(count($count) > 0){
+        if(count($toDelete) > 0){
             $DB->delete_records_select($table,$where);
         }
         return true;
@@ -331,6 +332,11 @@ class lmsEnrollment extends apreport{
             return false;
         }
         $this->enrollment->get_active_users($this->start, $this->end);
+        
+        /**
+         * @TODO this gets called again in get_active_student(), a 
+         * few lines down; fix this
+         */
         $data = $this->enrollment->get_semester_data(array_keys($semesters),
                 array_keys($this->enrollment->active_users));
         if(!$data){
@@ -503,6 +509,40 @@ class lmsEnrollment extends apreport{
     }    
     
     /**
+     * starting with the timestamp for yesterday midnight,
+     * the loop steps backwards by one day for each iteration
+     * until it reaches the beginning of the current semester
+     * of the outer loop (all active semesters)
+     * NB that all entries in the DB for a given day are deleted at the beginning
+     * of the run() routine; this will result in data loss if this is run
+     * at two separate times during the semester when the set of 'current semesters'
+     * is not identical...
+     * @TODO remove the possibility of data loss either through modifications 
+     * to run(), preferred, or by only allowing backfill to be run once.
+     * 
+     */
+    public static function backfill(){
+        $semesters = enrollment_model::get_active_ues_semesters();
+        foreach($semesters as $semester){
+            list($s,$e) = apreport_util::get_yesterday();
+            
+            while($s >= $semester->ues_semester->classes_start){
+                $lmsEn = new lmsEnrollment();
+                list($lmsEn->start,$lmsEn->end) = apreport_util::get_yesterday(strftime('%F',$s));
+                $s = $lmsEn->start;
+                
+                
+                $lmsEn->get_enrollment();
+                $lmsEn->delete_persist_records();
+                unset($lmsEn);
+            }
+        }
+        $lmsEn = new lmsEnrollment();
+        $lmsEn->run();
+        return true;
+    }
+    
+    /**
      * @TODO let the start and complete flags be simple boolean rather than timestamps
      * @TODO the boolean set_configs could be made more granular
      * @TODO continue refactoring this wrapper to allow better communication back
@@ -515,6 +555,8 @@ class lmsEnrollment extends apreport{
         set_config('apreport_got_xml', false);
         set_config('apreport_got_enrollment', false);        
         set_config('apreport_job_start', microtime(true));
+        
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
         
         //if there has been no activity, that is not a failure of this system
         if(!$this->enrollment->get_active_users($this->start,$this->end)){
@@ -534,49 +576,18 @@ class lmsEnrollment extends apreport{
         
         if(!$xml){
             add_to_log(1, 'ap_reports', 'no user activity');
-
+            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::FAILURE, microtime());
             return false;
         }
         set_config('apreport_got_xml', true);
         
         set_config('apreport_job_complete', microtime(true));
+        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
         add_to_log(1, 'ap_reports', 'complete');
         return $xml;
     }
     
-    public function run_arbitrary_day($start, $end){
 
-        $this->start = $start;
-        $this->end = $end;
-        add_to_log(1, 'ap_reports', 'backfill_'.$start);
-        
-        $semesters = $this->enrollment->get_active_ues_semesters();
-        if(empty($semesters)){
-            add_to_log(1, 'ap_reports', 'no active semesters');
-            return false;
-        }
-        $data = $this->get_semester_data(array_keys($semesters));
-        if(!$data){
-            add_to_log(1, 'ap_reports', 'no user activity');
-            return 'no data';
-        }
-        $tree = $this->enrollment->get_active_students($this->start, $this->end);
-        if(empty($tree)){
-            return 'no students';
-        }
-        if(!$this->populate_activity_tree()){
-            return 'no activity';
-        }
-        
-        $this->calculate_time_spent();
-        
-        $x = $this->save_enrollment_data();
-        if($x){
-            return 'success';
-        }else{
-            return 'save fail';
-        }
-    }
 
     /**
      * save enrollment data, prepared from the enrollment tree, to the database
@@ -590,6 +601,9 @@ class lmsEnrollment extends apreport{
         
         global $DB;
         $inserts = array();
+        if(!isset($this->enrollment->students)){
+            return $inserts;
+        }
         foreach($this->enrollment->students as $student){
             foreach($student->courses as $course){
                 if(!isset($course->ap_report)){
@@ -629,37 +643,51 @@ class lmsEnrollment extends apreport{
      * reprocessing activity stats after a failure; also, this clears away 
      * any data created by @see preview_today() which is considered incomplete 
      * until the day is done (midnight).
+     * @param string  additional bit of info to define distinct values in
+     * $CFG per execution mode 'backfill', 'preview', etc
      * @return boolean
      */
     public function save_enrollment_data(){
         global $CFG;
         
+        if(!$this->delete_persist_records()){
+            return false;
+        }
+        $xml = $this->get_enrollment_xml();
+        if(empty($xml)){
+           add_to_log(1, 'ap_reports', 'error get_enrollment_xml');
+           self::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::FAILURE);
+           return false; 
+        }
+        self::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
+        
+        $file = $CFG->dataroot.$this->filename;
+        if(!$this->create_file($xml, $file)){
+            add_to_log(1, 'ap_reports', 'error create_file');
+            self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::FAILURE);
+            return false;
+        }
+        self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS);
+        return $xml;
+    }    
+    
+    public function delete_persist_records(){
         $delete = $this->delete_enrollment_data();
         if(!$delete){
             add_to_log(1, 'ap_reports', 'db error: delete_records');
             return false;
         }
 
+        
         $inserts = $this->save_enrollment_activity_records();
         if(!$inserts){
             add_to_log(1, 'ap_reports', 'db error: save_activity ');
+            self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
             return false;
         }
-        
-        $xml = $this->get_enrollment_xml();
-        if(empty($xml)){
-           add_to_log(1, 'ap_reports', 'error get_enrollment_xml');
-           return false; 
-        }
-        
-        $file = $CFG->dataroot.$this->filename;
-        if(!$this->create_file($xml, $file)){
-            add_to_log(1, 'ap_reports', 'error create_file');
-            return false;
-        }
-        
-        return $xml;
-    }    
+        self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
+        return true;
+    }
 
     
     
@@ -682,6 +710,8 @@ class lmsGroupMembership extends apreport{
      */
     public $enrollment;
     
+    const INTERNAL_NAME = 'lmsGroupMembership';
+    
     public function __construct($e = null){
         $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
     }
@@ -702,14 +732,32 @@ class lmsGroupMembership extends apreport{
     }
     
     
+    /**
+     * main call point from cron, etc;
+     * wraps main methods
+     * @TODO additional conditionals to trap errors
+     * @global type $CFG
+     * @return boolean
+     */
     public function run(){
         
         global $CFG;
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS,microtime());
+        
         $this->enrollment->get_group_membership_report();
+        self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+        
         $content = $this->getXML();
         $content->format = true;
         $file = $CFG->dataroot.'/groups.xml';
-        return $this->create_file($content, $file) ? $content : false;
+        if(!$this->create_file($content, $file)){
+            self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::FAILURE);
+            return false;
+        }else{
+            self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS);
+        }
+        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,microtime());
+        return $content;
     }
     
 }
@@ -727,19 +775,23 @@ Partnerships for the previous, current, and upcoming terms.
  */
 class lmsSectionGroup extends apreport{
     public $enrollment;
-    
+    const INTERNAL_NAME = 'lmsSectionGroup';
     public function __construct($e = null){
         $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
     }
     
     public function run(){
         global $CFG;
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
         $xdoc = lmsSectionGroupRecord::toXMLDoc($this->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
         if(($xdoc)!=false){
+            self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
             if($this->create_file($xdoc, $CFG->dataroot.'/sectionGroup.xml')!=false){
+                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
                 return $xdoc;
             }
         }
+        self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION,microtime());
         return false;
     }
     
@@ -843,7 +895,7 @@ class lmsCoursework extends apreport{
     
     public function run(){
         global $DB,$CFG;
-        $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS);
+        $this->update_job_status_all(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
         if(empty($this->courses)){
             //this could happen on a day where there are zero semesters in session
             $this->set_status();
@@ -873,7 +925,7 @@ class lmsCoursework extends apreport{
                     self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE,null,$type);
                     continue;
                 }
-                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,null,$type);
+                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, null,$type);
             }
         }
         //set status message about the loop exit
@@ -899,7 +951,7 @@ class lmsCoursework extends apreport{
 
         //write the DB dataset to a FILE
         if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
-            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
             return $xdoc;
         }else{
             self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");

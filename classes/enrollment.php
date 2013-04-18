@@ -345,9 +345,11 @@ class enrollment_model {
                 $student->mdl_user = $s;
                 
                 $this->students[$student->mdl_user->id] = $student;
+                
+                $this->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
             }
             
-            $this->students[$student->mdl_user->id]->courses[$course->mdl_course->id] = $course;
+            $this->students[$row->studentid]->courses[$course->mdl_course->id] = $course;
             
         }
 

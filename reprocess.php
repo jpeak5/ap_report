@@ -126,6 +126,13 @@ if(is_siteadmin($USER)){
             echo "failed updating LMS Coursework report";
         }
     
+    }elseif($mode == 'backfill'){
+        
+        if(lmsEnrollment::backfill()){
+            echo "data filled successfully";
+        }else{
+            echo "fail";
+        }
     }else{
         print_error('unknownmode', 'local_ap_report', '/');
     }
