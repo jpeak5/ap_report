@@ -1,6 +1,5 @@
 <?php
 
-//defined('MOODLE_INTERNAL') || die;
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once("$CFG->libdir/externallib.php");
 require_once('classes/apreport.php');
@@ -10,24 +9,33 @@ require_once('classes/enrollment.php');
 
 function local_ap_report_cron(){
     global $CFG;
-        $current_hour = (int)date('H');
-        
-        $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
+    if($CFG->apreport_with_cron != 1){
+        return true;
+    }
+    $current_hour = (int)date('H');
 
-        
-        if($current_hour == $acceptable_hour){
-        
-            mtrace("Begin generating AP Reports...");
-            $report = new lmsEnrollment();
-            mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
+    $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
+
+    $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroup','lmsCoursework');
+
+    if($current_hour == $acceptable_hour){
+        foreach($reports as $r){
+            print ("Begin {$r} report...");
+            $report = new $r();
+
+            if($r == 'lmsEnrollment'){
+                print (sprintf("Getting activity statistics for time range: %s -> %s",
                     strftime('%F %T',$report->start),
                     strftime('%F %T',$report->end)
                     ));
+            }
             $report->run();
-            add_to_log(1, 'ap_reports', 'cron');
-            mtrace("done.");
+
+            add_to_log(1, $r, 'cron');
+            print("done.");
         }
-        return true;
+    }
+    return true;
 }
 
 abstract class apreport {
@@ -36,6 +44,8 @@ abstract class apreport {
     public $start;
     public $end;
     public $filename;
+    public static $internal_name;
+    public $job_status;
 
 
 
@@ -64,9 +74,39 @@ abstract class apreport {
    
     }
     
+    /**
+     * @param apreport_status $stat
+     */
+    public function update_job_status($comp, $stage, $status, $info=null, $sub=null) {
+
+        $subcomp  = isset($sub) ? '_'.$sub  : null;
+        $info     = isset($info)? '  : '.$info : null;
+        set_config('apreport_'.$comp.$subcomp, $stage.':  '.$status.$info);
+    }
+    
 }
 
+class apreport_error_severity{
+    const INFO   = 0;
+    const WARN   = 1;
+    const SEVERE = 2;
+    const FATAL  = 3;
+}
 
+class apreport_job_status{
+    const SUCCESS    = 'success';
+    const EXCEPTION  = 'exception(s)';
+    const FAILURE    = 'failure';
+}
+class apreport_job_stage{
+    const INIT       = 'initialized';
+    const BEGIN      = 'begun';
+    const QUERY      = 'query';
+    const PERSIST    = 'persist new data';
+    const RETRIEVE   = 'retrieve data';
+    const COMPLETE   = 'complete';
+    const ABORT      = 'aborted';
+}
 
 class lmsEnrollment extends apreport{
 
@@ -504,9 +544,7 @@ class lmsEnrollment extends apreport{
     }
     
     public function run_arbitrary_day($start, $end){
-        
-        
-        
+
         $this->start = $start;
         $this->end = $end;
         add_to_log(1, 'ap_reports', 'backfill_'.$start);
@@ -652,7 +690,6 @@ class lmsGroupMembership extends apreport{
         $objects = array();
         foreach($this->enrollment->group_membership_records as $key=>$records){
             foreach($records as $record){
-//            mtrace(sprintf("printing key %s", $key));
                 $objects[] = lmsGroupMembershipRecord::instantiate($record);
             }
         }
@@ -671,7 +708,6 @@ class lmsGroupMembership extends apreport{
         $content = $this->getXML();
         $content->format = true;
         $file = $CFG->dataroot.'/groups.xml';
-//        mtrace(sprintf("final file = %s",$content->saveXML()));
         return $this->create_file($content, $file) ? $content : false;
     }
     
@@ -697,13 +733,40 @@ class lmsSectionGroup extends apreport{
     
     public function run(){
         global $CFG;
-        $xdoc = lmsSectionGroupRecord::toXMLDoc($this->enrollment->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
+        $xdoc = lmsSectionGroupRecord::toXMLDoc($this->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
         if(($xdoc)!=false){
             if($this->create_file($xdoc, $CFG->dataroot.'/sectionGroup.xml')!=false){
                 return $xdoc;
             }
         }
         return false;
+    }
+    
+    public function merge_instructors_coaches(){
+        $instructors = $this->enrollment->get_groups_primary_instructors();
+        $coaches = $this->enrollment->get_groups_coaches();
+        $section_groups = array();
+        
+        if(!$instructors){
+            return false;
+        }elseif(!$coaches){
+            return $instructors;
+        }
+        
+        foreach($instructors as $inst){
+            if(array_key_exists($inst->groupid, $coaches)){
+                $inst->coachid          = $coaches[$inst->groupid]->coachid;
+                $inst->coachfirstname   = $coaches[$inst->groupid]->coachfirstname;
+                $inst->coachlastname    = $coaches[$inst->groupid]->coachlastname;
+                $inst->coachemail       = $coaches[$inst->groupid]->coachemail;
+            }
+            $section_groups[] = $inst;
+        }
+        return $section_groups;
+    }
+    
+    public function get_section_groups(){
+        return $this->merge_instructors_coaches();
     }
     
 }
@@ -721,10 +784,723 @@ class lmsSectionGroup extends apreport{
  */
 class lmsCoursework extends apreport{
     
+    const QUIZ = 'quiz';
+    const ASSIGN = 'assignment';
+    const ASSIGN22 = 'assignment_2_2';
+    const DATABASE = 'database';
+    const FORUM = 'forum';
+    const FORUMNG = 'forum_ng';
+    const GLOSSARY = 'glossary';
+    const HOTPOT    = 'hotpot';
+    const KALVIDASSIGN    = 'kaltvidassign';
+    const LESSON    = 'lesson';
+    
+    const INTERNAL_NAME = 'lmsCoursework';
+    
+    public static $subreports = array(
+        'quiz',
+        'assign',
+        'assignment',
+        'database', 
+        'forum',
+        'forumng',
+        'glossary',
+        'hotpot',
+        'kalvidassign',
+        'lesson',
+        'scorm'
+    );
+
+
+
+    public $courses;
+    public $errors;
+    public $new_records;
+    
+    public function __construct(){
+        $this->courses = enrollment_model::get_all_courses(enrollment_model::get_active_ues_semesters(null, true), true);
+    }
+    
+    public function coursework_get_subreport_dataset($cids,$qry, $type){
+        global $DB;
+        $recs = array();
+        foreach($cids as $cid){
+            $sql = sprintf($qry, $cid,$cid);
+                    $recs = array_merge($recs,$DB->get_records_sql($sql));
+        }
+        
+        //calculate SCORM date complete
+        if($type == 'scorm'){
+            foreach($recs as $rec){
+                if(isset($rec->timeelapsed) && isset($rec->datestarted)){
+                    $rec->datesubmitted = lmsCoursework::get_scorm_datesubmitted($rec->datestarted, $rec->timeelapsed);
+                }
+            }
+        }
+        return $recs;
+    }
+    
+    public function run(){
+        global $DB,$CFG;
+        $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS);
+        if(empty($this->courses)){
+            //this could happen on a day where there are zero semesters in session
+            $this->set_status();
+            $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::EXCEPTION, 'no courses');
+            return true;
+        }
+        $enr = new enrollment_model();
+
+        //get records, one report at a time with completion status
+        foreach(coursework_queries::$queries as $type => $query){
+            $records[$type] = array();
+            $records = $this->coursework_get_subreport_dataset($this->courses, $query, $type);
+
+            if(count($records)<1){
+                $this->update_job_status_one($type, apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset");
+
+            }else{
+                $this->update_job_status_one($type, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+
+                //save to db
+                if($this->clean_db($type)){
+                    $persist_success = $this->persist_db_records($records,$type);
+                }
+                if($persist_success > 0){
+                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
+                }else{
+                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
+                    continue;
+                }
+                $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            }
+        }
+        //set status message about the loop exit
+        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+
+        //read back from db
+        $dataset = $DB->get_records('apreport_coursework');
+        if(!empty($dataset)){
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
+        }else{
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::EXCEPTION, "no rows");
+            mtrace("dataset is empty");;
+            return false;
+        }
+
+        $cwks = array();
+        foreach($dataset as $d){
+            $cwks[] = lmsCourseworkRecord::instantiate($d);
+        }
+
+        //make xml
+        $xdoc = lmsCourseworkRecord::toXMLDoc($cwks, 'lmsCourseworkItems', 'lmsCourseworkItem');
+
+        //write the DB dataset to a FILE
+        if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            return $xdoc;
+        }else{
+            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
+            return false;
+        }                    
+    }
+
+
+    /**
+     * 
+     * @param int $start unix timestamp
+     * @param DateInterval $interval
+     */
+    public static function get_scorm_datesubmitted($start, $interval){
+        $date = new DateTime(strftime('%F %T',$start));
+
+        //remove microseconds...we don't care
+        $int = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', $interval));
+        
+        $end = $date->add($int);
+        
+        return $end->getTimestamp();
+    }
+
+    /**
+     * 
+     * @param string $msg
+     * @param apreport_error_severity $sev
+     */
+    public function update_job_status_all($stage, $status, $info=null){
+        foreach(self::$subreports as $type){
+            $this->update_job_status(self::INTERNAL_NAME, $stage, $status, $info, $type);
+        }
+    }
+    /**
+     * 
+     * @param string $msg
+     * @param apreport_error_severity $sev
+     */
+    public function update_job_status_one($type,$stage, $status, $info=null){
+        
+            $this->update_job_status(self::INTERNAL_NAME, $stage, $status, $info, $type);
+    }
+
+    private function clean_db($itemtype){
+        global $DB;
+        return $DB->delete_records('apreport_coursework', array('itemtype'=>$itemtype));
+    }
+    
+    public function persist_db_records($records) {
+        global $DB;
+        $ids =array();
+        foreach($records as $rec){
+            $rec->created = time();
+            if($rec->gradecategory == '?')
+                $rec->gradecategory = 'root';
+            $ids[] = $DB->insert_record('apreport_coursework', $rec, true,true);
+        }
+        return count($ids);
+    }
+
 }
 
+class coursework_queries{
+    public static $queries = array('quiz' =>
+        "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,                
+                mm.id AS itemId,                
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'quiz' AS itemType,
+                mm.name AS itemName,
+                mm.timeclose AS dueDate,
+                mma.timefinish AS dateSubmitted,
+                mm.grade AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {quiz} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'quiz' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {quiz_attempts} mma ON mm.id = mma.quiz AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+        
+        'assign' =>
+                    "SELECT
+                        DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                        mma.id AS modAttemptId,
+                        mm.id AS courseModuleId,
+                        mgi.id AS gradeItemid,
+                        mm.id AS itemId,
+                        CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                        u.username as pawsId,
+                        u.idnumber AS studentId,
+                        CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                        us.sec_number AS sectionId,
+                        'assign' AS itemType,
+                        mm.name AS itemName,
+                        mm.duedate AS dueDate,
+                        mma.timemodified AS dateSubmitted,
+                        mm.grade AS pointsPossible,
+                        mgg.finalgrade AS pointsReceived,
+                        mgc.fullname AS gradeCategory,
+                        (cats.categoryWeight * 100) AS categoryWeight,
+                        NULL AS extensions
+                    FROM {course} c
+                        INNER JOIN {assign} mm ON mm.course = c.id
+                        INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                        INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                        INNER JOIN {user} u ON ustu.userid = u.id
+                        INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                        INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                        INNER JOIN {grade_items} mgi ON
+                            mgi.courseid = c.id AND
+                            mgi.itemtype = 'mod' AND
+                            mgi.itemmodule = 'assign' AND
+                            mgi.iteminstance = mm.id
+                        INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                        LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                        LEFT JOIN {assign_submission} mma ON mm.id = mma.assignment AND u.id = mma.userid
+                        LEFT JOIN
+                            (SELECT
+                                mgi2.courseid AS catscourse,
+                                mgi2.id AS catsid,
+                                mgi2.iteminstance AS catcatid,
+                                mgi2.aggregationcoef AS categoryWeight
+                            FROM {grade_items} mgi2
+                                INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                                AND mgi2.itemtype = 'category')
+                            cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+                    WHERE c.id = '%d'",
 
+        'assignment' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'assignment' AS itemType,
+                mm.name AS itemName,
+                mm.timedue AS dueDate,
+                mma.timemodified AS dateSubmitted,
+                mm.grade AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {assignment} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'assignment' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {assignment_submissions} mma ON mm.id = mma.assignment AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
 
+        'database' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'database' AS itemType,
+                mm.name AS itemName,
+                mm.timeavailableto AS dueDate,
+                mma.timemodified AS dateSubmitted,
+                mm.scale AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {data} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'data' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {data_records} mma ON mm.id = mma.dataid AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+        
+        'forum' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'forum' AS itemType,
+                mm.name AS itemName,
+                mm.assesstimefinish AS dueDate,
+                mmap.modified AS dateSubmitted,
+                mm.scale AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {forum} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'forum' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                INNER JOIN {forum_discussions} mma ON mm.id = mma.forum
+                LEFT JOIN {forum_posts} mmap ON mma.id = mmap.discussion AND u.id = mmap.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+        
+        'forumng' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'forumng' AS itemType,
+                mm.name AS itemName,
+                mm.ratinguntil AS dueDate,
+                mmap.modified AS dateSubmitted,
+                mm.ratingscale AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {forumng} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'forumng' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                INNER JOIN {forumng_discussions} mma ON mm.id = mma.forumngid
+                LEFT JOIN {forumng_posts} mmap ON mma.id = mmap.discussionid AND u.id = mmap.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+        
+        'glossary' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'glossary' AS itemType,
+                mm.name AS itemName,
+                mm.assesstimefinish AS dueDate,
+                mma.timemodified AS dateSubmitted,
+                mm.scale AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {glossary} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'glossary' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {glossary_entries} mma ON mm.id = mma.glossaryid AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
 
+        'hotpot' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'hotpot' AS itemType,
+                mm.name AS itemName,
+                mm.timeclose AS dueDate,
+                mma.timefinish AS dateSubmitted,
+                mm.gradeweighting AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {hotpot} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'hotpot' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {hotpot_attempts} mma ON mm.id = mma.hotpotid AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+
+        'kalvidassign' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'kalvidassign' AS itemType,
+                mm.name AS itemName,
+                mm.timedue AS dueDate,
+                mma.timemodified AS dateSubmitted,
+                mm.grade AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {kalvidassign} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'kalvidassign' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {kalvidassign_submission} mma ON mm.id = mma.vidassignid AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                        AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+            WHERE c.id = '%d'",
+        
+        'lesson' =>
+            "SELECT
+                DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+                mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+                u.username as pawsId,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                'lesson' AS itemType,
+                mm.name AS itemName,
+                mm.deadline AS dueDate,
+                mma.timeseen AS dateSubmitted,
+                mm.grade AS pointsPossible,
+                mgg.finalgrade AS pointsReceived,
+                mgc.fullname AS gradeCategory,
+                (cats.categoryWeight * 100) AS categoryWeight,
+                NULL AS extensions
+            FROM {course} c
+                INNER JOIN {lesson} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
+                    mgi.courseid = c.id AND
+                    mgi.itemtype = 'mod' AND
+                    mgi.itemmodule = 'lesson' AND
+                    mgi.iteminstance = mm.id
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {lesson_attempts} mma ON mm.id = mma.lessonid AND u.id = mma.userid
+                LEFT JOIN
+                    (SELECT
+                        mgi2.courseid AS catscourse,
+                        mgi2.id AS catsid,
+                        mgi2.iteminstance AS catcatid,
+                        mgi2.aggregationcoef AS categoryWeight
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    AND mgi2.itemtype = 'category')
+                    cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+                    WHERE c.id = '%d'",
+        
+        'scorm' =>
+"SELECT
+    DISTINCT(CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number,mm.id,'00000000',(IFNULL(mma.id, '0')))) AS uniqueId,
+    CONCAT(u.idnumber, (IFNULL(mma.scoid,''))) AS modAttemptId,
+            #    mma.id AS modAttemptId,
+                mm.id AS courseModuleId,
+                mgi.id AS gradeItemid,
+                mm.id AS itemId,
+    CONCAT(usem.year,u.idnumber,LPAD(c.id,5,'0'),us.sec_number) AS enrollmentId,
+    u.username as pawsId,
+    u.idnumber AS studentId,
+    CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+    us.sec_number AS sectionId,
+    'scorm' AS itemType,
+    mm.name AS itemName,
+    mm.timeclose AS dueDate,
+    mma.timemodified AS dateStarted,
+    mma1.value AS timeElapsed,
+    mm.maxgrade AS pointsPossible,
+    mgg.finalgrade AS pointsReceived,
+    mgc.fullname AS gradeCategory,
+    (cats.categoryWeight * 100) AS categoryWeight,
+    NULL AS extensions
+FROM {course} c
+    INNER JOIN {scorm} mm ON mm.course = c.id
+    INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+    INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+    INNER JOIN {user} u ON ustu.userid = u.id
+    INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+    INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+    INNER JOIN {grade_items} mgi ON
+        mgi.courseid = c.id AND
+        mgi.itemtype = 'mod' AND
+        mgi.itemmodule = 'scorm' AND
+        mgi.iteminstance = mm.id
+    INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+    INNER JOIN {scorm_scoes} mms ON mm.id = mms.scorm
+    LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+    LEFT JOIN {scorm_scoes_track} mma ON mm.id = mma.scormid AND u.id = mma.userid AND mma.scoid = mms.id AND mma.element = 'cmi.score.raw'
+    LEFT JOIN {scorm_scoes_track} mma1 ON mm.id = mma1.scormid AND u.id = mma1.userid AND mma1.scoid = mms.id AND mma1.element = 'cmi.total_time'
+    LEFT JOIN {scorm_scoes_track} mma2 ON mm.id = mma2.scormid AND u.id = mma2.userid AND mma2.scoid = mms.id AND mma2.element = 'x.start.time'
+    LEFT JOIN
+        (SELECT
+            mgi2.courseid AS catscourse,
+            mgi2.id AS catsid,
+            mgi2.iteminstance AS catcatid,
+            mgi2.aggregationcoef AS categoryWeight
+        FROM {grade_items} mgi2
+            INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+            AND mgi2.itemtype = 'category')
+        cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
+WHERE c.id = '%d'
+GROUP BY modAttemptId",
+        
+        
+        );
+}
 
 ?>

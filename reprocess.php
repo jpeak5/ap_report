@@ -27,6 +27,12 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title($header);
 $PAGE->set_heading($header);
 
+if($mode=='cron'){
+        if(local_ap_report_cron()){
+            redirect(new moodle_url('/admin/settings.php', array('section'=>'local_ap_report')));
+        }
+}
+
 echo $OUTPUT->header();
 
 //----------------------------------------------------------------------------//
@@ -43,7 +49,7 @@ if(is_siteadmin($USER)){
     if($mode == 'reprocess' or $mode == 'preview'){
         mtrace('running reprocess or preview');
         $report = new lmsEnrollment();    
-        $xml = !isset($mode ) ? $report->run() : $report->preview_today();
+        $xml = $mode == 'reprocess' ? $report->run() : $report->preview_today();
         
         $a = new stdClass();
         $a->start = strftime('%F %T',$report->start);
@@ -114,8 +120,8 @@ if(is_siteadmin($USER)){
         $cw = new lmsCoursework();
         if(($xdoc = $cw->run())!=false){
             echo render_table($xdoc,
-                    $xdoc->getElementsByTagName('lmsCourseWorkItem'), 
-                    lmsSectionGroupRecord::$camels);
+                    $xdoc->getElementsByTagName('lmsCourseworkItem'), 
+                    lmsCourseworkRecord::$camels);
         }else{
             echo "failed updating LMS Coursework report";
         }
@@ -129,7 +135,7 @@ if(is_siteadmin($USER)){
      * @TODO fix the link to point at site root
      * @TODO define a lang file
      */
-    print_error('nopermission', 'local_ap_report', '/');
+    print_error('apr_nopermission', 'local_ap_report', '/');
 }
 
 echo $OUTPUT->footer();
@@ -144,29 +150,29 @@ echo $OUTPUT->footer();
 
 function render_table($xml,$element_list,$fields){
     $table = new html_table();
-            $display = "";
-            $table->head = $fields;
-            $data = array();
-            $xpath = new DOMXPath($xml);
-            
-            $display .= "returning only the first 100 table rows";
-            for ($i=0; $i<100; $i++){
-                $record = $element_list->item($i);
-                $cells = array();
-                foreach($table->head as $field){
-                    $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
-                }
-                $row = new html_table_row($cells);
-                $data[] = $row;
+        $display = "";
+        $table->head = $fields;
+        $data = array();
+        $xpath = new DOMXPath($xml);
+
+        $display .= "returning only the first 100 table rows";
+        for ($i=0; $i<100; $i++){
+            $record = $element_list->item($i);
+            $cells = array();
+            foreach($table->head as $field){
+                $cells[] = new html_table_cell($xpath->evaluate("string({$field})", $record));
             }
+            $row = new html_table_row($cells);
+            $data[] = $row;
+        }
 
-            $table->data = $data;
-            $display .= html_writer::table($table);
+        $table->data = $data;
+        $display .= html_writer::table($table);
 
-            $display .= html_writer::tag('h4', 'Raw XML:');
-            $row_count = 40;
-            $xml->formatOutput = true;
-            $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
-            return $display;
+        $display .= html_writer::tag('h4', 'Raw XML:');
+        $row_count = 40;
+        $xml->formatOutput = true;
+        $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
+        return $display;
 }
 ?>

@@ -57,24 +57,25 @@ class enrollment_model {
      * in mdl_log as having done anything in a course.
      */
     public $active_users;
-    //table abstractions
-//    public $ues_sections;
-//    public $ues_courses;
-//    public $ues_students;
-//    public $ues_semesters;
-//    public $mdl_courses;
-//    public $mdl_logs;
-//    public $mdl_users;
- 
+    
+    /**
+     * holds mdl_course.id ofo each current course
+     * used in lmsCoursework report
+     * @var int[] 
+     */
+    public $current_courseids;
+
     public function __construct(){
         $this->semesters = self::get_active_ues_semesters();
         assert(!empty($this->semesters));
         $this->courses   = self::get_all_courses(array_keys($this->semesters));
     }
     
+
     
-    public static function get_all_courses($semesterids){
+    public static function get_all_courses($semesterids, $ids_only=false){
         global $DB;
+        
         $sql = sprintf("SELECT 
                     usect.id            AS ues_sectionid,
                     usect.sec_number    AS ues_sections_sec_number,  
@@ -100,6 +101,14 @@ class enrollment_model {
         $courses = array();
         
         $rows = $DB->get_records_sql($sql);
+        if($ids_only){
+            $ids = array();
+            foreach($rows as $row){
+                $ids[] = $row->mdl_courseid;
+            }
+            return !empty($ids) ? $ids : false;
+        }
+        
         foreach($rows as $row){
             $course = new course();
             
@@ -173,7 +182,6 @@ class enrollment_model {
             
 
         $sql = "SELECT
-                    
                     CONCAT(gm.id,c.idnumber) AS userGroupId,
                     c.id AS courseid,                    
                     us.sec_number AS ues_sectionId,
@@ -182,7 +190,7 @@ class enrollment_model {
                     u.idnumber AS studentId,
                     u.id AS userid,
                     gm.groupid AS groupid,
-                    CONCAT(us.id,'-',uc.department,'_',uc.cou_number,'_',us.sec_number) AS sectionid,
+                    CONCAT(us.id,'-',uc.department,'_',uc.cou_number,'_',us.sec_number) AS sectionid_uniq,
                     NULL AS extensions
                 FROM {course} AS c
                     INNER JOIN {enrol_ues_sections} AS us ON c.idnumber = us.idnumber
@@ -210,7 +218,7 @@ class enrollment_model {
         foreach($rows as $row){
             $rec = new lmsGroupMembershipRecord();
             $rec->groupid = $row->groupid;
-            $rec->sectionid = $row->sectionid;
+            $rec->sectionid = $row->ues_sectionid;
             $rec->studentid = $row->studentid;
             if(!isset($this->group_membership_records[$rec->groupid])){
                 $this->group_membership_records[$rec->groupid] = array();
@@ -496,7 +504,7 @@ class enrollment_model {
      * 
      * @return array stdClass of active semesters
      */
-    public static function get_active_ues_semesters($time=null){
+    public static function get_active_ues_semesters($time=null, $ids_only=false){
         global $DB;
         $time = isset($time) ? $time : time();
         $sql = vsprintf("SELECT 
@@ -509,6 +517,13 @@ class enrollment_model {
                                 grades_due >= %d"
                         , array($time,$time));
         $semesters = $DB->get_records_sql($sql);
+        
+        //shortcut breakout
+        if($ids_only){
+            $ids = array_keys($semesters);
+
+            return !empty($ids) ? $ids : false;
+        }
 //die(print_r($sql));
         assert(count($semesters) > 0);
         $s = array();
@@ -660,31 +675,10 @@ class enrollment_model {
         return empty($this->groups_coaches) ? false : $this->groups_coaches;
         
     }
-    public function merge_instructors_coaches(){
-        $instructors = $this->get_groups_primary_instructors();
-        $coaches = $this->get_groups_coaches();
-        if(!$instructors){
-            return false;
-        }elseif(!$coaches){
-            return $this->sectionGroupRecords = $instructors;
-        }
-        
-        foreach($instructors as $inst){
-            if(array_key_exists($inst->groupid, $coaches)){
-                $inst->coachid          = $coaches[$inst->groupid]->coachid;
-                $inst->coachfirstname   = $coaches[$inst->groupid]->coachfirstname;
-                $inst->coachlastname    = $coaches[$inst->groupid]->coachlastname;
-                $inst->coachemail       = $coaches[$inst->groupid]->coachemail;
-            }
-            $this->sectionGroupRecords[] = $inst;
-        }
-        return $this->sectionGroupRecords;
-    }
-    
-    public function get_section_groups(){
-        return $this->merge_instructors_coaches();
-    }
+
  
+
+
 }
 
 

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/ap_report/db" VERSION="2013032116" COMMENT="XMLDB file for ap_reports local plugin"
+<XMLDB PATH="local/ap_report/db" VERSION="2013041611" COMMENT="XMLDB file for ap_reports local plugin"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
     >
     <TABLES>
-        <TABLE NAME="apreport_enrol" COMMENT="holds daily activty metrics for retention management">
+        <TABLE NAME="apreport_enrol" COMMENT="holds daily activty metrics for retention management" NEXT="apreport_coursework">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="userid"/>
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="id" NEXT="sectionid"/>
@@ -22,5 +22,28 @@
                 <INDEX NAME="usersect" UNIQUE="false" FIELDS="userid, sectionid"/>
             </INDEXES>
         </TABLE>
+        <TABLE NAME="apreport_coursework" COMMENT="storage for daily lmsCoursework data" PREVIOUS="apreport_enrol">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" NEXT="enrollmentid"/>
+                <FIELD NAME="enrollmentid" TYPE="char" LENGTH="24" NOTNULL="false" SEQUENCE="false" COMMENT="a constructed, ap-specific enrollment id: The unique identifier assigned to the student enrollment in the course" PREVIOUS="id" NEXT="studentid"/>
+                <FIELD NAME="studentid" TYPE="int" LENGTH="9" NOTNULL="true" SEQUENCE="false" COMMENT="The university student ID from the SIS" PREVIOUS="enrollmentid" NEXT="courseid"/>
+                <FIELD NAME="courseid" TYPE="char" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="reference to moodle courseid; when joined for output, this should yeild: A unique identifier for the course; it must match course ID from SIS" PREVIOUS="studentid" NEXT="sectionid"/>
+                <FIELD NAME="sectionid" TYPE="char" LENGTH="3" NOTNULL="true" SEQUENCE="false" COMMENT="reference to [ues] section number; when joined, it should yeild: A unique identifier for the section; it must match the section ID from the SIS" PREVIOUS="courseid" NEXT="itemtype"/>
+                <FIELD NAME="itemtype" TYPE="char" LENGTH="25" NOTNULL="true" SEQUENCE="false" COMMENT="string representing the module type; possible values include “Assignment”, “Assessment”, “Quiz”, “Posting”, or “Other”" PREVIOUS="sectionid" NEXT="itemid"/>
+                <FIELD NAME="itemid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id number for the item; this should be unique within its type-context; AP-spec: A unique identifier for the coursework item" PREVIOUS="itemtype" NEXT="itemname"/>
+                <FIELD NAME="itemname" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AP-spec: The name or description of the coursework item" PREVIOUS="itemid" NEXT="duedate"/>
+                <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="unix time stamp" PREVIOUS="itemname" NEXT="datesubmitted"/>
+                <FIELD NAME="datesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="unix time stamp; Date assignment or quiz turned in, posting completed, or assessment done" PREVIOUS="duedate" NEXT="pointspossible"/>
+                <FIELD NAME="pointspossible" TYPE="number" LENGTH="10" NOTNULL="false" SEQUENCE="false" DECIMALS="5" COMMENT="Number of possible points for assignment, posting, assessment, or quiz (blank if not graded)" PREVIOUS="datesubmitted" NEXT="pointsreceived"/>
+                <FIELD NAME="pointsreceived" TYPE="number" LENGTH="10" NOTNULL="false" SEQUENCE="false" DECIMALS="5" COMMENT="AP-spec: Number of points received for assignment, posting, assessment, or quiz" PREVIOUS="pointspossible" NEXT="gradecategory"/>
+                <FIELD NAME="gradecategory" TYPE="text" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="" PREVIOUS="pointsreceived" NEXT="categoryweight"/>
+                <FIELD NAME="categoryweight" TYPE="number" LENGTH="10" NOTNULL="false" SEQUENCE="false" DECIMALS="5" COMMENT="AP-spec: Weight to be applied to this item when determining grade for course" PREVIOUS="gradecategory" NEXT="created"/>
+                <FIELD NAME="created" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="timestamp of the time this record was created; this is used by the application to determine the freshness of the data and candidacy for [daily] deletion/refreshment" PREVIOUS="categoryweight"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+        </TABLE>
     </TABLES>
 </XMLDB>
+

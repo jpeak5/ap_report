@@ -246,6 +246,11 @@ abstract class apreports_testcase extends advanced_testcase{
         
         $mondo = $DB->get_records_sql($mondo_sql);
         $this->assertNotEmpty($mondo);
+        
+        
+        
+        $qzs = $DB->get_records('quiz');
+        $this->nonempty_array($qzs);
 
     }
 }

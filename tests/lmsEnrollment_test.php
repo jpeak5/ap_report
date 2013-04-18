@@ -261,12 +261,12 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertEquals(7227,$ap->sectionid);
         $this->assertEquals(5,$ap->semesterid);
         
-        $this->assertEquals(1365429425,$ap->lastaccess);
+        $this->assertEquals(strftime('%F', time())+1366222012,$ap->lastaccess);
         $this->assertEquals(63,$ap->agg_timespent);
         
         $ap2 = $enr->students[465]->courses[9850]->ap_report;
         $this->assertEquals(37, $ap2->agg_timespent);
-        $this->assertEquals(1365429410, $ap2->lastaccess);
+        $this->assertEquals(strftime('%F', time())+1366221997, $ap2->lastaccess);
     }
     
 

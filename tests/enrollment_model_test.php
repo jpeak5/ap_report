@@ -140,5 +140,69 @@ class enrollment_model_testcase extends apreports_testcase{
         $this->nonempty_array($x);
 //        mtrace(print_r($x));
     }
+    
+
+    
+    public function test_coursework_get_quiz(){
+        global $DB;
+        $e = new enrollment_model();
+        $semesters = $e->get_active_ues_semesters(null, true);
+        $courses = $e->get_all_courses($semesters, true);
+        
+        //ensure that the dataset includes at least one quiz
+        $qrec = $DB->get_records('quiz');
+        $this->nonempty_array($qrec);
+        
+        //ensure grade items
+//        $mgi_cols       = array('id','courseid', 'itemtype', 'itemmodule', 'iteminstance', 'aggregationcoef', 'categoryid');
+//        $mgc_cols       = array('id','fullname','courseid');
+//        $mgg_cols       = array('finalgrade', 'userid', 'itemid');
+//        
+//        $mgi_rows = $mgc_rows = $mgg_rows = array();
+//        
+//        $mgi_rows[]     = array(1,2326,'mod','quiz',1,1,9);
+//        $mgc_rows[]     = array(432,'categ fullname',9);
+//        $mgg_rows[]     = array(95,465,1);
+        
+        $mgi = $DB->get_records('grade_items');
+        $this->nonempty_array($mgi);
+        $this->assertGreaterThan(0,count($mgi));
+        
+        $mgc = $DB->get_records('grade_categories');
+        $this->nonempty_array($mgc);
+        $this->assertGreaterThan(0,count($mgc));
+//        mtrace(print_r($mgc));
+        
+        $mgg = $DB->get_records('grade_grades');
+        $this->assertGreaterThan(0,count($mgg));
+        
+        
+//        $qzs = $e->coursework_get_quiz($courses);
+//        $this->nonempty_array($qzs);
+//        $keys = array_keys($qzs);
+//        $sample = $qzs[$keys[0]];
+//        $this->assertTrue(object_property_exists($sample, 'itemname'));
+        
+    }
+    
+    public function test_get_scorm_datesubmitted(){
+        $t = time();
+        $sec = 24;
+        
+        $start = new DateTime(strftime('%F %T',$t));
+        $intvl = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', 'PT24.0S'));
+        
+//        mtrace(preg_replace('/\.[0-9]+S/', 'S', 'PT24.0S'));
+        
+        $unit = lmsCoursework::get_scorm_datesubmitted($t, 'PT24.0S');
+        
+        $end = $start->add($intvl);
+        $this->assertEquals($end->getTimestamp(), $t+24);
+        $this->assertEquals($t+24, $unit);
+        
+    }
+    
+
 }
+
 ?>

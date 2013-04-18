@@ -1,6 +1,29 @@
 <?php
 
 class tbl_model{
+    
+    public static function instantiate_from_tablename($name, $params){
+        global $DB;
+        $cols = $DB->get_columns($name);
+        $keys = array();
+        foreach($cols as $col){
+            $keys[] = $col->name;
+//            mtrace(sprintf("adding column %s", $col->name));
+        }
+        
+        $inst = new self();
+
+        if(!is_array($params)){
+            $params = (array)$params;
+        }
+        foreach($params as $k=>$v){
+            if(in_array($k, $keys)){
+                $inst->$k = $v;
+            }
+        }
+        return $inst;
+    }
+    
     public static function instantiate($params){
         $inst = new static();
         $keys = get_object_vars($inst);
@@ -54,6 +77,7 @@ class tbl_model{
    * @param tbl_model[] $records
    * @param string $root_name the name that the inheriting report uses as its XML root element
    * @param string $child_name name that the inheriting report uses as child container element
+   * @return DOMDocument Description
    */
   public static function toXMLDoc($records, $root_name, $child_name){
       $xdoc = new DOMDocument();
@@ -520,6 +544,9 @@ class group_member extends tbl_model{
      */
     public $mdl_group_member;
 }
+
+
+
 
 
 ?>
