@@ -9,6 +9,9 @@ $string['apr_with_cron']            = "Enable Cron";
 $string['apr_with_cron_desc']       = "Should these jobs run with cron?";
 $string['apr_cron_url']             = 'Invoke cron...';
 $string['apr_cron_desc']            = ':  click to run the cron jobs provided by this plugin. Note that cron must be enabled on this page and the current hour must match that selected in the selector';
+$string['apreport_dir']             = 'Reports directory';
+$string['apreport_dir_desc']        = 'specify the directory, under the Moodle dataroot, where the reports should be saved. Default is {$a->apreport_dir_default}';
+
 //----------- common Errors
 $string['apr_file_not_writable']= 'Failure saving activity statistics. Ensure that the file system is writable at {$a->mdl_dataroot}';
 $string['apr_unknownmode']          = "Unknown value given for process mode";

@@ -14,13 +14,27 @@ class apreport_util{
         $today->sub(new DateInterval('P1D'));
         $yesterday = new DateTime($today->format('Y-m-d'));
         $start = $yesterday->getTimestamp();
-
         return array($start, $end);
+    }
+    
+    public static function microtime_toString($mt){
+        
+        //default microtime()
+        $mta = explode(' ',$mt);
+        if(count($mta)!=2){
+            $fl = explode('.',(string)$mt);
+            if(count($fl)!=2){
+                return $mt;;
+            }
+            return sprintf("%s.%s",strftime("%F %T",$fl[0]),$fl[1]);
+            
+        }
+        return sprintf("%s.%s",strftime("%F %T",$mta[1]),substr($mta[0],2,6));
     }
 }
 
 /**
- * parent class for all user-facing data records.
+ * parent class for all user-facing data records. 
  * Contains formatting methods that ensure adherence to the end-user XML schema
  */
 class apreportRecord extends tbl_model{

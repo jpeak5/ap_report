@@ -58,16 +58,26 @@ abstract class apreport {
      * 
      * @param DOMDocument $contents
      */
-    public function create_file($contents, $filepath)  {
+    public static function create_file($contents)  {
         
         global $CFG;
+        $dir = isset($CFG->apreport_dir_path) ? $CFG->apreport_dir_path : 'apreport';
+        $filepath = $CFG->dataroot.DIRECTORY_SEPARATOR.$dir;
+        if(!is_dir($filepath)){
+            if(!mkdir($filepath, 0744, true)){
+                return false;
+            }
+        }
+        $file = $filepath.DIRECTORY_SEPARATOR.static::INTERNAL_NAME.'.xml';
+        
         $contents->formatOutput = true;
-        $handle = fopen($filepath, 'w');
+        mtrace(sprintf("filepath == %s", $file));
+        $handle = fopen($file, 'w');
         assert($handle !=false);
         $success = fwrite($handle, $contents->saveXML());
         fclose($handle);
         if(!$success){
-            add_to_log(1, 'ap_reports', sprintf('error writing to filesystem at %s', $filepath));
+            add_to_log(1, 'ap_reports', sprintf('error writing to filesystem at %s', $file));
             return false;
         }
         return true;
@@ -128,7 +138,6 @@ class lmsEnrollment extends apreport{
         public $enrollment;
 
         const INTERNAL_NAME = 'lmsEnrollment';
-    
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
 /*----------------------------------------------------------------------------*/    
@@ -138,14 +147,12 @@ class lmsEnrollment extends apreport{
      * @param int $end   timestamp for end   of the range of interest
      */
     public function __construct(){
-        global $CFG;
+
         list($this->start, $this->end) = apreport_util::get_yesterday();
 
         $this->enrollment = new enrollment_model();
         assert(count($this->enrollment->semesters)>0);
-        $this->filename = isset($CFG->apreport_enrol_xml) 
-                ? '/'.$CFG->apreport_enrol_xml.'.xml' 
-                : '/enrollment.xml';
+        $this->filename = '/enrollment.xml';
     }
  
 
@@ -556,7 +563,7 @@ class lmsEnrollment extends apreport{
         set_config('apreport_got_enrollment', false);        
         set_config('apreport_job_start', microtime(true));
         
-        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
         
         //if there has been no activity, that is not a failure of this system
         if(!$this->enrollment->get_active_users($this->start,$this->end)){
@@ -576,13 +583,13 @@ class lmsEnrollment extends apreport{
         
         if(!$xml){
             add_to_log(1, 'ap_reports', 'no user activity');
-            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::FAILURE, microtime());
+            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::FAILURE, apreport_util::microtime_toString(microtime()));
             return false;
         }
         set_config('apreport_got_xml', true);
         
         set_config('apreport_job_complete', microtime(true));
-        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
+        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
         add_to_log(1, 'ap_reports', 'complete');
         return $xml;
     }
@@ -661,8 +668,7 @@ class lmsEnrollment extends apreport{
         }
         self::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
         
-        $file = $CFG->dataroot.$this->filename;
-        if(!$this->create_file($xml, $file)){
+        if(!self::create_file($xml)){
             add_to_log(1, 'ap_reports', 'error create_file');
             self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::FAILURE);
             return false;
@@ -740,23 +746,21 @@ class lmsGroupMembership extends apreport{
      * @return boolean
      */
     public function run(){
-        
-        global $CFG;
-        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS,microtime());
+
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS,apreport_util::microtime_toString(microtime()));
         
         $this->enrollment->get_group_membership_report();
         self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
         
         $content = $this->getXML();
         $content->format = true;
-        $file = $CFG->dataroot.'/groups.xml';
-        if(!$this->create_file($content, $file)){
+        if(!self::create_file($content)){
             self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::FAILURE);
             return false;
         }else{
             self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS);
         }
-        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,microtime());
+        self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,apreport_util::microtime_toString(microtime()));
         return $content;
     }
     
@@ -776,22 +780,23 @@ Partnerships for the previous, current, and upcoming terms.
 class lmsSectionGroup extends apreport{
     public $enrollment;
     const INTERNAL_NAME = 'lmsSectionGroup';
+    
     public function __construct($e = null){
         $this->enrollment = (isset($e) and get_class($e) == 'enrollment_model') ? $e : new enrollment_model();
     }
     
     public function run(){
         global $CFG;
-        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
+        self::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
         $xdoc = lmsSectionGroupRecord::toXMLDoc($this->get_section_groups(), 'lmsSectionGroups', 'lmsSectionGroup');
         if(($xdoc)!=false){
             self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
-            if($this->create_file($xdoc, $CFG->dataroot.'/sectionGroup.xml')!=false){
-                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
+            if(self::create_file($xdoc)!=false){
+                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
                 return $xdoc;
             }
         }
-        self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION,microtime());
+        self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION,apreport_util::microtime_toString(microtime()));
         return false;
     }
     
@@ -895,7 +900,7 @@ class lmsCoursework extends apreport{
     
     public function run(){
         global $DB,$CFG;
-        $this->update_job_status_all(apreport_job_stage::INIT, apreport_job_status::SUCCESS, microtime());
+        $this->update_job_status_all(apreport_job_stage::INIT, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
         if(empty($this->courses)){
             //this could happen on a day where there are zero semesters in session
             $this->set_status();
@@ -950,8 +955,8 @@ class lmsCoursework extends apreport{
         $xdoc = lmsCourseworkRecord::toXMLDoc($cwks, 'lmsCourseworkItems', 'lmsCourseworkItem');
 
         //write the DB dataset to a FILE
-        if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
-            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, microtime());
+        if((self::create_file($xdoc)!=false)){
+            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, apreport_util::microtime_toString(microtime()));
             return $xdoc;
         }else{
             self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
