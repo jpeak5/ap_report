@@ -77,11 +77,11 @@ abstract class apreport {
     /**
      * @param apreport_status $stat
      */
-    public function update_job_status($comp, $stage, $status, $info=null, $sub=null) {
+    public static function update_job_status($stage, $status, $info=null, $sub=null) {
 
         $subcomp  = isset($sub) ? '_'.$sub  : null;
         $info     = isset($info)? '  : '.$info : null;
-        set_config('apreport_'.$comp.$subcomp, $stage.':  '.$status.$info);
+        set_config('apreport_'.static::INTERNAL_NAME.$subcomp, $stage.':  '.$status.$info);
     }
     
 }
@@ -795,7 +795,7 @@ class lmsCoursework extends apreport{
     const KALVIDASSIGN    = 'kaltvidassign';
     const LESSON    = 'lesson';
     
-    const INTERNAL_NAME = 'lmsCoursework';
+    const INTERNAL_NAME = 'lmsCoursewok';
     
     public static $subreports = array(
         'quiz',
@@ -846,7 +846,7 @@ class lmsCoursework extends apreport{
         if(empty($this->courses)){
             //this could happen on a day where there are zero semesters in session
             $this->set_status();
-            $this->update_job_status_all(apreport_job_stage::BEGIN, apreport_job_status::EXCEPTION, 'no courses');
+            $this->update_job_status_all(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, 'no courses');
             return true;
         }
         $enr = new enrollment_model();
@@ -857,33 +857,33 @@ class lmsCoursework extends apreport{
             $records = $this->coursework_get_subreport_dataset($this->courses, $query, $type);
 
             if(count($records)<1){
-                $this->update_job_status_one($type, apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset");
+                self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, "empty resultset",$type);
 
             }else{
-                $this->update_job_status_one($type, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+                self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS,null,$type);
 
                 //save to db
                 if($this->clean_db($type)){
                     $persist_success = $this->persist_db_records($records,$type);
                 }
                 if($persist_success > 0){
-                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);
+                    self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS,null,$type);
                 }else{
-                    $this->update_job_status_one($type, apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
+                    self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE,null,$type);
                     continue;
                 }
-                $this->update_job_status_one($type, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+                self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,null,$type);
             }
         }
         //set status message about the loop exit
-        $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
+        self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS);
 
         //read back from db
         $dataset = $DB->get_records('apreport_coursework');
         if(!empty($dataset)){
-            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
+            self::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS);
         }else{
-            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::RETRIEVE, apreport_job_status::EXCEPTION, "no rows");
+            self::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::EXCEPTION, "no rows");
             mtrace("dataset is empty");;
             return false;
         }
@@ -898,24 +898,25 @@ class lmsCoursework extends apreport{
 
         //write the DB dataset to a FILE
         if(($this->create_file($xdoc, $CFG->dataroot.'/coursework.xml')!=false)){
-            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
+            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS);
             return $xdoc;
         }else{
-            $this->update_job_status(self::INTERNAL_NAME, apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
+            self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE, "error writing file");
             return false;
         }                    
     }
 
 
     /**
-     * 
+     * compute an ending timestamp given a 
+     * starting TS + a standard DateInterval
      * @param int $start unix timestamp
      * @param DateInterval $interval
      */
     public static function get_scorm_datesubmitted($start, $interval){
         $date = new DateTime(strftime('%F %T',$start));
 
-        //remove microseconds...we don't care
+        //remove microseconds...we don't care; php can't hand the microseconds
         $int = new DateInterval(preg_replace('/\.[0-9]+S/', 'S', $interval));
         
         $end = $date->add($int);
@@ -924,24 +925,25 @@ class lmsCoursework extends apreport{
     }
 
     /**
-     * 
-     * @param string $msg
-     * @param apreport_error_severity $sev
+     * store status infomation in $CFG
+     * @param apreport_job_stage $stage
+     * @param apreport_job_status $status
+     * @param string $info
      */
     public function update_job_status_all($stage, $status, $info=null){
         foreach(self::$subreports as $type){
-            $this->update_job_status(self::INTERNAL_NAME, $stage, $status, $info, $type);
+            self::update_job_status($stage, $status, $info, $type);
         }
     }
-    /**
-     * 
-     * @param string $msg
-     * @param apreport_error_severity $sev
-     */
-    public function update_job_status_one($type,$stage, $status, $info=null){
-        
-            $this->update_job_status(self::INTERNAL_NAME, $stage, $status, $info, $type);
-    }
+//    /**
+//     * 
+//     * @param string $msg
+//     * @param apreport_error_severity $sev
+//     */
+//    public function update_job_status_one($type,$stage, $status, $info=null){
+//        
+//            self::update_job_status(self::INTERNAL_NAME, $stage, $status, $info, $type);
+//    }
 
     private function clean_db($itemtype){
         global $DB;
