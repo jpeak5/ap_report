@@ -984,29 +984,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_quiz mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {quiz} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'quiz' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_quiz_attempts mma ON mm.id = mma.quiz AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {quiz_attempts} mma ON mm.id = mma.quiz AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = %d
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1032,29 +1032,29 @@ class coursework_queries{
                         mgc.fullname AS gradeCategory,
                         (cats.categoryWeight * 100) AS categoryWeight,
                         NULL AS extensions
-                    FROM mdl_course c
-                        INNER JOIN mdl_assign mm ON mm.course = c.id
-                        INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                        INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                        INNER JOIN mdl_user u ON ustu.userid = u.id
-                        INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                        INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                        INNER JOIN mdl_grade_items mgi ON
+                    FROM {course} c
+                        INNER JOIN {assign} mm ON mm.course = c.id
+                        INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                        INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                        INNER JOIN {user} u ON ustu.userid = u.id
+                        INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                        INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                        INNER JOIN {grade_items} mgi ON
                             mgi.courseid = c.id AND
                             mgi.itemtype = 'mod' AND
                             mgi.itemmodule = 'assign' AND
                             mgi.iteminstance = mm.id
-                        INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                        LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                        LEFT JOIN mdl_assign_submission mma ON mm.id = mma.assignment AND u.id = mma.userid
+                        INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                        LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                        LEFT JOIN {assign_submission} mma ON mm.id = mma.assignment AND u.id = mma.userid
                         LEFT JOIN
                             (SELECT
                                 mgi2.courseid AS catscourse,
                                 mgi2.id AS catsid,
                                 mgi2.iteminstance AS catcatid,
                                 mgi2.aggregationcoef AS categoryWeight
-                            FROM mdl_grade_items mgi2
-                                INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                            FROM {grade_items} mgi2
+                                INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                                 AND mgi2.itemtype = 'category')
                             cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
                     WHERE c.id = '%d'",
@@ -1080,29 +1080,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_assignment mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {assignment} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'assignment' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_assignment_submissions mma ON mm.id = mma.assignment AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {assignment_submissions} mma ON mm.id = mma.assignment AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1128,29 +1128,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_data mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {data} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'data' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_data_records mma ON mm.id = mma.dataid AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {data_records} mma ON mm.id = mma.dataid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1176,30 +1176,30 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_forum mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {forum} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'forum' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                INNER JOIN mdl_forum_discussions mma ON mm.id = mma.forum
-                LEFT JOIN mdl_forum_posts mmap ON mma.id = mmap.discussion AND u.id = mmap.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                INNER JOIN {forum_discussions} mma ON mm.id = mma.forum
+                LEFT JOIN {forum_posts} mmap ON mma.id = mmap.discussion AND u.id = mmap.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1225,30 +1225,30 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_forumng mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {forumng} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'forumng' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                INNER JOIN mdl_forumng_discussions mma ON mm.id = mma.forumngid
-                LEFT JOIN mdl_forumng_posts mmap ON mma.id = mmap.discussionid AND u.id = mmap.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                INNER JOIN {forumng_discussions} mma ON mm.id = mma.forumngid
+                LEFT JOIN {forumng_posts} mmap ON mma.id = mmap.discussionid AND u.id = mmap.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1274,29 +1274,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_glossary mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {glossary} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'glossary' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_glossary_entries mma ON mm.id = mma.glossaryid AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {glossary_entries} mma ON mm.id = mma.glossaryid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1322,29 +1322,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_hotpot mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {hotpot} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'hotpot' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_hotpot_attempts mma ON mm.id = mma.hotpotid AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {hotpot_attempts} mma ON mm.id = mma.hotpotid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1370,29 +1370,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_kalvidassign mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {kalvidassign} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'kalvidassign' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_kalvidassign_submission mma ON mm.id = mma.vidassignid AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {kalvidassign_submission} mma ON mm.id = mma.vidassignid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                         AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
             WHERE c.id = '%d'",
@@ -1418,29 +1418,29 @@ class coursework_queries{
                 mgc.fullname AS gradeCategory,
                 (cats.categoryWeight * 100) AS categoryWeight,
                 NULL AS extensions
-            FROM mdl_course c
-                INNER JOIN mdl_lesson mm ON mm.course = c.id
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-                INNER JOIN mdl_user u ON ustu.userid = u.id
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-                INNER JOIN mdl_grade_items mgi ON
+            FROM {course} c
+                INNER JOIN {lesson} mm ON mm.course = c.id
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+                INNER JOIN {user} u ON ustu.userid = u.id
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {grade_items} mgi ON
                     mgi.courseid = c.id AND
                     mgi.itemtype = 'mod' AND
                     mgi.itemmodule = 'lesson' AND
                     mgi.iteminstance = mm.id
-                INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-                LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-                LEFT JOIN mdl_lesson_attempts mma ON mm.id = mma.lessonid AND u.id = mma.userid
+                INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+                LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+                LEFT JOIN {lesson_attempts} mma ON mm.id = mma.lessonid AND u.id = mma.userid
                 LEFT JOIN
                     (SELECT
                         mgi2.courseid AS catscourse,
                         mgi2.id AS catsid,
                         mgi2.iteminstance AS catcatid,
                         mgi2.aggregationcoef AS categoryWeight
-                    FROM mdl_grade_items mgi2
-                        INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+                    FROM {grade_items} mgi2
+                        INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
                     AND mgi2.itemtype = 'category')
                     cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
                     WHERE c.id = '%d'",
@@ -1468,32 +1468,32 @@ class coursework_queries{
     mgc.fullname AS gradeCategory,
     (cats.categoryWeight * 100) AS categoryWeight,
     NULL AS extensions
-FROM mdl_course c
-    INNER JOIN mdl_scorm mm ON mm.course = c.id
-    INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-    INNER JOIN mdl_enrol_ues_students ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
-    INNER JOIN mdl_user u ON ustu.userid = u.id
-    INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-    INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
-    INNER JOIN mdl_grade_items mgi ON
+FROM {course} c
+    INNER JOIN {scorm} mm ON mm.course = c.id
+    INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+    INNER JOIN {enrol_ues_students} ustu ON ustu.sectionid = us.id AND ustu.status = 'enrolled'
+    INNER JOIN {user} u ON ustu.userid = u.id
+    INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+    INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+    INNER JOIN {grade_items} mgi ON
         mgi.courseid = c.id AND
         mgi.itemtype = 'mod' AND
         mgi.itemmodule = 'scorm' AND
         mgi.iteminstance = mm.id
-    INNER JOIN mdl_grade_categories mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
-    INNER JOIN mdl_scorm_scoes mms ON mm.id = mms.scorm
-    LEFT JOIN mdl_grade_grades mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
-    LEFT JOIN mdl_scorm_scoes_track mma ON mm.id = mma.scormid AND u.id = mma.userid AND mma.scoid = mms.id AND mma.element = 'cmi.score.raw'
-    LEFT JOIN mdl_scorm_scoes_track mma1 ON mm.id = mma1.scormid AND u.id = mma1.userid AND mma1.scoid = mms.id AND mma1.element = 'cmi.total_time'
-    LEFT JOIN mdl_scorm_scoes_track mma2 ON mm.id = mma2.scormid AND u.id = mma2.userid AND mma2.scoid = mms.id AND mma2.element = 'x.start.time'
+    INNER JOIN {grade_categories} mgc ON (mgc.id = mgi.iteminstance OR mgc.id = mgi.categoryid) AND mgc.courseid = c.id
+    INNER JOIN {scorm_scoes} mms ON mm.id = mms.scorm
+    LEFT JOIN {grade_grades} mgg ON mgi.id = mgg.itemid AND mgg.userid = u.id
+    LEFT JOIN {scorm_scoes_track} mma ON mm.id = mma.scormid AND u.id = mma.userid AND mma.scoid = mms.id AND mma.element = 'cmi.score.raw'
+    LEFT JOIN {scorm_scoes_track} mma1 ON mm.id = mma1.scormid AND u.id = mma1.userid AND mma1.scoid = mms.id AND mma1.element = 'cmi.total_time'
+    LEFT JOIN {scorm_scoes_track} mma2 ON mm.id = mma2.scormid AND u.id = mma2.userid AND mma2.scoid = mms.id AND mma2.element = 'x.start.time'
     LEFT JOIN
         (SELECT
             mgi2.courseid AS catscourse,
             mgi2.id AS catsid,
             mgi2.iteminstance AS catcatid,
             mgi2.aggregationcoef AS categoryWeight
-        FROM mdl_grade_items mgi2
-            INNER JOIN mdl_grade_categories mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
+        FROM {grade_items} mgi2
+            INNER JOIN {grade_categories} mgc2 ON mgc2.id = mgi2.iteminstance AND mgc2.courseid = '%d'
             AND mgi2.itemtype = 'category')
         cats ON cats.catscourse = c.id AND mgc.id = cats.catcatid
 WHERE c.id = '%d'
