@@ -126,6 +126,7 @@ class lmsEnrollment extends apreport{
          */
         public $enrollment;
 
+        const INTERNAL_NAME = 'lmsEnrollment';
     
 /*----------------------------------------------------------------------------*/    
 /*                  Establish time parameters                                 */    
@@ -795,7 +796,7 @@ class lmsCoursework extends apreport{
     const KALVIDASSIGN    = 'kaltvidassign';
     const LESSON    = 'lesson';
     
-    const INTERNAL_NAME = 'lmsCoursewok';
+    const INTERNAL_NAME = 'lmsCoursework';
     
     public static $subreports = array(
         'quiz',
