@@ -24,9 +24,9 @@ class lmsGroupMembership_testcase extends apreports_testcase{
 
         $this->nonempty_array($gm->enrollment->group_membership_records);
 //        $this->assertEquals(2, count($gm->enrollment->group_membership_records[666]));
-        
-        $file = $CFG->dataroot.'/groups.xml';
-        $this->assertFileExists($file);
+        $custom_dir = isset($CFG->apreport_dir_path) ? $CFG->apreport_dir_path.DIRECTORY_SEPARATOR : null;
+        list($path,$file) = lmsGroupMembership::get_filepath();;
+        $this->assertFileExists($path.$file);
 
     }
     
