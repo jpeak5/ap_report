@@ -65,18 +65,15 @@ abstract class apreport {
      */
     public static function create_file($contents)  {
         
-        global $CFG;
-        $dir = isset($CFG->apreport_dir_path) ? $CFG->apreport_dir_path : 'apreport';
-        $filepath = $CFG->dataroot.DIRECTORY_SEPARATOR.$dir;
-        if(!is_dir($filepath)){
-            if(!mkdir($filepath, 0744, true)){
+        list($path,$filename) = static::get_filepath();
+        if(!is_dir($path)){
+            if(!mkdir($path, 0744, true)){
                 return false;
             }
         }
-        $file = $filepath.DIRECTORY_SEPARATOR.static::INTERNAL_NAME.'.xml';
+        $file = $path.$filename;
         
         $contents->formatOutput = true;
-        mtrace(sprintf("filepath == %s", $file));
         $handle = fopen($file, 'w');
         assert($handle !=false);
         $success = fwrite($handle, $contents->saveXML());
@@ -87,6 +84,13 @@ abstract class apreport {
         }
         return true;
    
+    }
+    
+    public static function get_filepath(){
+        global $CFG;
+        $dir = isset($CFG->apreport_dir_path) ? $CFG->apreport_dir_path : 'apreport';
+        $filepath = $CFG->dataroot.DIRECTORY_SEPARATOR.$dir;
+        return array($filepath.DIRECTORY_SEPARATOR,static::INTERNAL_NAME.'.xml');
     }
     
     /**
@@ -769,6 +773,8 @@ class lmsGroupMembership extends apreport{
             self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::FAILURE);
             return false;
         }else{
+            list($path,$file) = self::get_filepath();
+            assert(file_exists($path.$file));
             self::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS);
         }
         self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS,apreport_util::microtime_toString(microtime()));
