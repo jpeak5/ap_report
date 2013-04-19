@@ -20,9 +20,6 @@ $string['apr_nopermission']         = "You don't have permission to access this 
 //lmsEnrollment
 $string['lmsEn_comp_stat_hdr']  = 'Completion Status';
 $string['lmsEn_hdr']            = 'lmsEnrollment';
-//$string['lmsEn_filename']       = 'Filename';
-//$string['lmsEn_filename_desc']  = 'give a name for the xml file (the extension is not required here).';
-//$string['lmsEn_filename_deflt'] = 'enrollment';
 
 //----------- lmsEn Status
 $string['lmsEn_success']        = 'Last Run began at {$a->lmsEn_start} and completed at {$a->lmsEn_stop}. {$a->lmsEn_instr}';
@@ -30,7 +27,7 @@ $string['lmsEn_job_unended']    = 'FAILURE! Last job began at {$a->lmsEn_start} 
 $string['never_run']            = 'There is no evidence that this proces has ever run...- [Run now]({$a->reprocess})';
 $string['first_run']            = 'This appears to be the first run of the system as there is no old completion time set. ';
 $string['no_start_set']         = 'ERROR: job completion time is set as {$a->lmsEn_stop}, but no start time exists in the db.';
-$string['lmsEn_no_activity']    = "Failure getting enrollment data: Check to be sure that log data reflects user activity for the requested timeframe. ";
+$string['lmsEn_no_activity']    = 'Failure getting enrollment data for the time range {$a->start} - {$a->end}: Check to be sure that log data reflects user activity for the requested timeframe. ';
 
 
 //----------- lmsEn URLs
@@ -63,7 +60,6 @@ $string['lmsSecGrp_pi_role_dsc']= 'roles that should be considered when querying
 //lmsCoursework
 $string['lmsCwk_hdr']           = 'lmsCoursework Report';
 $string['lmsCwk_hdr_desc']      = 'The lmsCoursework report aggregates information about assignments, their due dates and grades on a per-user basis. Click to [reprocess]({$a->cwk}).{$a->cwk_status_sub}{$a->cwk_status}';
-$string['cwk_status_all']       = "Overall job status";
 $string['lmsCwk_fq_prefix']     = 'apreport_lmsCoursework_';
 $string['lmsCwk_subrept_thead'] = 'Sub-report';
 $string['lmsCwk_status_thead']  = '&lt;stage&gt;: &lt;status&gt; [: &lt;info&gt;]';

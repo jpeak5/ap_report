@@ -7,6 +7,11 @@ require_once('classes/dbal.php');
 require_once('classes/enrollment.php');
 
 
+$_s = function($key,$a=null) {
+    return get_string($key, 'local_ap_report', $a);
+};
+
+
 function local_ap_report_cron(){
     global $CFG;
     if($CFG->apreport_with_cron != 1){
@@ -115,7 +120,7 @@ class apreport_job_stage{
     const PERSIST    = 'persist new data';
     const RETRIEVE   = 'retrieve data';
     const SAVE_XML   = 'Save XML';
-    const COMPLETE   = 'complete';
+    const COMPLETE   = 'done';
     const ABORT      = 'aborted';
 }
 
@@ -336,6 +341,7 @@ class lmsEnrollment extends apreport{
         $semesters = $this->enrollment->get_active_ues_semesters();
         if(empty($semesters)){
             add_to_log(1, 'ap_reports', 'no active semesters');
+            self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::EXCEPTION, 'No active semesters'.apreport_util::microtime_toString(microtime()));
             return false;
         }
         $this->enrollment->get_active_users($this->start, $this->end);
@@ -348,6 +354,7 @@ class lmsEnrollment extends apreport{
                 array_keys($this->enrollment->active_users));
         if(!$data){
             add_to_log(1, 'ap_reports', 'no user activity');
+            self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::EXCEPTION, 'No enrollment data for active users'.apreport_util::microtime_toString(microtime()));
             return false;
         }
         $tree     = $this->enrollment->get_active_students($this->start, $this->end);
@@ -569,12 +576,14 @@ class lmsEnrollment extends apreport{
         if(!$this->enrollment->get_active_users($this->start,$this->end)){
             $doc = new DOMDocument();
             $doc->appendChild(new DOMElement('lmsEnrollments', "No Data. Check for user activity in the moodle log table"));
+            self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, 'No user activity '.apreport_util::microtime_toString(microtime()));
             set_config('apreport_job_complete', microtime(true));
             return $doc;
         }
         
         if(!$this->get_enrollment()){
             add_to_log(1, 'ap_reports', 'get_enrollment failure');
+                self::update_job_status(apreport_job_stage::QUERY, apreport_job_status::EXCEPTION, 'Failure getting complete enrollment data '.apreport_util::microtime_toString(microtime()));
             return false;
         }
         set_config('apreport_got_enrollment', true);
@@ -583,7 +592,9 @@ class lmsEnrollment extends apreport{
         
         if(!$xml){
             add_to_log(1, 'ap_reports', 'no user activity');
-            self::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::FAILURE, apreport_util::microtime_toString(microtime()));
+            self::update_job_status(apreport_job_stage::ABORT, apreport_job_status::EXCEPTION, 'No user activity '.apreport_util::microtime_toString(microtime()));
+            //just because there are no users, don't fail
+            set_config('apreport_job_complete', microtime(true));
             return false;
         }
         set_config('apreport_got_xml', true);
@@ -679,16 +690,16 @@ class lmsEnrollment extends apreport{
     
     public function delete_persist_records(){
         $delete = $this->delete_enrollment_data();
+
         if(!$delete){
             add_to_log(1, 'ap_reports', 'db error: delete_records');
+            self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE, 'could not delete records'.apreport_util::microtime_toString(microtime()));
             return false;
         }
-
-        
         $inserts = $this->save_enrollment_activity_records();
         if(!$inserts){
             add_to_log(1, 'ap_reports', 'db error: save_activity ');
-            self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE);
+            self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::FAILURE, 'db insert failed');
             return false;
         }
         self::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS);

@@ -10,6 +10,14 @@ $_s = function($key,$a=null) use ($plugin){
     return get_string($key, $plugin, $a);
 };
 
+$status = function ($comp){
+    global $CFG;
+    $status = 'apreport_'.$comp;
+    $msg_core = html_writer::tag('em', html_writer::tag('strong', $CFG->$status));    
+    $br = html_writer::empty_tag('br');
+    return html_writer::tag('p','Copmpletion Status for last run:'.$br.$msg_core);
+};
+
 //global $ADMIN;
 if ($hassiteconfig) {
     require_once dirname(__FILE__) . '/lib.php';
@@ -96,7 +104,7 @@ if ($hassiteconfig) {
     }
     if(!$CFG->apreport_got_xml){
         $a->mdl_dataroot = $CFG->dataroot.'/ ';
-        $a->lmsEn_instr .= $_s('apr_file_not_writable');
+        
     }
     //end init vars
     
@@ -134,7 +142,7 @@ if ($hassiteconfig) {
             new admin_setting_heading(
                     'apreports_settings',
                     $_s('lmsEn_hdr'),
-                    $lmsEn_options.$status_msg
+                    $lmsEn_options.$status_msg.$status('lmsEnrollment')
                     ));    
     
 
@@ -150,7 +158,7 @@ if ($hassiteconfig) {
         new admin_setting_heading(
                 'group_membership_header', 
                 $_s('lmsGM_hdr'),  
-                $_s('lmsGM_hdr_desc',$a)
+                $_s('lmsGM_hdr_desc',$a).$status('lmsGroupMembership')
                 ));
     
     
@@ -165,7 +173,7 @@ if ($hassiteconfig) {
         new admin_setting_heading(
                 'section_groups_header', 
                 $_s('lmsSecGrp_hdr'),  
-                $_s('section_groups_header_desc', $a)
+                $_s('section_groups_header_desc', $a).$status('lmsSectionGroup')
                 ));
     
     //config selects for primary inst/coach
@@ -210,19 +218,18 @@ if ($hassiteconfig) {
     
     $tbl->data = $data;
     
-    //overall status
-    $stat = html_writer::tag('em', html_writer::tag('strong', $CFG->apreport_lmsCoursework));
     
     //lang strings
     $a->cwk_status_sub = html_writer::table($tbl);
     $cwk = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'coursework'));
     $a->cwk = $cwk->out(false);    
-    $a->cwk_status = sprintf("%s: %s", $_s('cwk_status_all'), $stat);
+    $a->cwk_status = $status('lmsCoursework');
     
     $settings->add(
         new admin_setting_heading(
                 'lmsCoursework_header', 
-                $_s('lmsCwk_hdr'),  get_string('lmsCwk_hdr_desc',$plugin, $a)
+                $_s('lmsCwk_hdr'),  
+                $_s('lmsCwk_hdr_desc',$a)
                 ));
     
     $ADMIN->add('localplugins', $settings);

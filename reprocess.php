@@ -8,6 +8,10 @@ require_login();
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once($CFG->libdir.'/cronlib.php');
     
+$_s = function($key,$a=null) {
+    return get_string($key, 'local_ap_report', $a);
+};
+
 $header = "online reports";
 $context = get_system_context();
 $PAGE->set_context($context);
@@ -60,11 +64,7 @@ if(is_siteadmin($USER)){
         if(!$xml){
             echo html_writer::tag(
                     'p',
-                    get_string(
-                            'no_activity__summary',
-                            'local_ap_report', 
-                            $a
-                            )
+                    $_s('lmsEn_no_activity',$a)
                     );
         }else{
             assert(get_class($xml) == 'DOMDocument');
