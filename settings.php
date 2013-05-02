@@ -13,6 +13,7 @@ $_s = function($key,$a=null) use ($plugin){
 $status = function ($comp){
     global $CFG;
     $status = 'apreport_'.$comp;
+    if(!isset($CFG->$status)) return;
     $msg_core = html_writer::tag('em', html_writer::tag('strong', $CFG->$status));    
     $br = html_writer::empty_tag('br');
     return html_writer::tag('p','Copmpletion Status for last run:'.$br.$msg_core);
@@ -97,12 +98,17 @@ if ($hassiteconfig) {
     $a->lmsEn_instr ='';
     $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? apreport_util::microtime_toString($CFG->apreport_job_complete) : null;
     $a->lmsEn_start = isset($CFG->apreport_job_start)    ? apreport_util::microtime_toString($CFG->apreport_job_start)    : null;
-    $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
+    
+    if(isset($CFG->apreport_job_complete) and isset($CFG->apreport_job_start)){
+        $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
+    }else{
+        $correct_order = false;
+    }
 
-    if(!$CFG->apreport_got_enrollment){
+    if(isset($CFG->apreport_got_enrollment) and !$CFG->apreport_got_enrollment){
         $a->lmsEn_instr .= $_s('lmsEn_no_activity');
     }
-    if(!$CFG->apreport_got_xml){
+    if(isset($CFG->apreport_got_xml) and !$CFG->apreport_got_xml){
         $a->mdl_dataroot = $CFG->dataroot.'/ ';
         
     }
@@ -212,7 +218,7 @@ if ($hassiteconfig) {
 
         $k = html_writer::tag('strong', strtoupper($sr));
         $cells[] = $k;
-        $cells[] = $CFG->$r;
+        $cells[] = isset($CFG->$r) ? $CFG->$r : '';
         $data[]  = new html_table_row($cells);
     }
     
