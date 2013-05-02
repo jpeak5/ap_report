@@ -198,7 +198,7 @@ if ($hassiteconfig) {
     $coach_defaults = array(4,19,20,21);
     $settings->add(
             new admin_setting_configmultiselect(
-                    'lmsSecGrp',
+                    'apreport_coach_roles',
                     $_s('lmsSecGrp_coach_roles'), 
                     $_s('lmsSecGrp_coach_sel'),
                     $coach_defaults, $roles)
