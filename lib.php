@@ -18,12 +18,14 @@ function local_ap_report_cron(){
         return true;
     }
     $current_hour = (int)date('H');
+    $now = new DateTime();
+    $begin_current_hour = strtotime($now->format('Y-m-d H'));
 
     $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
 
     $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroup','lmsCoursework');
 
-    if($current_hour == $acceptable_hour){
+    if(($current_hour == $acceptable_hour) and (time()-$begin_current_hour < 1800)){
         foreach($reports as $r){
             mtrace("Begin {$r} report...");
             $report = new $r();
