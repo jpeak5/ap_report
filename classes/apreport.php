@@ -58,10 +58,10 @@ class apreportRecord extends tbl_model{
     }
     
     public static function format_enrollmentid($y,$sid, $cid, $snum){
-        $year_part  = self::format_year($y);
+//        $year_part  = self::format_year($y);
         $mdlcourseid= self::format_5d_courseid($cid);
         $snum = self::format_section_number($snum);
-        return $year_part.$sid.$mdlcourseid.$snum;
+        return $y.$sid.$mdlcourseid.$snum;
     }
     
     public static function format_courseid($d, $s){
