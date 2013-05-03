@@ -48,12 +48,11 @@ echo $OUTPUT->header();
 
 if(is_siteadmin($USER)){
 
-    
     //get records
     if($mode == 'reprocess' or $mode == 'preview'){
         mtrace('running reprocess or preview');
-        $report = new lmsEnrollment();    
-        $xml = $mode == 'reprocess' ? $report->run() : $report->preview_today();
+        $report = new lmsE();    
+        $xml = $mode == 'reprocess' ? $report->run() : $report->run();
         
         $a = new stdClass();
         $a->start = strftime('%F %T',$report->start);
