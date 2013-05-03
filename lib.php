@@ -130,6 +130,157 @@ class apreport_job_stage{
     const ABORT      = 'aborted';
 }
 
+
+
+class lmsE extends apreport{
+//    public $enrollment;
+    
+    public function __construct($enrol=null) {
+//        $this->enrollment = isset($enrol) ? $enrol : new enrollment_model();
+        
+        list($this->start, $this->end) = apreport_util::get_yesterday();
+        
+        $this->filename = '/enrollment.xml';
+    }
+    
+    public function getEnrollment(){
+        
+        $sql = "
+            SELECT
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),us.sec_number) AS enrollmentId,
+                u.id AS mdl_uid,
+                c.id AS mdl_cid,
+                u.idnumber AS studentId,
+                CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+                us.sec_number AS sectionId,
+                usem.id AS usem_id,
+                usem.classes_start AS startDate,
+                usem.grades_due AS endDate,
+                'A' AS status
+            FROM mdl_course AS c
+                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
+                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
+                INNER JOIN mdl_user AS u ON u.id = ra.userid
+                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+            WHERE ra.roleid IN (5)
+                AND usem.classes_start < UNIX_TIMESTAMP(NOW())
+                AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                AND ustu.status = 'enrolled'
+            ";
+        global $DB;
+        $flat = $DB->get_records_sql($sql);
+        $enrollments = array();
+        foreach($flat as $f){
+            if(!isset($enrollments[$f->mdl_uid])){
+                $enrollments[$f->mdl_uid] = array();
+            }
+            if(!isset($enrollments[$f->mdl_uid][$f->mdl_cid])){
+                
+                $enrollments[$f->mdl_uid][$f->mdl_cid] = $f;
+            }
+            
+        }
+        return $enrollments;
+    }
+    
+    
+    public function getLogs(){
+        global $DB;
+        $sql = vsprintf(
+           "SELECT 
+               log.id AS logid
+               ,usect.id AS sectionid
+               ,usect.semesterid AS semesterid
+               ,log.time AS time
+               ,log.userid
+               ,log.course
+               ,log.action
+            FROM 
+                {enrol_ues_sections} usect
+            LEFT JOIN
+                {course} course ON course.idnumber = usect.idnumber
+            LEFT JOIN
+                {log} log on course.id = log.course
+            WHERE 
+                log.time > %s 
+                AND 
+                log.time < %s AND (log.course > 1 OR log.action = 'login')
+            ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
+        $logs = $DB->get_records_sql($sql);
+        
+        $ulogs =array();
+        
+        foreach($logs as $log){
+            if(!isset($ulogs[$log->userid])){
+                $ulogs[$log->userid] = array();
+            }
+            if(!isset($ulogs[$log->userid][$log->course])){
+                $ulogs[$log->userid][$log->course] = array();
+            }
+            $ulogs[$log->userid][$log->course][] = $log;
+            
+        }
+        
+        return $ulogs;
+    }
+    
+    public function getPriorRecords(){
+        global $DB;
+        $sql = "select 
+                    distinct CONCAT(ap.userid, ap.sectionid) AS uniq, 
+                    ap.userid, 
+                    c.id 
+                    from 
+                        mdl_apreport_enrol ap 
+                            INNER JOIN mdl_enrol_ues_sections usect on usect.id = ap.sectionid 
+                            INNER JOIN mdl_course c ON c.idnumber = usect.idnumber;";
+        
+        $recs = $DB->get_records_sql($sql);
+        $rets = array();
+        foreach($recs as $r){
+            if(!isset($rets[$r->userid])){
+                $rets[$r->userid] = array($r->id);
+            }else{
+                $rets[$r->userid][] = $r->id;
+            }
+        }
+        return $rets;
+    }
+    
+    public function calculateTimes(){
+        
+    }
+    
+    public function run(){
+        $enrs = $this->getEnrollment();
+        $logs = $this->getLogs();
+        $active = array_keys($logs);
+        $priors = $this->getPriorRecords();
+        
+        $acc = array();
+        foreach($enrs as $user=>$recs){
+            
+            if(array_key_exists($user, $active)){
+                $acc+= $this->calculateTimes();
+            }else{
+               foreach($recs as $rec){
+                   if(array_key_exists($user, $priors) and in_array($rec->courseid, $priors[$user])){
+                       continue;
+                   }else{
+                       $add = lmsEnrollmentRecord::instantiate($rec);
+                       $add->timsespentinclass = 0;
+                       
+                       $acc[] = $add;
+                   }
+               }
+            }
+        }
+    }
+}
+
 class lmsEnrollment extends apreport{
 
     
@@ -198,6 +349,10 @@ class lmsEnrollment extends apreport{
             $rec = new lmsEnrollmentRecord($rec);
             $rec->validate();
 
+            if(in_array($rec->enrollmentId, $this->enrollment->all_users)){
+                unset($this->enrollment->all_users[$rec-enrollmentId]);
+            }
+            
             $lmsEnollment = $doc->createElement('lmsEnrollment');
 
             foreach($internal2xml as $k => $v){
@@ -380,7 +535,7 @@ class lmsEnrollment extends apreport{
      * @param int $end   max time boundary
      * @return array stdClass | false if no rows are returned
      */
-    public function get_enrollment_activity_records(){
+    public function get_enrollment_activity_records()              {
         
         global $DB;
         $enrollments = array();
