@@ -58,6 +58,8 @@ class enrollment_model {
      */
     public $active_users;
     
+    public $all_enrollment_records;
+    public $all_users;
     /**
      * holds mdl_course.id ofo each current course
      * used in lmsCoursework report
@@ -536,6 +538,30 @@ class enrollment_model {
 
         return $s;
     }
+    
+    public function get_all_users(){
+        $sql = "SELECT
+            CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),us.sec_number) AS enrollmentId,
+            u.idnumber AS studentId,
+            CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
+            us.sec_number AS sectionId,
+            usem.classes_start AS startDate,
+            usem.grades_due AS endDate,
+            'A' AS status
+        FROM mdl_course AS c
+            INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
+            INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
+            INNER JOIN mdl_user AS u ON u.id = ra.userid
+            INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
+            INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+            INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
+            INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+        WHERE ra.roleid IN (5)
+            AND usem.classes_start < UNIX_TIMESTAMP(NOW())
+            AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+            AND ustu.status = 'enrolled'";
+    }
+    
     
     /**
      * this function is a utility method that helps optimize the overall 

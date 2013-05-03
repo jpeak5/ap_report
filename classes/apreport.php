@@ -96,14 +96,38 @@ class lmsEnrollmentRecord extends apreportRecord{
     public $year;       //from ues_semester
     public $name;       //from ues_semester
     public $session_key;//from ues_semester
-    public $status;
+    
     public $lastaccess;
     public $timespent;
     public $sectionnumber;
     public $coursenumber;
     public $department;
+    
+    
+    
+    public $enrollmentid;
+    public $studentid;
+    public $courseid;
+    public $sectionid;
     public $startdate;
     public $enddate;
+    public $status;
+    public $lastcourseaccess;
+    public $timespentinclass;
+    
+    public $camels = array(
+        'enrollmentid'      => 'enrollmentId',
+        'studentid'         => 'studeintId',
+        'courseid'          => 'coruseId',
+        'sectionid'         => 'sectionId',
+        'startdate'         => 'startDate',
+        'enddate'           => 'endDate',
+        'status'            => 'status',
+        'lastcourseaccess'  => 'lastCourseAccess',
+        'tiemspentinclass'  => 'timeSpentInClass',
+        );
+
+    
     
     public function __construct($record){
         
