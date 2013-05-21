@@ -130,17 +130,42 @@ class apreport_job_stage{
     const ABORT      = 'aborted';
 }
 
-
+class ap_student extends tbl_model{
+    public $enrollmentId;
+    public $uid;
+    public $studentId;
+    public $startDate;
+    public $endDate;
+    public $status;
+    
+    public $logs;
+    public $courses; //ids only
+    
+    //array
+    public $enrollments;
+    
+    public function getInactiveCourseIds(){
+        
+    }
+    
+}
 
 class lmsE extends apreport{
 //    public $enrollment;
+    const INTERNAL_NAME = 'lmsEnrollment';
     
-    public function __construct($enrol=null) {
+    public $logs;
+    public $timespent_records;
+    public $active_users;
+    
+    public function __construct() {
 //        $this->enrollment = isset($enrol) ? $enrol : new enrollment_model();
         
         list($this->start, $this->end) = apreport_util::get_yesterday();
-        
+        //@TODO allow user to specify
         $this->filename = '/enrollment.xml';
+        $this->logs   = $this->getLogs();
+        $this->timespent_records = $this->getPriorRecords();
     }
     
     public function getEnrollment(){
@@ -148,8 +173,8 @@ class lmsE extends apreport{
         $sql = "
             SELECT
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),us.sec_number) AS enrollmentId,
-                u.id AS mdl_uid,
-                c.id AS mdl_cid,
+                u.id AS uid,
+                c.id AS cid,
                 u.idnumber AS studentId,
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
                 us.sec_number AS sectionId,
@@ -157,30 +182,36 @@ class lmsE extends apreport{
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,
                 'A' AS status
-            FROM mdl_course AS c
-                INNER JOIN mdl_context AS ctx ON c.id = ctx.instanceid
-                INNER JOIN mdl_role_assignments AS ra ON ra.contextid = ctx.id
-                INNER JOIN mdl_user AS u ON u.id = ra.userid
-                INNER JOIN mdl_enrol_ues_sections us ON c.idnumber = us.idnumber
-                INNER JOIN mdl_enrol_ues_students ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN mdl_enrol_ues_semesters usem ON usem.id = us.semesterid
-                INNER JOIN mdl_enrol_ues_courses uc ON uc.id = us.courseid
+            FROM {course} AS c
+                INNER JOIN {context} AS ctx ON c.id = ctx.instanceid
+                INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
+                INNER JOIN {user} AS u ON u.id = ra.userid
+                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
             WHERE ra.roleid IN (5)
                 AND usem.classes_start < UNIX_TIMESTAMP(NOW())
                 AND usem.grades_due > UNIX_TIMESTAMP(NOW())
                 AND ustu.status = 'enrolled'
+            GROUP BY enrollmentId
             ";
         global $DB;
         $flat = $DB->get_records_sql($sql);
+        
         $enrollments = array();
         foreach($flat as $f){
-            if(!isset($enrollments[$f->mdl_uid])){
-                $enrollments[$f->mdl_uid] = array();
+
+            if(!isset($enrollments[$f->uid])){
+                $enrollments[$f->uid] = ap_student::instantiate($f);
             }
-            if(!isset($enrollments[$f->mdl_uid][$f->mdl_cid])){
-                
-                $enrollments[$f->mdl_uid][$f->mdl_cid] = $f;
+            
+            if(!in_array($f->cid, array_keys($enrollments[$f->uid]->courses))){
+                $enrollments[$f->uid][$f->cid] = $f;
+            }else{
+                throw new Exception(sprintf('multiple course enrollments for user %d', $$f->uid));
             }
+            
             
         }
         return $enrollments;
@@ -208,7 +239,10 @@ class lmsE extends apreport{
                 log.time > %s 
                 AND 
                 log.time < %s AND (log.course > 1 OR log.action = 'login')
-            ORDER BY sectionid, log.time ASC;",array($this->start, $this->end));
+            GROUP BY logid
+            ORDER BY sectionid, log.time ASC
+            ;"
+                ,array($this->start, $this->end));
         $logs = $DB->get_records_sql($sql);
         
         $ulogs =array();
@@ -238,46 +272,70 @@ class lmsE extends apreport{
                             INNER JOIN mdl_enrol_ues_sections usect on usect.id = ap.sectionid 
                             INNER JOIN mdl_course c ON c.idnumber = usect.idnumber;";
         
-        $recs = $DB->get_records_sql($sql);
-        $rets = array();
-        foreach($recs as $r){
-            if(!isset($rets[$r->userid])){
-                $rets[$r->userid] = array($r->id);
+        $enrlmnts = $DB->get_records_sql($sql);
+        $priors = array();
+        foreach($enrlmnts as $e){
+            if(!isset($priors[$e->userid])){
+                $priors[$e->userid] = array($e->id);
             }else{
-                $rets[$r->userid][] = $r->id;
+                $priors[$e->userid][] = $e->id;
             }
         }
-        return $rets;
+        return $priors;
     }
     
-    public function calculateTimes(){
-        
+    public function isActiveUser($uid){
+        return array_key_exists($uid, array_keys($this->logs));
+    }
+    
+    public function processTimeSpent($users, $active){
+        $acc = array();
+        foreach($users as $user=>$enrollments){
+            foreach($enrollments as $enr){
+                if($this->isUserActiveInCourse($user,$enr->coursid)){
+                    
+                    $acc+= $this->calculateTimes();
+                }else{
+
+                    if($this->isUserCourseRecordSet($user,$enr->coursid)){
+                        continue;
+                    }else{                       
+                        $acc[] = $this->getZeroTimeRecord($enr);
+                    }
+                }
+            }
+        }
+        return $acc;
+    }
+    
+    /**
+     * 
+     * @param type $uid userid
+     * @param type $cid courseid
+     */
+    public function isUserCourseRecordSet($uid, $cid){
+        return array_key_exists($uid, $this->timespent_records) and in_array($cid, $this->timespent_records[$uid]);
+    }
+    
+    public function isUserActiveInCourse($uid, $cid){
+        return $this->isActiveUser($uid) and array_key_exists($cid, array_keys($this->logs[$uid]));
+    }
+    
+    public function getZeroTimeRecord($enrol_record){
+        $fresh = lmsEnrollmentRecord::instantiate($enrol_record);
+        $fresh->timespentinclass = 0;
+        return $fresh;
     }
     
     public function run(){
-        $enrs = $this->getEnrollment();
-        $logs = $this->getLogs();
-        $active = array_keys($logs);
-        $priors = $this->getPriorRecords();
-        
-        $acc = array();
-        foreach($enrs as $user=>$recs){
-            
-            if(array_key_exists($user, $active)){
-                $acc+= $this->calculateTimes();
-            }else{
-               foreach($recs as $rec){
-                   if(array_key_exists($user, $priors) and in_array($rec->courseid, $priors[$user])){
-                       continue;
-                   }else{
-                       $add = lmsEnrollmentRecord::instantiate($rec);
-                       $add->timsespentinclass = 0;
-                       
-                       $acc[] = $add;
-                   }
-               }
-            }
-        }
+        $users  = $this->getEnrollment();
+
+
+        $xdoc = lmsEnrollmentRecord::toXMLDoc(
+                $this->processTimeSpent($users, array_keys($this->logs)), 
+                'lmsEnrollments', 
+                'lmsEnrollment');
+        self::create_file($xdoc);
     }
 }
 

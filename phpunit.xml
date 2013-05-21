@@ -11,10 +11,10 @@
         backupStaticAttributes="false"
         stopOnError="false"
         stopOnFailure="false"
-        stopOnIncomplete="true"
-        stopOnSkipped="true"
+        stopOnIncomplete="false"
+        stopOnSkipped="false"
         strict="false"
-        verbose="true"
+        verbose="false"
         printerClass="Hint_ResultPrinter"
         >
 

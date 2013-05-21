@@ -428,18 +428,7 @@ class course extends tbl_model{
      */
     public $ap_report;
     
-    public static function instantiate($params){
-        $inst = new self();
-        $keys = get_object_vars($inst);
-        
-        foreach($params as $k => $v){
-            if(array_key_exists($k, $keys)){
-                mtrace(sprintf("matched class key %s", $k));
-                $inst->$k = $v;
-            }
-        }
-        return $inst;
-    }
+
     
     public static function make_test_instance($dept, $cou_num){
         $inst = new self();

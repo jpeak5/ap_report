@@ -115,7 +115,7 @@ class lmsEnrollmentRecord extends apreportRecord{
     public $lastcourseaccess;
     public $timespentinclass;
     
-    public $camels = array(
+    public static $camels = array(
         'enrollmentid'      => 'enrollmentId',
         'studentid'         => 'studeintId',
         'courseid'          => 'coruseId',
@@ -124,26 +124,13 @@ class lmsEnrollmentRecord extends apreportRecord{
         'enddate'           => 'endDate',
         'status'            => 'status',
         'lastcourseaccess'  => 'lastCourseAccess',
-        'tiemspentinclass'  => 'timeSpentInClass',
+        'timespentinclass'  => 'timeSpentInClass',
+        'extensions'        => 'extensions'
         );
 
     
     
-    public function __construct($record){
-        
-        if(!is_array($record)){
-            $record = (array)$record;
-        }
-        
-        $fields = get_class_vars('lmsEnrollmentRecord');
-        
-        foreach($fields as $field => $value){
-            if(array_key_exists($field, $record)){
-                $this->$field = $record[$field];
-            }
-        }
-  
-    }
+
     /**
      * @TODO refactor this to take advantage of the tbl_model::camelize() method
      */
