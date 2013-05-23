@@ -131,23 +131,25 @@ class apreport_job_stage{
 }
 
 class ap_student extends tbl_model{
-    public $enrollmentId;
+    public $enrollmentid;
     public $uid;
-    public $studentId;
-    public $startDate;
-    public $endDate;
+    public $studentid;
+    public $startdate;
+    public $enddate;
     public $status;
+    public $usectid;
     
-    public $logs;
-    public $courses; //ids only
-    
-    //array
     public $enrollments;
+
     
-    public function getInactiveCourseIds(){
-        
+    public function getCourses(){
+        return $this->enrollments;
+    }
+    public function getCourseIDs(){
+        return array_keys($this->enrollments);
     }
     
+
 }
 
 class lmsE extends apreport{
@@ -163,13 +165,13 @@ class lmsE extends apreport{
         
         list($this->start, $this->end) = apreport_util::get_yesterday();
         //@TODO allow user to specify
-        $this->filename = '/enrollment.xml';
-        $this->logs   = $this->getLogs();
+        $this->filename          = '/enrollment.xml';
+        
         $this->timespent_records = $this->getPriorRecords();
     }
     
     public function getEnrollment(){
-        
+        global $DB;
         $sql = "
             SELECT
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),us.sec_number) AS enrollmentId,
@@ -181,6 +183,7 @@ class lmsE extends apreport{
                 usem.id AS usem_id,
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,
+                us.id as usectid,
                 'A' AS status
             FROM {course} AS c
                 INNER JOIN {context} AS ctx ON c.id = ctx.instanceid
@@ -196,7 +199,7 @@ class lmsE extends apreport{
                 AND ustu.status = 'enrolled'
             GROUP BY enrollmentId
             ";
-        global $DB;
+        
         $flat = $DB->get_records_sql($sql);
         
         $enrollments = array();
@@ -206,10 +209,10 @@ class lmsE extends apreport{
                 $enrollments[$f->uid] = ap_student::instantiate($f);
             }
             
-            if(!in_array($f->cid, array_keys($enrollments[$f->uid]->courses))){
-                $enrollments[$f->uid][$f->cid] = $f;
+            if(empty($enrollments[$f->uid]->enrollments) || !in_array($f->cid, array_keys($enrollments[$f->uid]->enrollments))){
+                $enrollments[$f->uid]->enrollments[$f->cid] = $f;
             }else{
-                throw new Exception(sprintf('multiple course enrollments for user %d', $$f->uid));
+                mtrace(sprintf('multiple course enrollments for user %d', $f->uid));
             }
             
             
@@ -287,25 +290,31 @@ class lmsE extends apreport{
     public function isActiveUser($uid){
         return array_key_exists($uid, array_keys($this->logs));
     }
-    
-    public function processTimeSpent($users, $active){
-        $acc = array();
-        foreach($users as $user=>$enrollments){
-            foreach($enrollments as $enr){
-                if($this->isUserActiveInCourse($user,$enr->coursid)){
-                    
-                    $acc+= $this->calculateTimes();
-                }else{
 
-                    if($this->isUserCourseRecordSet($user,$enr->coursid)){
-                        continue;
-                    }else{                       
-                        $acc[] = $this->getZeroTimeRecord($enr);
-                    }
-                }
+    public function calculateTimes() {
+        
+    }
+    
+    public function processUsers($users, $active){
+        $r = array();
+        foreach($users as $user){
+            if((array() == $user->getCourseIDs())){
+                //no courses at all; shouldn't happen
+                mtrace(sprintf("no courses at all for user %s", $user->uid), '\n');
+                continue;
+            }
+            $user->neverLoggedInCourses = $this->getNeverLoggedInCourses($user);
+            $r += $this->getZeroTimeRecords($user);
+            
+            
+            if(empty($this->logs[$user->uid])){
+                continue;
+            }else{
+                $user->activeCourses = array_keys($this->logs[$user->uid]);
+                $r += $this->getActivityTodayRecords($user);              
             }
         }
-        return $acc;
+        return $r;
     }
     
     /**
@@ -321,22 +330,126 @@ class lmsE extends apreport{
         return $this->isActiveUser($uid) and array_key_exists($cid, array_keys($this->logs[$uid]));
     }
     
+    public function isUserInactiveInAllCourses($user){
+        $status = 0;
+        foreach(array_keys($user->enrollments) as $cid){
+            if($this->isUserActiveInCourse($user->uid, $cid)){
+                $status++;
+            }
+        }
+        return !(bool)$status;
+    }
+    
+    /**
+     * @param ap_student $user
+     * @return int[] of courses that are neither active, according to the logs,
+     * nor have they ever been logged into by the student
+     */
+    public function getNeverLoggedInCourses($user){
+        if(!isset($user->enrollments) || empty($user->enrollments)){
+            return array();
+        }
+        $prior  = isset($this->timespent_records[$user->uid]) ? $this->timespent_records[$user->uid] : array();
+        $activeEnrollments = isset($this->logs[$user->uid]) ? $this->logs[$user->uid] : array();
+        $activeCourseIDs = array_keys($activeEnrollments);
+        
+        return array_diff(array_keys($user->enrollments), $prior, $activeCourseIDs);
+        
+    }
+    
     public function getZeroTimeRecord($enrol_record){
         $fresh = lmsEnrollmentRecord::instantiate($enrol_record);
         $fresh->timespentinclass = 0;
         return $fresh;
     }
+
+    /**
+     * 
+     * @param ap_student $user
+     * @return lmsEnrollmentRecord[]
+     */
+    public function getZeroTimeRecords($user){
+        $r = array();
+
+        foreach($user->neverLoggedInCourses as $cid){
+            $fresh = lmsEnrollmentRecord::instantiate($user->enrollments[$cid]);
+            $fresh->timespentinclass = 0;
+            $r[]   = $fresh;
+        }
+        return $r;
+    }
     
-    public function run(){
+    public function getActivityTodayRecords($user){
+        
+
+        $activity = array();
+        
+        //make one array containing log row objects for all of the stuednt's courses
+        foreach(array_values($this->logs[$user->uid]) as $arr){
+            $activity = array_merge($activity,$arr);
+        }
+        ksort($activity);
+        $c = null; //current course
+        $ue= &$user->enrollments;
+        $cids= array();
+        
+        foreach($activity as $a){
+            if(!in_array($a->course, array_keys($ue))){
+                if($a->action != 'login'){
+                    continue;
+                }
+            }
+            if(!in_array($a->course, $cids)){
+                $cids[] = $a->course;
+            }
+            if($a->action != 'login'){
+                if($c != $a->course){ //switching
+                   if( isset($ue[$c]->lastcounter)){
+                       unset($ue[$c]->lastcounter);
+                   }else{
+                       
+                   }
+                   $c  = $a->course;
+                   $ue[$c]->lastcounter = $a->time;
+                }
+                
+                if(!isset($ue[$c]->timespentinclass)){
+                    $ue[$c]->timespentinclass = 0;
+                }else{
+                    $ue[$c]->timespentinclass += $a->time - $ue[$c]->lastcounter;
+                }
+                $ue[$c]->lastcourseaccess = $a->time;
+                
+            }
+            
+        }
+        
+        $r = array();
+        foreach($cids as $cid){
+            $r[] = $ue[$cid];
+        }
+        
+        return $r;
+        
+        
+    }
+    
+    public function run($mode=null){
+        if(isset($mode) && $mode == 'preview'){
+            $this->start+= 86400;
+            $this->end  += 86400;
+        }
+        $this->logs      = $this->getLogs();
         $users  = $this->getEnrollment();
 
-
         $xdoc = lmsEnrollmentRecord::toXMLDoc(
-                $this->processTimeSpent($users, array_keys($this->logs)), 
+                $this->processUsers($users, array_keys($this->logs)), 
                 'lmsEnrollments', 
                 'lmsEnrollment');
         self::create_file($xdoc);
     }
+
+
 }
 
 class lmsEnrollment extends apreport{

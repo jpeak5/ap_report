@@ -117,8 +117,8 @@ class lmsEnrollmentRecord extends apreportRecord{
     
     public static $camels = array(
         'enrollmentid'      => 'enrollmentId',
-        'studentid'         => 'studeintId',
-        'courseid'          => 'coruseId',
+        'studentid'         => 'studentId',
+        'courseid'          => 'courseId',
         'sectionid'         => 'sectionId',
         'startdate'         => 'startDate',
         'enddate'           => 'endDate',
