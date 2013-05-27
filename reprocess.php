@@ -50,8 +50,16 @@ if(is_siteadmin($USER)){
 
     //get records
     if($mode == 'reprocess' or $mode == 'preview'){
-        mtrace('running reprocess or preview');
-        $report = new lmsE();    
+        if($mode == 'preview'){
+            mtrace('generating preview...');
+            $report = new lmsE('preview');
+        }else{
+            mtrace('running reprocess...');
+            $report = new lmsE();    
+            
+        }
+        
+        
         $xml = $mode == 'reprocess' ? $report->run() : $report->run('preview');
         
         $a = new stdClass();

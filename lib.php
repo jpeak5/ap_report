@@ -147,10 +147,15 @@ class lmsE extends apreport{
     
     public $active_enrollments;
     
-    public function __construct() {
-//        $this->enrollment = isset($enrol) ? $enrol : new enrollment_model();
-        
+    public function __construct($mode=null){
         list($this->start, $this->end) = apreport_util::get_yesterday();
+        
+        //useful for testing
+        if(isset($mode) && $mode == 'preview'){
+            $this->start+= 86400;
+            $this->end  += 86400;
+        }
+        
         //@TODO allow user to specify
         $this->filename          = '/enrollment.xml';
         
@@ -278,11 +283,21 @@ class lmsE extends apreport{
         array_walk($needZeros, function($a){
             $a->timespentinclass = 0;
         });
-        
         $r += $needZeros;
-        $r += array_map(array($this,'getActivityTodayRecords'),$needCalc);
         
+        //only calculate foreach user once
+        //get a list of user ids
+        //send all the logs records with
+        //keys that start with the user's id
+        $needCalcKeys = array_keys($needCalc);
+        $uids = array_map(function($a){
+                $out = preg_split('/-/', $a);
+                return $out[0];
+            }, $needCalcKeys);
 
+        foreach($uids as $uid){
+            $r = array_merge($r,$this->getActivityTodayRecords($uid));
+        }
         return $r;
     }
 
@@ -293,77 +308,93 @@ class lmsE extends apreport{
     public function getActivityTodayRecords($user){
         
 
-        $activity = array();
+        $activity   = array();
+        $keys       = array_keys($this->logs);
+        $ulogs      = preg_grep("/{$user}\-[0-9]+/", $keys);
         
-        
-        $keys = array_keys($this->logs);
-        $ulogs = preg_grep("/{$user->uid}\-[0,2-9]+/", $keys);
-        //make one array containing log row objects for all of the stuednt's courses
+        //make one array containing log row objects for all of the student's courses
         foreach($ulogs as $i){
             $activity = array_merge($activity,$this->logs[$i]);
         }
-        ksort($activity);
-        $c = null; //current course
-        $ue= &$user->enrollments;
-        $cids= array();
         
+        $current = null;        //current course
+        $out     = array();     //hold the records for the db
+        
+        ksort($activity);
         foreach($activity as $a){
-            if(!in_array($a->course, array_keys($ue))){
-                if($a->action != 'login'){
-                    continue;
-                }
+
+            if($a->course == 1 && $a->action != 'login'){
+                continue;
             }
-            if(!in_array($a->course, $cids)){
-                $cids[] = $a->course;
+            $k = $a->userid.'-'.$a->course;
+            //get objects into place
+            if(!array_key_exists($k, $out) and $a->course != 1){
+                $out[$k] = $this->all_enrolled_users[$k];
             }
+
             if($a->action != 'login'){
-                if($c != $a->course){ //switching
-                   if( isset($ue[$c]->lastcounter)){
-                       unset($ue[$c]->lastcounter);
+                if($current != $k){ //switching
+                   if( isset($out[$current]->lastcounter)){
+                       unset($out[$current]->lastcounter);
                    }else{
                        
                    }
-                   $c  = $a->course;
-                   $ue[$c]->lastcounter = $a->time;
+                   $current  = $k;
+                   $out[$current]->lastcounter = $a->time;
                 }
                 
-                if(!isset($ue[$c]->timespentinclass)){
-                    $ue[$c]->timespentinclass = 0;
+                if(!isset($out[$current]->timespentinclass)){
+                    $out[$current]->timespentinclass = 0;
                 }else{
-                    $ue[$c]->timespentinclass += $a->time - $ue[$c]->lastcounter;
+                    $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
                 }
-                $ue[$c]->lastcourseaccess = $a->time;
+                $out[$current]->lastcourseaccess = $a->time;
                 
             }
             
         }
+
         
-        $r = array();
-        foreach($cids as $cid){
-            $r[] = $ue[$cid];
-        }
-        
-        return $r;
+        return $out;
         
         
     }
+  /**
+   * 
+   * @param tbl_model[] $records
+   * @param string $root_name the name that the inheriting report uses as its XML root element
+   * @param string $child_name name that the inheriting report uses as child container element
+   * @return DOMDocument Description
+   */
+  public static function toXMLDoc($records, $root_name, $child_name){
+      $xdoc = new DOMDocument();
+      $root = $xdoc->createElement($root_name);
+      $root->setAttribute('university', '002010');
+      
+      if(empty($records)){
+          return false;
+      }
+      
+      foreach($records as $record){
+          $camel = self::camelize($record);
+          
+          $elemt = $xdoc->importNode(static::toXMLElement($camel,$child_name),true);
+          $root->appendChild($elemt);
+      }
+      $xdoc->appendChild($root);
+      return $xdoc;
+  }
     
-    public function run($mode=null){
-        if(isset($mode) && $mode == 'preview'){
-            $this->start+= 86400;
-            $this->end  += 86400;
-        }
-
-
-
+    public function run(){
         $xdoc = lmsEnrollmentRecord::toXMLDoc(
-                $this->processUsers(
+                    $this->processUsers(
                         $this->getEnrollment(), 
                         $this->getLogs(),
                         $this->getPriorRecords()
-                        ), 
-                'lmsEnrollments', 
-                'lmsEnrollment');
+                    ), 
+                    'lmsEnrollments', 
+                    'lmsEnrollment');
+        
         self::create_file($xdoc);
     }
 
