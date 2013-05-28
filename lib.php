@@ -166,25 +166,25 @@ class lmsE extends apreport{
         global $DB;
         $sql = "
             SELECT
-                CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),us.sec_number) AS enrollmentId,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),usect.sec_number) AS enrollmentId,
                 u.id AS uid,
                 c.id AS cid,
                 u.idnumber AS studentId,
                 CONCAT(RPAD(uc.department,4,' '),'  ',uc.cou_number) AS courseId,
-                us.sec_number AS sectionId,
-                usem.id AS usem_id,
+                usect.sec_number AS sectionId,
+                usem.id AS usemid,
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,
-                us.id as usectid,
+                usect.id as usectid,
                 'A' AS status
             FROM {course} AS c
                 INNER JOIN {context} AS ctx ON c.id = ctx.instanceid
                 INNER JOIN {role_assignments} AS ra ON ra.contextid = ctx.id
                 INNER JOIN {user} AS u ON u.id = ra.userid
-                INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
-                INNER JOIN {enrol_ues_students} ustu ON u.id = ustu.userid AND us.id = ustu.sectionid
-                INNER JOIN {enrol_ues_semesters} usem ON usem.id = us.semesterid
-                INNER JOIN {enrol_ues_courses} uc ON uc.id = us.courseid
+                INNER JOIN {enrol_ues_sections} usect ON c.idnumber = usect.idnumber
+                INNER JOIN {enrol_ues_students} ustu ON u.id = ustu.userid AND usect.id = ustu.sectionid
+                INNER JOIN {enrol_ues_semesters} usem ON usem.id = usect.semesterid
+                INNER JOIN {enrol_ues_courses} uc ON uc.id = usect.courseid
             WHERE ra.roleid IN (5)
                 AND usem.classes_start < UNIX_TIMESTAMP(NOW())
                 AND usem.grades_due > UNIX_TIMESTAMP(NOW())
@@ -252,26 +252,23 @@ class lmsE extends apreport{
     public function getPriorRecords(){
         global $DB;
         $sql = "select 
-                    distinct CONCAT(ap.userid, ap.sectionid) AS uniq, 
-                    ap.userid, 
+                    distinct CONCAT(ap.uid, ap.usectid) AS uniq, 
+                    ap.uid, 
                     c.id 
                     from 
                         mdl_apreport_enrol ap 
-                            INNER JOIN mdl_enrol_ues_sections usect on usect.id = ap.sectionid 
+                            INNER JOIN mdl_enrol_ues_sections usect on usect.id = ap.usectid 
                             INNER JOIN mdl_course c ON c.idnumber = usect.idnumber;";
         
         $enrlmnts = $DB->get_records_sql($sql);
         $priors = array();
         foreach($enrlmnts as $e){
-            $priors[$e->userid.'-'.$e->id] = $e;
+            $priors[$e->uid.'-'.$e->id] = $e;
         }
         return $priors;
     }
     
 
-
-
-    
     public function processUsers($all, $logs, $priors){
         $r = array();
 
@@ -285,7 +282,7 @@ class lmsE extends apreport{
         });
         $r += $needZeros;
         
-        //only calculate foreach user once
+        //calculate each user only once
         //get a list of user ids
         //send all the logs records with
         //keys that start with the user's id
@@ -298,15 +295,84 @@ class lmsE extends apreport{
         foreach($uids as $uid){
             $r = array_merge($r,$this->getActivityTodayRecords($uid));
         }
+        
+        
         return $r;
     }
 
+    public function db_save_records($rows) {
+        global $DB;
+        foreach($rows as $row){
+            $row->timestamp = time();
+            $DB->insert_record('apreport_enrol',$row,false,true);
+        }
+        
+    }
 
+    public function get_db_records(){
+        global $DB;
+        $sql = "
+            select 
+                CONCAT(ap.uid,'-',ap.usectid) uniq,
+                CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),usect.sec_number) AS enrollmentId,
+                ap.id, 
+                ap.uid, 
+                ap.usectid, 
+                ap.usemid, 
+                ap.timespentinclass, 
+                ap.lastcourseaccess, 
+                ap.timestamp, 
+                u.idnumber studentid, 
+                usect.sec_number sectionid, 
+                CONCAT(RPAD(ucrs.department,4,' '),'  ',ucrs.cou_number) AS courseId,
+                usem.classes_start AS startDate,
+                usem.grades_due AS endDate,'A' AS status
 
+                FROM 
+                mdl_apreport_enrol ap 
+                INNER JOIN 
+                        (
+                        SELECT max(timestamp) timestamp, usectid, uid 
+                        FROM mdl_apreport_enrol 
+                        GROUP BY usectid,uid
+                        ) latest 
+                USING(timestamp,usectid,uid)
+                LEFT JOIN mdl_enrol_ues_sections usect ON usect.id = ap.usectid 
+                LEFT JOIN mdl_user u ON ap.uid = u.id 
+                LEFT JOIN mdl_enrol_ues_courses ucrs ON ucrs.id = usect.courseid 
+                LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
+                LEFT JOIN mdl_course c on c.idnumber = usect.idnumber;";
+        return $DB->get_records_sql($sql);
+        
+    }
 
+    public function get_db_sums(){
+        global $DB;
+        $sql = "
+            SELECT 
+                CONCAT(ap.uid,'-',ap.usectid) uniq,
+                sum(ap.timespentinclass) time
+            FROM
+                mdl_apreport_enrol ap
+            GROUP BY
+                ap.uid,ap.usectid";
+        return $DB->get_records_sql($sql);
+    }
+    
+    public function get_report(){
+        $sums = $this->get_db_sums();
+        $rows = $this->get_db_records();
+        $out  = array();
+        
+        foreach($rows as $k=>$v){
+            $o = lmsEnrollmentRecord::instantiate($v);
+            $o->timespentinclass = $sums[$k]->time;
+            $out[] = $o;
+        }
+        return $out;
+    }
     
     public function getActivityTodayRecords($user){
-        
 
         $activity   = array();
         $keys       = array_keys($this->logs);
@@ -359,44 +425,56 @@ class lmsE extends apreport{
         
         
     }
-  /**
-   * 
-   * @param tbl_model[] $records
-   * @param string $root_name the name that the inheriting report uses as its XML root element
-   * @param string $child_name name that the inheriting report uses as child container element
-   * @return DOMDocument Description
-   */
-  public static function toXMLDoc($records, $root_name, $child_name){
-      $xdoc = new DOMDocument();
-      $root = $xdoc->createElement($root_name);
-      $root->setAttribute('university', '002010');
-      
-      if(empty($records)){
-          return false;
-      }
-      
-      foreach($records as $record){
-          $camel = self::camelize($record);
-          
-          $elemt = $xdoc->importNode(static::toXMLElement($camel,$child_name),true);
-          $root->appendChild($elemt);
-      }
-      $xdoc->appendChild($root);
-      return $xdoc;
-  }
+    /**
+     * 
+     * @param tbl_model[] $records
+     * @param string $root_name the name that the inheriting report uses as its XML root element
+     * @param string $child_name name that the inheriting report uses as child container element
+     * @return DOMDocument Description
+     */
+    public static function toXMLDoc($records, $root_name, $child_name){
+        $xdoc = new DOMDocument();
+        $root = $xdoc->createElement($root_name);
+        $root->setAttribute('university', '002010');
+
+        if(empty($records)){
+            return false;
+        }
+
+        foreach($records as $record){
+            $camel = self::camelize($record);
+
+            $elemt = $xdoc->importNode(static::toXMLElement($camel,$child_name),true);
+            $root->appendChild($elemt);
+        }
+        $xdoc->appendChild($root);
+        return $xdoc;
+    }
+    
+    public function drop_existing_for_timerange(){
+        global $DB;
+        $select = sprintf("lastcourseaccess > %s AND lastcourseaccess < %s;",$this->start, $this->end);
+        $DB->delete_records_select('apreport_enrol', $select);
+    }
     
     public function run(){
-        $xdoc = lmsEnrollmentRecord::toXMLDoc(
-                    $this->processUsers(
+        $this->drop_existing_for_timerange();
+        $newRecs = $this->processUsers(
                         $this->getEnrollment(), 
                         $this->getLogs(),
                         $this->getPriorRecords()
-                    ), 
-                    'lmsEnrollments', 
-                    'lmsEnrollment');
+                    );
+        //save to db
+        $this->db_save_records($newRecs);
         
+        //get all recs
+        $rep = $this->get_report();
+        $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
         self::create_file($xdoc);
+        return $xdoc;
     }
+
+
 
 
 }

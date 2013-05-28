@@ -116,6 +116,7 @@ class lmsEnrollmentRecord extends apreportRecord{
     public $timespentinclass;
     public $uid;        //mld_user.id
     public $usectid;    //mdl_enrol_ues_sections.id
+    public $usemid;
 
     public static $camels = array(
         'enrollmentid'      => 'enrollmentId',

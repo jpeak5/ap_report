@@ -60,7 +60,7 @@ if(is_siteadmin($USER)){
         }
         
         
-        $xml = $mode == 'reprocess' ? $report->run() : $report->run('preview');
+        $xml = $mode == 'reprocess' ? $report->run() : $report->run();
         
         $a = new stdClass();
         $a->start = strftime('%F %T',$report->start);

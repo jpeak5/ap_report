@@ -1,25 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/ap_report/db" VERSION="2013041611" COMMENT="XMLDB file for ap_reports local plugin"
+<XMLDB PATH="local/ap_report/db" VERSION="2013052809" COMMENT="XMLDB file for ap_reports local plugin"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
     >
     <TABLES>
         <TABLE NAME="apreport_enrol" COMMENT="holds daily activty metrics for retention management" NEXT="apreport_coursework">
             <FIELDS>
-                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="userid"/>
-                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="id" NEXT="sectionid"/>
-                <FIELD NAME="sectionid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="userid" NEXT="semesterid"/>
-                <FIELD NAME="semesterid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="sectionid" NEXT="agg_timespent"/>
-                <FIELD NAME="agg_timespent" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="semesterid" NEXT="cum_timespent"/>
-                <FIELD NAME="cum_timespent" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="true" SEQUENCE="false" PREVIOUS="agg_timespent" NEXT="lastaccess"/>
-                <FIELD NAME="lastaccess" TYPE="int" LENGTH="16" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="cum_timespent" NEXT="timestamp"/>
-                <FIELD NAME="timestamp" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="lastaccess"/>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" NEXT="uid"/>
+                <FIELD NAME="uid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="id" NEXT="usectid"/>
+                <FIELD NAME="usectid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="uid" NEXT="usemid"/>
+                <FIELD NAME="usemid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="usectid" NEXT="timespentinclass"/>
+                <FIELD NAME="timespentinclass" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="usemid" NEXT="lastcourseaccess"/>
+                <FIELD NAME="lastcourseaccess" TYPE="int" LENGTH="16" NOTNULL="false" UNSIGNED="true" SEQUENCE="false" PREVIOUS="timespentinclass" NEXT="timestamp"/>
+                <FIELD NAME="timestamp" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" PREVIOUS="lastcourseaccess"/>
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
             </KEYS>
             <INDEXES>
-                <INDEX NAME="usersect" UNIQUE="false" FIELDS="userid, sectionid"/>
+                <INDEX NAME="usersect" UNIQUE="false" FIELDS="uid, usectid"/>
             </INDEXES>
         </TABLE>
         <TABLE NAME="apreport_coursework" COMMENT="storage for daily lmsCoursework data" PREVIOUS="apreport_enrol">
