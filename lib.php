@@ -148,14 +148,16 @@ class lmsE extends apreport{
     public $active_enrollments;
     
     public function __construct($mode=null){
-        list($this->start, $this->end) = apreport_util::get_yesterday();
-        
-        //useful for testing
-        if(isset($mode) && $mode == 'preview'){
-            $this->start+= 86400;
-            $this->end  += 86400;
+        list($this->start, $this->end) = apreport_util::get_day_span(strftime('%F %T',(int)time()-86400));
+        switch($mode){
+            case 'preview':
+                $this->start+= 86400;
+                $this->end  += 86400;
+                break;
+            default:
+                null;
+                break;
         }
-        
         //@TODO allow user to specify
         $this->filename          = '/enrollment.xml';
         
@@ -293,7 +295,7 @@ class lmsE extends apreport{
             }, $needCalcKeys);
 
         foreach($uids as $uid){
-            $r = array_merge($r,$this->getActivityTodayRecords($uid));
+            $r = array_merge($r,$this->calculate_timespent($uid));
         }
         
         
@@ -309,9 +311,9 @@ class lmsE extends apreport{
         
     }
 
-    public function get_db_records(){
+    public function get_db_records($s,$e){
         global $DB;
-        $sql = "
+        $sql = sprintf("
             select 
                 CONCAT(ap.uid,'-',ap.usectid) uniq,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),usect.sec_number) AS enrollmentId,
@@ -341,27 +343,34 @@ class lmsE extends apreport{
                 LEFT JOIN mdl_user u ON ap.uid = u.id 
                 LEFT JOIN mdl_enrol_ues_courses ucrs ON ucrs.id = usect.courseid 
                 LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
-                LEFT JOIN mdl_course c on c.idnumber = usect.idnumber;";
+                LEFT JOIN mdl_course c on c.idnumber = usect.idnumber
+                
+                WHERE ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s;",$s,$e);
         return $DB->get_records_sql($sql);
         
     }
 
-    public function get_db_sums(){
+    public function get_db_sums($s,$e){
         global $DB;
-        $sql = "
+        $sql = sprintf("
             SELECT 
                 CONCAT(ap.uid,'-',ap.usectid) uniq,
                 sum(ap.timespentinclass) time
             FROM
                 mdl_apreport_enrol ap
+            WHERE ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s
             GROUP BY
-                ap.uid,ap.usectid";
+                ap.uid,ap.usectid",$s,$e);
         return $DB->get_records_sql($sql);
     }
     
-    public function get_report(){
-        $sums = $this->get_db_sums();
-        $rows = $this->get_db_records();
+    public function get_report($s=null,$e=null){
+        if(is_null($s) and is_null($e)){
+            $s = $this->start;
+            $e = $this->end;
+        }
+        $sums = $this->get_db_sums($s,$e);
+        $rows = $this->get_db_records($s,$e);
         $out  = array();
         
         foreach($rows as $k=>$v){
@@ -372,7 +381,7 @@ class lmsE extends apreport{
         return $out;
     }
     
-    public function getActivityTodayRecords($user){
+    public function calculate_timespent($user){
 
         $activity   = array();
         $keys       = array_keys($this->logs);
@@ -389,8 +398,16 @@ class lmsE extends apreport{
         ksort($activity);
         foreach($activity as $a){
 
-            if($a->course == 1 && $a->action != 'login'){
-                continue;
+            if($a->course == 1){
+                if($a->action != 'login'){
+                    continue;
+                }else{
+                    foreach(array_values($ulogs) as $ac){
+                        if(array_key_exists($ac,$out) && isset($out[$ac]->lastcounter)){
+                            unset($out[$ac]->lastcounter);
+                        }
+                    }
+                }
             }
             $k = $a->userid.'-'.$a->course;
             //get objects into place
@@ -399,23 +416,23 @@ class lmsE extends apreport{
             }
 
             if($a->action != 'login'){
-                if($current != $k){ //switching
+                if(isset($current) && $current != $k){ //switching
                    if( isset($out[$current]->lastcounter)){
                        unset($out[$current]->lastcounter);
-                   }else{
-                       
                    }
-                   $current  = $k;
-                   $out[$current]->lastcounter = $a->time;
                 }
+                //set to the new/current course
+                $current  = $k;
                 
+                
+                //first visit to the course for ths timespan
                 if(!isset($out[$current]->timespentinclass)){
                     $out[$current]->timespentinclass = 0;
                 }else{
                     $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
                 }
-                $out[$current]->lastcourseaccess = $a->time;
-                
+                //set the pickup markers for the next iteration with this course
+                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
             }
             
         }
@@ -472,6 +489,16 @@ class lmsE extends apreport{
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
         self::create_file($xdoc);
         return $xdoc;
+    }
+    
+    public function get_span_report($span){
+        switch ($span){
+            case 'yesterday':
+                $s = apreport::get_day_span(time()-86400);
+                break;
+        }
+        $this->start = $s;
+        $this->end   = $e;
     }
 
 

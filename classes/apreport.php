@@ -1,9 +1,10 @@
 <?php
 require_once('dbal.php');
 class apreport_util{
-        /**
+    /**
      * This method derives timestamps for the beginning and end of yesterday
      * @return array int contains the start and end timestamps
+     * @deprecated since version 2013052809
      */
     public static function get_yesterday($rel=null){
         $today = new DateTime($rel);
@@ -15,6 +16,24 @@ class apreport_util{
         $yesterday = new DateTime($today->format('Y-m-d'));
         $start = $yesterday->getTimestamp();
         return array($start, $end);
+    }
+    
+    /**
+     * 
+     * @param int $date_string unix timestamp
+     * @return int[] timestamp representing the first second of the 
+     * day containing $ts and the first second of the following day
+     */
+    public static function get_day_span($date_string){
+        $day = new DateTime($date_string);
+        $midnight = new DateTime($day->format('Y-m-d'));
+        $s = $midnight->getTimestamp();
+        
+        //now add one day from day's first second
+        $day->add(new DateInterval('P1D'));
+        $next_day = new DateTime($day->format('Y-m-d'));
+        $e = $next_day->getTimestamp();
+        return array($s,$e);
     }
     
     public static function microtime_toString($mt){
