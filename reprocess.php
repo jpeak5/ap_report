@@ -17,6 +17,7 @@ $context = get_system_context();
 $PAGE->set_context($context);
 $header  = format_string($SITE->shortname).": {$header}";
 $mode = optional_param('mode', null, PARAM_TEXT);
+$span = optional_param('time', null, PARAM_TEXT);
 
 
 if(isset($mode)){
@@ -32,9 +33,10 @@ $PAGE->set_title($header);
 $PAGE->set_heading($header);
 
 if($mode=='cron'){
-        if(local_ap_report_cron()){
-            redirect(new moodle_url('/admin/settings.php', array('section'=>'local_ap_report')));
-        }
+    //@TODO rewrite this meth
+    if(local_ap_report_cron()){
+        redirect(new moodle_url('/admin/settings.php', array('section'=>'local_ap_report')));
+    }
 }
 
 echo $OUTPUT->header();
@@ -53,18 +55,19 @@ if(is_siteadmin($USER)){
         if($mode == 'preview'){
             mtrace('generating preview...');
             $report = new lmsE('preview');
+            $xml = $report->get_report();
         }else{
             mtrace('running reprocess...');
-            $report = new lmsE();    
-            
+            $report = new lmsE('reprocess'); 
+            $xml = $report->run();
         }
         
         
-        $xml = $mode == 'reprocess' ? $report->run() : $report->run();
+        
         
         $a = new stdClass();
-        $a->start = strftime('%F %T',$report->start);
-        $a->end   = strftime('%F %T',$report->end);
+        $a->start = strftime('%F %T',$report->report_start);
+        $a->end   = strftime('%F %T',$report->report_end);
         
         echo html_writer::tag('h2', 'Current Enrollment');
         

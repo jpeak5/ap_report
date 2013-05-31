@@ -19,13 +19,16 @@ class apreport_util{
     }
     
     /**
-     * 
-     * @param int $date_string unix timestamp
+     * @param string $ds relative date
      * @return int[] timestamp representing the first second of the 
      * day containing $ts and the first second of the following day
      */
-    public static function get_day_span($date_string){
-        $day = new DateTime($date_string);
+    public static function get_day_span($s, $e=""){
+        $ds = isNull($ds) ? 'today' : $ds;
+        
+        $date = new DateTime();
+        $date->add(DateInterval::createFromDateString($ds));
+        $day = new DateTime($ds);
         $midnight = new DateTime($day->format('Y-m-d'));
         $s = $midnight->getTimestamp();
         
@@ -36,6 +39,22 @@ class apreport_util{
         return array($s,$e);
     }
     
+    public static function get_earliest_semester_start(){
+        global $DB;
+        //SELECT id FROM {enrol_ues_semesters} WHERE 
+        $sql = "
+            select 
+                classes_start 
+            FROM {enrol_ues_semesters} 
+            WHERE classes_start < UNIX_TIMESTAMP(NOW()) 
+                AND  grades_due > UNIX_TIMESTAMP(NOW()) 
+            ORDER BY classes_start ASC 
+            LIMIT 1;";
+            
+            $r = $DB->get_record_sql($sql);
+            return $r->classes_start;
+        
+    }
     public static function microtime_toString($mt){
         
         //default microtime()

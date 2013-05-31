@@ -66,7 +66,9 @@ abstract class apreport {
      * @param DOMDocument $contents
      */
     public static function create_file($contents)  {
-        
+        if(empty($contents)){
+            return false;
+        }
         list($path,$filename) = static::get_filepath();
         if(!is_dir($path)){
             if(!mkdir($path, 0744, true)){
@@ -137,22 +139,43 @@ class lmsE extends apreport{
     const INTERNAL_NAME = 'lmsEnrollment';
     
     public $logs;
-    public $timespent_records;
+
     
     public $all_enrolled_users;
     public $active_users;
     public $inactive_users;
     public $previously_active_users;
-    
-    
+    public $mode;
+    public $report_start;
+    public $report_end;
+    public $proc_start;
+    public $proc_end;
     public $active_enrollments;
     
-    public function __construct($mode=null){
-        list($this->start, $this->end) = apreport_util::get_day_span(strftime('%F %T',(int)time()-86400));
+    public function __construct($mode){
+        
+//        list($this->proc_start, $this->proc_end) = apreport_util::get_day_span('yesteday');
         switch($mode){
             case 'preview':
-                $this->start+= 86400;
-                $this->end  += 86400;
+                $d = new DateTime('today');
+                $this->proc_start = $this->report_start = $d->getTimestamp();
+                $this->proc_end   = $this->report_end   = $this->proc_start + 86400;
+                break;
+            case 'cron':
+                $d = new DateTime('yesterday');
+                $this->proc_start = $d->getTimestamp();
+                $this->proc_end   = $this->proc_start + 86400;
+                break;
+            case 'reprocess':
+                $d = new DateTime('yesterday');
+                $this->proc_start = $d->getTimestamp();
+                $this->proc_end   = $this->proc_start + 86400;
+                
+                $sem = new DateTime(strftime('%F',  apreport_util::get_earliest_semester_start()));
+                $this->report_start = $sem->getTimestamp();
+                $this->report_end = $this->proc_end;
+                break;
+            case 'report':
                 break;
             default:
                 null;
@@ -160,8 +183,8 @@ class lmsE extends apreport{
         }
         //@TODO allow user to specify
         $this->filename          = '/enrollment.xml';
-        
-        $this->timespent_records = $this->getPriorRecords();
+        $this->mode = $mode;
+
     }
     
     public function getEnrollment(){
@@ -232,20 +255,17 @@ class lmsE extends apreport{
             GROUP BY logid
             ORDER BY sectionid, log.time ASC
             ;"
-                ,array($this->start, $this->end));
+                ,array($this->proc_start, $this->proc_end));
         $logs = $DB->get_records_sql($sql);
         
         $ulogs =array();
         
         foreach($logs as $log){
-            
-            
             if(!isset($ulogs[$log->userid.'-'.$log->course])){
                 $ulogs[$log->userid.'-'.$log->course] = array();
             }
             
             $ulogs[$log->userid.'-'.$log->course][] = $log;
-            
         }
         
         return $this->logs = $ulogs;
@@ -270,38 +290,6 @@ class lmsE extends apreport{
         return $priors;
     }
     
-
-    public function processUsers($all, $logs, $priors){
-        $r = array();
-
-        $needCalc     = array_intersect_key($all, $logs);
-        $onRecord     = array_intersect_key($all, $priors);
-        $needZeros    = array_diff_key($all, $onRecord, $needCalc);
-        
-        //set timespent to 0 for ach of these users
-        array_walk($needZeros, function($a){
-            $a->timespentinclass = 0;
-        });
-        $r += $needZeros;
-        
-        //calculate each user only once
-        //get a list of user ids
-        //send all the logs records with
-        //keys that start with the user's id
-        $needCalcKeys = array_keys($needCalc);
-        $uids = array_map(function($a){
-                $out = preg_split('/-/', $a);
-                return $out[0];
-            }, $needCalcKeys);
-
-        foreach($uids as $uid){
-            $r = array_merge($r,$this->calculate_timespent($uid));
-        }
-        
-        
-        return $r;
-    }
-
     public function db_save_records($rows) {
         global $DB;
         foreach($rows as $row){
@@ -311,7 +299,7 @@ class lmsE extends apreport{
         
     }
 
-    public function get_db_records($s,$e){
+    public function get_db_records(){
         global $DB;
         $sql = sprintf("
             select 
@@ -345,12 +333,12 @@ class lmsE extends apreport{
                 LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
                 LEFT JOIN mdl_course c on c.idnumber = usect.idnumber
                 
-                WHERE ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s;",$s,$e);
+                WHERE (ap.lastcourseaccess >= %s AND ap.lastcourseaccess <= %s) OR ap.lastcourseaccess IS NULL;",$this->report_start,$this->report_end);
         return $DB->get_records_sql($sql);
         
     }
 
-    public function get_db_sums($s,$e){
+    public function get_db_sums(){
         global $DB;
         $sql = sprintf("
             SELECT 
@@ -358,28 +346,13 @@ class lmsE extends apreport{
                 sum(ap.timespentinclass) time
             FROM
                 mdl_apreport_enrol ap
-            WHERE ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s
+            WHERE ap.timestamp >= %s AND ap.timestamp <= %s
             GROUP BY
-                ap.uid,ap.usectid",$s,$e);
+                ap.uid,ap.usectid",$this->report_start,$this->report_end);
         return $DB->get_records_sql($sql);
     }
     
-    public function get_report($s=null,$e=null){
-        if(is_null($s) and is_null($e)){
-            $s = $this->start;
-            $e = $this->end;
-        }
-        $sums = $this->get_db_sums($s,$e);
-        $rows = $this->get_db_records($s,$e);
-        $out  = array();
-        
-        foreach($rows as $k=>$v){
-            $o = lmsEnrollmentRecord::instantiate($v);
-            $o->timespentinclass = $sums[$k]->time;
-            $out[] = $o;
-        }
-        return $out;
-    }
+
     
     public function calculate_timespent($user){
 
@@ -395,83 +368,126 @@ class lmsE extends apreport{
         $current = null;        //current course
         $out     = array();     //hold the records for the db
         
-        ksort($activity);
+        usort($activity,function($a,$b){
+            if($a->time == $b->time){
+                return 0;
+            }else{
+                return $a->time < $b->time ? -1 : 1;
+            }
+        });
         foreach($activity as $a){
+            mtrace(sprintf("%d: %s(%s)<br/>", $a->time, $a->action,$a->course));
+            $ignored        = $a->course == 1 && $a->action  !== "login";
 
-            if($a->course == 1){
-                if($a->action != 'login'){
-                    continue;
-                }else{
-                    foreach(array_values($ulogs) as $ac){
-                        if(array_key_exists($ac,$out) && isset($out[$ac]->lastcounter)){
-                            unset($out[$ac]->lastcounter);
-                        }
+            $login_event    = $a->course == 1 && $a->action  == 'login';
+            //handle login events;
+            //throw away other course=1 events
+            if($ignored){
+                continue;
+            }
+
+            if($login_event){
+                foreach(array_values($ulogs) as $ac){
+                    if(array_key_exists($ac,$out) && isset($out[$ac]->lastcounter)){
+                        unset($out[$ac]->lastcounter);
                     }
                 }
-            }
-            $k = $a->userid.'-'.$a->course;
-            //get objects into place
-            if(!array_key_exists($k, $out) and $a->course != 1){
-                $out[$k] = $this->all_enrolled_users[$k];
-            }
-
-            if($a->action != 'login'){
-                if(isset($current) && $current != $k){ //switching
-                   if( isset($out[$current]->lastcounter)){
-                       unset($out[$current]->lastcounter);
-                   }
-                }
-                //set to the new/current course
-                $current  = $k;
-                
-                
-                //first visit to the course for ths timespan
-                if(!isset($out[$current]->timespentinclass)){
-                    $out[$current]->timespentinclass = 0;
-                }else{
-                    $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
-                }
-                //set the pickup markers for the next iteration with this course
-                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
+                continue;
             }
             
-        }
+            //get objects into place
+            $k = $a->userid.'-'.$a->course;
+            if(!array_key_exists($k, $out)){
+                $out[$k] = $this->all_enrolled_users[$k];
+                $out[$k]->timespentinclass = 0;}
+            
+            
+            $c_switch  = isset($current) && ($current !== $k);
+            
+            $new_seq   = !$login_event && !isset($current);
+            $cont_seq  = !$login_event && $current == $k;
+            
+            if($new_seq){
+                mtrace(sprintf("-------exec 'new seq' Course %s<br/>",$a->course));
+                $current  = !isset($current) ? $k : $current;
+                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
+                if(!isset($out[$current]->timespentinclass)){
+                    $out[$current]->timespentinclass = 0;
+                }
+            }
+            elseif($cont_seq){
+                mtrace(sprintf("-------exec 'cont seq' Course %s: Adding %ss<br/>",$a->course, $a->time - $out[$current]->lastcounter));
+                $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
+                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
+            }
+            elseif($c_switch){
+                mtrace(sprintf("-------exec 'switch' Course %s<br/>",$a->course));
+                unset($out[$current]->lastcounter);
+                $current  = $k;
+                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
+                
+            }
+    }
 
         
         return $out;
         
         
     }
-    /**
-     * 
-     * @param tbl_model[] $records
-     * @param string $root_name the name that the inheriting report uses as its XML root element
-     * @param string $child_name name that the inheriting report uses as child container element
-     * @return DOMDocument Description
-     */
-    public static function toXMLDoc($records, $root_name, $child_name){
-        $xdoc = new DOMDocument();
-        $root = $xdoc->createElement($root_name);
-        $root->setAttribute('university', '002010');
+    
+    public function processUsers($all, $logs, $priors){
+        $r = array();
 
-        if(empty($records)){
-            return false;
+        $needCalc     = array_intersect_key($all, $logs);
+        $onRecord     = array_intersect_key($all, $priors);
+        $needZeros    = array_diff_key($all, $onRecord, $needCalc);
+        
+        //set timespent to 0 for ach of these users
+        array_walk($needZeros, function($a){
+            $a->timespentinclass = 0;
+        });
+        $r += $needZeros;
+        
+        //calculate each user only once
+        //get a list of user ids
+        //send all the logs records with
+        //keys that start with the user's id
+        $needCalcKeys = array_keys($needCalc);
+        $uids = array_map(function($a){
+                $out = preg_split('/-/', $a);
+                return (int)$out[0];
+            }, $needCalcKeys);
+            $uuid = array_unique($uids);
+        foreach($uuid as $uid){
+            $r = array_merge($r,$this->calculate_timespent($uid));
         }
-
-        foreach($records as $record){
-            $camel = self::camelize($record);
-
-            $elemt = $xdoc->importNode(static::toXMLElement($camel,$child_name),true);
-            $root->appendChild($elemt);
-        }
-        $xdoc->appendChild($root);
-        return $xdoc;
+        
+        
+        return $r;
     }
     
     public function drop_existing_for_timerange(){
         global $DB;
-        $select = sprintf("lastcourseaccess > %s AND lastcourseaccess < %s;",$this->start, $this->end);
+        $select = sprintf("lastcourseaccess >= %s AND lastcourseaccess <= %s;",$this->proc_start, $this->proc_end);
         $DB->delete_records_select('apreport_enrol', $select);
+    }
+    
+    public function get_report($s=null,$e=null){
+        if(is_null($s) and is_null($e)){
+            $d = new DateTime('today');
+            $this->report_start = !is_null($this->report_start) ? $this->report_start : $d->getTimestamp();
+            $this->report_end    = !is_null($this->report_end)   ? $this->report_end   : $this->report_start + 86400;
+        }
+        $sums = $this->get_db_sums($this->report_start,$this->report_end);
+        $rows = $this->get_db_records($this->report_start,$this->report_end);
+        $out  = array();
+        
+        foreach($rows as $k=>$v){
+            $o = lmsEnrollmentRecord::instantiate($v);
+            $o->timespentinclass = array_key_exists($k, $sums) ? $sums[$k]->time : 0;
+            $out[] = $o;
+        }
+        return lmsEnrollmentRecord::toXMLDoc($out,'lmsEnrollments', 'lmsEnrollment');
     }
     
     public function run(){
@@ -485,25 +501,14 @@ class lmsE extends apreport{
         $this->db_save_records($newRecs);
         
         //get all recs
-        $rep = $this->get_report();
+        $rep  = $this->get_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
-        self::create_file($xdoc);
-        return $xdoc;
-    }
-    
-    public function get_span_report($span){
-        switch ($span){
-            case 'yesterday':
-                $s = apreport::get_day_span(time()-86400);
-                break;
+        if($this->mode == 'cron' || $this->mode == 'reprocess'){
+            self::create_file($xdoc);
         }
-        $this->start = $s;
-        $this->end   = $e;
-    }
-
-
-
-
+        
+        return !$xdoc ? new DOMDocument() : $xdoc;    }
+    
 }
 
 
