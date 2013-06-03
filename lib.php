@@ -17,15 +17,17 @@ function local_ap_report_cron(){
     if($CFG->apreport_with_cron != 1){
         return true;
     }
-    $current_hour = (int)date('H');
-    $now = new DateTime();
-    $begin_current_hour = strtotime($now->format('Y-m-d H'));
-
+    
+    $today = new DateTime('today');
     $acceptable_hour = (int)$CFG->apreport_daily_run_time_h;
+    $begin_acceptable_hour = $today->getTimestamp() + $acceptable_hour*3600;
+    $end_acceptable_hour = $begin_acceptable_hour + 3600; 
+    
 
     $reports = array('lmsEnrollment','lmsGroupMembership', 'lmsSectionGroup','lmsCoursework');
 
-    if(($current_hour == $acceptable_hour) and (time()-$begin_current_hour < 1800)){
+    if($begin_acceptable_hour < time() && $end_acceptable_hour > time()){
+        $args = null;
         foreach($reports as $r){
             mtrace("Begin {$r} report...");
             $report = new $r();
@@ -134,7 +136,7 @@ class apreport_job_stage{
 
 
 
-class lmsE extends apreport{
+class lmsEnrollment extends apreport{
 //    public $enrollment;
     const INTERNAL_NAME = 'lmsEnrollment';
     
@@ -152,8 +154,9 @@ class lmsE extends apreport{
     public $proc_end;
     public $active_enrollments;
     
-    public function __construct($mode){
-        
+    public function __construct($mode='cron'){
+        $this->mode = $mode;
+        lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, $this->mode);
 //        list($this->proc_start, $this->proc_end) = apreport_util::get_day_span('yesteday');
         switch($mode){
             case 'preview':
@@ -165,6 +168,10 @@ class lmsE extends apreport{
                 $d = new DateTime('yesterday');
                 $this->proc_start = $d->getTimestamp();
                 $this->proc_end   = $this->proc_start + 86400;
+                
+                $sem = new DateTime(strftime('%F',  apreport_util::get_earliest_semester_start()));
+                $this->report_start = $sem->getTimestamp();
+                $this->report_end = $this->proc_end;
                 break;
             case 'reprocess':
                 $d = new DateTime('yesterday');
@@ -175,16 +182,15 @@ class lmsE extends apreport{
                 $this->report_start = $sem->getTimestamp();
                 $this->report_end = $this->proc_end;
                 break;
-            case 'report':
+            case 'backfill':
                 break;
             default:
                 null;
                 break;
         }
         //@TODO allow user to specify
-        $this->filename          = '/enrollment.xml';
-        $this->mode = $mode;
-
+        $this->filename = '/enrollment.xml';
+        lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, $this->mode);
     }
     
     public function getEnrollment(){
@@ -227,6 +233,7 @@ class lmsE extends apreport{
             }
  
         }
+        assert(array_key_exists('25632-7084',$enrollments));
         return $this->all_enrolled_users = $enrollments;
     }
     
@@ -287,6 +294,7 @@ class lmsE extends apreport{
         foreach($enrlmnts as $e){
             $priors[$e->uid.'-'.$e->id] = $e;
         }
+        assert(array_key_exists('25632-7084',$priors));
         return $priors;
     }
     
@@ -324,6 +332,7 @@ class lmsE extends apreport{
                         (
                         SELECT max(timestamp) timestamp, usectid, uid 
                         FROM mdl_apreport_enrol 
+                        WHERE lastcourseaccess <= %s OR lastcourseaccess IS NULL
                         GROUP BY usectid,uid
                         ) latest 
                 USING(timestamp,usectid,uid)
@@ -332,9 +341,10 @@ class lmsE extends apreport{
                 LEFT JOIN mdl_enrol_ues_courses ucrs ON ucrs.id = usect.courseid 
                 LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
                 LEFT JOIN mdl_course c on c.idnumber = usect.idnumber
-                
-                WHERE (ap.lastcourseaccess >= %s AND ap.lastcourseaccess <= %s) OR ap.lastcourseaccess IS NULL;",$this->report_start,$this->report_end);
-        return $DB->get_records_sql($sql);
+                WHERE (ap.lastcourseaccess >= %s AND ap.lastcourseaccess <= %s) OR ap.lastcourseaccess IS NULL;",$this->report_end,$this->report_start,$this->report_end);
+        $recs = $DB->get_records_sql($sql);
+
+        return $recs;
         
     }
 
@@ -376,7 +386,7 @@ class lmsE extends apreport{
             }
         });
         foreach($activity as $a){
-            mtrace(sprintf("%d: %s(%s)<br/>", $a->time, $a->action,$a->course));
+
             $ignored        = $a->course == 1 && $a->action  !== "login";
 
             $login_event    = $a->course == 1 && $a->action  == 'login';
@@ -408,7 +418,6 @@ class lmsE extends apreport{
             $cont_seq  = !$login_event && $current == $k;
             
             if($new_seq){
-                mtrace(sprintf("-------exec 'new seq' Course %s<br/>",$a->course));
                 $current  = !isset($current) ? $k : $current;
                 $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
                 if(!isset($out[$current]->timespentinclass)){
@@ -416,12 +425,10 @@ class lmsE extends apreport{
                 }
             }
             elseif($cont_seq){
-                mtrace(sprintf("-------exec 'cont seq' Course %s: Adding %ss<br/>",$a->course, $a->time - $out[$current]->lastcounter));
                 $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
                 $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
             }
             elseif($c_switch){
-                mtrace(sprintf("-------exec 'switch' Course %s<br/>",$a->course));
                 unset($out[$current]->lastcounter);
                 $current  = $k;
                 $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
@@ -481,13 +488,13 @@ class lmsE extends apreport{
         $sums = $this->get_db_sums($this->report_start,$this->report_end);
         $rows = $this->get_db_records($this->report_start,$this->report_end);
         $out  = array();
-        
+
         foreach($rows as $k=>$v){
             $o = lmsEnrollmentRecord::instantiate($v);
             $o->timespentinclass = array_key_exists($k, $sums) ? $sums[$k]->time : 0;
             $out[] = $o;
         }
-        return lmsEnrollmentRecord::toXMLDoc($out,'lmsEnrollments', 'lmsEnrollment');
+        return $out;
     }
     
     public function run(){
@@ -498,16 +505,36 @@ class lmsE extends apreport{
                         $this->getPriorRecords()
                     );
         //save to db
+        lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
         $this->db_save_records($newRecs);
+        lmsEnrollment::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS, $this->mode);
         
         //get all recs
         $rep  = $this->get_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
+        lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $this->mode);
         if($this->mode == 'cron' || $this->mode == 'reprocess'){
             self::create_file($xdoc);
+            lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $this->mode);
+        }
+        lmsEnrollment::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, $this->mode.' '.  apreport_util::microtime_toString(microtime()));
+        return !$xdoc ? new DOMDocument() : $xdoc;    }
+
+    public static function backfill() {
+        $earliest = $start = apreport_util::get_earliest_semester_start();
+        while($earliest < time()){
+            mtrace(strftime('Beginning run for %s stopping at %s<br/>', strftime('%F', $earliest), strftime('%F', time())));
+            $proc = new self;
+            $proc->proc_start = $earliest;
+            $proc->proc_end   = $proc->proc_start + 86400;
+
+            $proc->report_start = $start;
+            $proc->report_end = $proc->proc_end;
+            $proc->run();
+            $earliest += 86400;
         }
         
-        return !$xdoc ? new DOMDocument() : $xdoc;    }
+    }
     
 }
 

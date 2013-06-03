@@ -82,14 +82,14 @@ if ($hassiteconfig) {
     
     $a->apreport_dir_default = $CFG->dataroot.DIRECTORY_SEPARATOR.'apreport';
     
-    $settings->add(
-            new admin_setting_configtext(
-                    'apreport_dir_path', 
-                    $_s('apreport_dir'), 
-                    $_s('apreport_dir_desc', $a),
-                    $a->apreport_dir_default ,
-                    PARAM_FILE)
-            );
+//    $settings->add(
+//            new admin_setting_configtext(
+//                    'apreport_dir_path', 
+//                    $_s('apreport_dir'), 
+//                    $_s('apreport_dir_desc', $a),
+//                    $a->apreport_dir_default ,
+//                    PARAM_FILE)
+//            );
 
     
 //----------------------------- lmsEnrollment --------------------------------//    
@@ -148,7 +148,8 @@ if ($hassiteconfig) {
             new admin_setting_heading(
                     'apreports_settings',
                     $_s('lmsEn_hdr'),
-                    $lmsEn_options.$status_msg.$status('lmsEnrollment')
+//                    $lmsEn_options.$status_msg.$status('lmsEnrollment')
+                    $lmsEn_options.$status('lmsEnrollment')
                     ));    
     
 
@@ -184,8 +185,14 @@ if ($hassiteconfig) {
     
     //config selects for primary inst/coach
     //@TODO double check the default values are being used
-    $pi_defaults = array('3');
+    
     $roles = $DB->get_records_menu('role');
+
+    $pi_defaults = array_keys($roles,'Teacher');
+    if(!isset($CFG->apreport_primy_inst_roles)){
+        $def = is_array($pi_defaults) ? implode(',',$pi_defaults) : $pi_defaults;
+        set_config('apreport_primy_inst_roles', $def);
+    }
     $settings->add(
             new admin_setting_configmultiselect(
                     'apreport_primy_inst_roles',
@@ -193,9 +200,16 @@ if ($hassiteconfig) {
                     $_s('lmsSecGrp_pi_role_dsc'),
                     $pi_defaults, $roles)
             );
+
     
     //@TODO double check the default values are being used
-    $coach_defaults = array(4,19,20,21);
+    $coach_defaults = array_keys($roles,'Non-editing teacher');
+    if(!isset($CFG->apreport_coach_roles)){
+        $def = is_array($coach_defaults) ? implode(',',$coach_defaults) : $coach_defaults;
+        set_config('apreport_coach_roles', $def);
+    }
+
+//    $coach_defaults = array(4,19,20,21);
     $settings->add(
             new admin_setting_configmultiselect(
                     'apreport_coach_roles',

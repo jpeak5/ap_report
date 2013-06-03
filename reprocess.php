@@ -54,12 +54,16 @@ if(is_siteadmin($USER)){
     if($mode == 'reprocess' or $mode == 'preview'){
         if($mode == 'preview'){
             mtrace('generating preview...');
-            $report = new lmsE('preview');
-            $xml = $report->get_report();
-        }else{
-            mtrace('running reprocess...');
-            $report = new lmsE('reprocess'); 
+            lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, 'preview');
+            $report = new lmsEnrollment('preview');
+            lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, 'preview');
             $xml = $report->run();
+            lmsEnrollment::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, 'preview '.apreport_util::microtime_toString(microtime()));
+        }else{
+            
+            $report = new lmsEnrollment('reprocess'); 
+            $xml = $report->run();
+            
         }
         
         
