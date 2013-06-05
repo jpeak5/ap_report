@@ -50,7 +50,7 @@ echo $OUTPUT->header();
 
 if(is_siteadmin($USER)){
 
-    $lmsEnrollment_modes = array('preview', 'reprocess', 'backfill');
+    $lmsEnrollment_modes = array('preview', 'reprocess', 'backfill','view_latest', 'view_current');
     if(in_array($mode, $lmsEnrollment_modes)){
         $report = new lmsEnrollment($mode);
         $xml = $report->run();

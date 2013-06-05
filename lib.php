@@ -154,30 +154,38 @@ class lmsEnrollment extends apreport{
     public $proc_end;
     public $active_enrollments;
     public $earliest_active_semester_start;
+    static $proc_modes = array('cron', 'reprocess', 'preview','backfill');
+    static $view_modes = array('view_current', 'view_latest');
     
     public function __construct($mode='cron'){
         $this->mode = $mode;
         lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, $this->mode);
         $this->earliest_active_semester_start = apreport_util::get_earliest_semester_start();
 //        list($this->proc_start, $this->proc_end) = apreport_util::get_day_span('yesteday');
-        if($this->mode =='preview'){
-            $d = new DateTime('today');
-            $this->proc_start = $this->report_start = $d->getTimestamp();
-        }elseif($this->mode == 'reprocess' || $this->mode == 'cron'){
-            $d = new DateTime('yesterday');
-            $this->proc_start = $d->getTimestamp();
+        if(in_array($mode,self::$proc_modes)){
+            if($this->mode =='preview'){
+                $d = new DateTime('today');
+                $this->proc_start = $this->report_start = $d->getTimestamp();
+            }elseif($this->mode == 'reprocess' || $this->mode == 'cron'){
+                $d = new DateTime('yesterday');
+                $this->proc_start = $d->getTimestamp();
+            }
+
+            $this->proc_end   = $this->proc_start + 86400;
+
+            $this->report_start = $this->earliest_active_semester_start;
+            $this->report_end = $this->proc_end;
+            //@TODO allow user to specify
+        }elseif(in_array($mode, self::$view_modes)){
+            $this->report_start = $this->earliest_active_semester_start;
+            $when = $mode == 'view_current' ? 'yesterday' : '';
+            $end  = new DateTime($when);
+            $this->report_end = $end->getTimestamp();
         }
-
-        $this->proc_end   = $this->proc_start + 86400;
-
-        $this->report_start = $this->earliest_active_semester_start;
-        $this->report_end = $this->proc_end;
-        //@TODO allow user to specify
         $this->filename = '/enrollment.xml';
-        lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, $this->mode);
-        
+        lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, $this->mode);        
     }
-
+    
     public function getEnrollment(){
         
         global $DB;
@@ -491,28 +499,31 @@ class lmsEnrollment extends apreport{
     }
     
     public function run(){
+        if(in_array($this->mode, self::$proc_modes)){
+            $this->drop_existing_for_timerange();
+            $newRecs = $this->processUsers(
+                            $this->getEnrollment(), 
+                            $this->getLogs(),
+                            $this->getPriorRecords()
+                        );
 
-        $this->drop_existing_for_timerange();
-        $newRecs = $this->processUsers(
-                        $this->getEnrollment(), 
-                        $this->getLogs(),
-                        $this->getPriorRecords()
-                    );
-        
-        lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
-        
-        //save to db
-        $this->db_save_records($newRecs);
-        lmsEnrollment::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS, $this->mode);
+            lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
+
+            //save to db
+            $this->db_save_records($newRecs);
+            lmsEnrollment::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS, $this->mode);
+        }
         
         //get all recs
         $rep  = $this->get_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
         lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $this->mode);
+
         if($this->mode == 'cron' || $this->mode == 'reprocess'){
             self::create_file($xdoc);
             lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $this->mode);
         }
+        
         lmsEnrollment::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, $this->mode.' '.  apreport_util::microtime_toString(microtime()));
         return !$xdoc ? new DOMDocument() : $xdoc;    }
 
