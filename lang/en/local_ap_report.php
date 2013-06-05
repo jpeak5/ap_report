@@ -20,6 +20,8 @@ $string['apr_nopermission']         = "You don't have permission to access this 
 //lmsEnrollment
 $string['lmsEn_comp_stat_hdr']  = 'Completion Status';
 $string['lmsEn_hdr']            = 'lmsEnrollment';
+$string['file_location']        = 'file is located at {$a}';
+$string['view_range_summary']   = 'Activity report for {$a->start} through {$a->end}';
 
 //----------- lmsEn Status
 $string['lmsEn_success']        = 'Last Run began at {$a->lmsEn_start} and completed at {$a->lmsEn_stop}. {$a->lmsEn_instr}';

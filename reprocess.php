@@ -50,69 +50,13 @@ echo $OUTPUT->header();
 
 if(is_siteadmin($USER)){
 
-    //get records
-    if($mode == 'reprocess' or $mode == 'preview'){
-        if($mode == 'preview'){
-            mtrace('generating preview...');
-            lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, 'preview');
-            $report = new lmsEnrollment('preview');
-            lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, 'preview');
-            $xml = $report->run();
-            lmsEnrollment::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, 'preview '.apreport_util::microtime_toString(microtime()));
-        }else{
-            
-            $report = new lmsEnrollment('reprocess'); 
-            $xml = $report->run();
-            
-        }
-        
-        
-        
-        
-        $a = new stdClass();
-        $a->start = strftime('%F %T',$report->report_start);
-        $a->end   = strftime('%F %T',$report->report_end);
-        
-        echo html_writer::tag('h2', 'Current Enrollment');
-        
-        if(!$xml){
-            echo html_writer::tag(
-                    'p',
-                    $_s('lmsEn_no_activity',$a)
-                    );
-        }else{
-            assert(get_class($xml) == 'DOMDocument');
-            echo html_writer::tag(
-                    'p', 
-                    get_string(
-                            'view_range_summary',
-                            'local_ap_report', 
-                            $a
-                            )
-                    );
-            $file_loc = isset($mode) ? $CFG->dataroot.'/preview.xml' : $CFG->dataroot.'/'.$CFG->apreport_enrol_xml.'.xml';
-            echo html_writer::tag('p', 
-                    get_string('file_location', 'local_ap_report', $file_loc));
-
-            $records = $xml->getElementsByTagName('lmsEnrollment');
-
-            $fields = array(
-                'enrollmentId',
-                'studentId', 
-                'courseId',
-                'sectionId',
-                'startDate',
-                'endDate',
-                'status',
-                'lastCourseAccess',
-                'timeSpentInClass',
-                'extensions',
-                );
-            echo render_table($xml, $records, $fields);
-            
-        }
-        
-    }elseif($mode == 'group_membership'){
+    $lmsEnrollment_modes = array('preview', 'reprocess', 'backfill');
+    if(in_array($mode, $lmsEnrollment_modes)){
+        $report = new lmsEnrollment($mode);
+        $xml = $report->run();
+        make_enrollment_report($xml, $report->report_start, $report->report_end, $report->filename);
+    }
+    elseif($mode == 'group_membership'){
         $gm = new lmsGroupMembership();
         if(($xdoc = $gm->run())!=false){
             echo render_table($xdoc, $xdoc->getElementsByTagName('lmsGroupMember'), lmsGroupMembershipRecord::$camels);
@@ -168,6 +112,52 @@ echo $OUTPUT->footer();
 //----------------------------------------------------------------------------//
 //----------------------------------------------------------------------------//
 //----------------------------------------------------------------------------//
+
+function make_enrollment_report($xml, $start,$end,$filename){
+    global $CFG;
+            $a = new stdClass();
+        $a->start = strftime('%F %T',$start);
+        $a->end   = strftime('%F %T',$end);
+        
+        echo html_writer::tag('h2', 'Current Enrollment');
+        
+        if(!$xml){
+            echo html_writer::tag(
+                    'p',
+                    $_s('lmsEn_no_activity',$a)
+                    );
+        }else{
+            assert(get_class($xml) == 'DOMDocument');
+            echo html_writer::tag(
+                    'p', 
+                    get_string(
+                            'view_range_summary',
+                            'local_ap_report', 
+                            $a
+                            )
+                    );
+            $file_loc = isset($filename) ? $CFG->dataroot.'/'.$filename : 'ERROR- report is undefined';
+            echo html_writer::tag('p', 
+                    get_string('file_location', 'local_ap_report', $file_loc));
+
+            $records = $xml->getElementsByTagName('lmsEnrollment');
+
+            $fields = array(
+                'enrollmentId',
+                'studentId', 
+                'courseId',
+                'sectionId',
+                'startDate',
+                'endDate',
+                'status',
+                'lastCourseAccess',
+                'timeSpentInClass',
+                'extensions',
+                );
+            echo render_table($xml, $records, $fields);
+            
+        }
+}
 
 function render_table($xml,$element_list,$fields){
     $table = new html_table();

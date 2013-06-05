@@ -153,49 +153,35 @@ class lmsEnrollment extends apreport{
     public $proc_start;
     public $proc_end;
     public $active_enrollments;
+    public $earliest_active_semester_start;
     
     public function __construct($mode='cron'){
         $this->mode = $mode;
         lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, $this->mode);
+        $this->earliest_active_semester_start = apreport_util::get_earliest_semester_start();
 //        list($this->proc_start, $this->proc_end) = apreport_util::get_day_span('yesteday');
-        switch($mode){
-            case 'preview':
-                $d = new DateTime('today');
-                $this->proc_start = $this->report_start = $d->getTimestamp();
-                $this->proc_end   = $this->report_end   = $this->proc_start + 86400;
-                break;
-            case 'cron':
-                $d = new DateTime('yesterday');
-                $this->proc_start = $d->getTimestamp();
-                $this->proc_end   = $this->proc_start + 86400;
-                
-                $sem = new DateTime(strftime('%F',  apreport_util::get_earliest_semester_start()));
-                $this->report_start = $sem->getTimestamp();
-                $this->report_end = $this->proc_end;
-                break;
-            case 'reprocess':
-                $d = new DateTime('yesterday');
-                $this->proc_start = $d->getTimestamp();
-                $this->proc_end   = $this->proc_start + 86400;
-                
-                $sem = new DateTime(strftime('%F',  apreport_util::get_earliest_semester_start()));
-                $this->report_start = $sem->getTimestamp();
-                $this->report_end = $this->proc_end;
-                break;
-            case 'backfill':
-                break;
-            default:
-                null;
-                break;
+        if($this->mode =='preview'){
+            $d = new DateTime('today');
+            $this->proc_start = $this->report_start = $d->getTimestamp();
+        }elseif($this->mode == 'reprocess' || $this->mode == 'cron'){
+            $d = new DateTime('yesterday');
+            $this->proc_start = $d->getTimestamp();
         }
+
+        $this->proc_end   = $this->proc_start + 86400;
+
+        $this->report_start = $this->earliest_active_semester_start;
+        $this->report_end = $this->proc_end;
         //@TODO allow user to specify
         $this->filename = '/enrollment.xml';
         lmsEnrollment::update_job_status(apreport_job_stage::INIT, apreport_job_status::SUCCESS, $this->mode);
+        
     }
-    
+
     public function getEnrollment(){
+        
         global $DB;
-        $sql = "
+        $sql = sprintf("
             SELECT
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),usect.sec_number) AS enrollmentId,
                 u.id AS uid,
@@ -217,11 +203,11 @@ class lmsEnrollment extends apreport{
                 INNER JOIN {enrol_ues_semesters} usem ON usem.id = usect.semesterid
                 INNER JOIN {enrol_ues_courses} uc ON uc.id = usect.courseid
             WHERE ra.roleid IN (5)
-                AND usem.classes_start < UNIX_TIMESTAMP(NOW())
-                AND usem.grades_due > UNIX_TIMESTAMP(NOW())
+                AND usem.classes_start < %s
+                AND usem.grades_due > %s
                 AND ustu.status = 'enrolled'
             GROUP BY enrollmentId
-            ";
+            ",$this->proc_start, $this->proc_start);
         
         $flat = $DB->get_records_sql($sql);
         
@@ -233,12 +219,12 @@ class lmsEnrollment extends apreport{
             }
  
         }
-        assert(array_key_exists('25632-7084',$enrollments));
         return $this->all_enrolled_users = $enrollments;
     }
     
     
     public function getLogs(){
+        
         global $DB;
         $sql = vsprintf(
            "SELECT 
@@ -279,6 +265,7 @@ class lmsEnrollment extends apreport{
     }
     
     public function getPriorRecords(){
+        
         global $DB;
         $sql = "select 
                     distinct CONCAT(ap.uid, ap.usectid) AS uniq, 
@@ -294,7 +281,6 @@ class lmsEnrollment extends apreport{
         foreach($enrlmnts as $e){
             $priors[$e->uid.'-'.$e->id] = $e;
         }
-        assert(array_key_exists('25632-7084',$priors));
         return $priors;
     }
     
@@ -308,6 +294,7 @@ class lmsEnrollment extends apreport{
     }
 
     public function get_db_records(){
+        
         global $DB;
         $sql = sprintf("
             select 
@@ -332,7 +319,7 @@ class lmsEnrollment extends apreport{
                         (
                         SELECT max(timestamp) timestamp, usectid, uid 
                         FROM mdl_apreport_enrol 
-                        WHERE lastcourseaccess <= %s OR lastcourseaccess IS NULL
+                        WHERE lastcourseaccess < %s OR lastcourseaccess IS NULL
                         GROUP BY usectid,uid
                         ) latest 
                 USING(timestamp,usectid,uid)
@@ -341,7 +328,7 @@ class lmsEnrollment extends apreport{
                 LEFT JOIN mdl_enrol_ues_courses ucrs ON ucrs.id = usect.courseid 
                 LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
                 LEFT JOIN mdl_course c on c.idnumber = usect.idnumber
-                WHERE (ap.lastcourseaccess >= %s AND ap.lastcourseaccess <= %s) OR ap.lastcourseaccess IS NULL;",$this->report_end,$this->report_start,$this->report_end);
+                WHERE (ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s) OR ap.lastcourseaccess IS NULL;",$this->report_end,$this->report_start,$this->report_end);
         $recs = $DB->get_records_sql($sql);
 
         return $recs;
@@ -349,6 +336,7 @@ class lmsEnrollment extends apreport{
     }
 
     public function get_db_sums(){
+        
         global $DB;
         $sql = sprintf("
             SELECT 
@@ -356,7 +344,7 @@ class lmsEnrollment extends apreport{
                 sum(ap.timespentinclass) time
             FROM
                 mdl_apreport_enrol ap
-            WHERE ap.timestamp >= %s AND ap.timestamp <= %s
+            WHERE (ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s) or ap.lastcourseaccess IS NULL
             GROUP BY
                 ap.uid,ap.usectid",$this->report_start,$this->report_end);
         return $DB->get_records_sql($sql);
@@ -443,12 +431,13 @@ class lmsEnrollment extends apreport{
     }
     
     public function processUsers($all, $logs, $priors){
+
         $r = array();
 
         $needCalc     = array_intersect_key($all, $logs);
         $onRecord     = array_intersect_key($all, $priors);
         $needZeros    = array_diff_key($all, $onRecord, $needCalc);
-        
+        assert($needCalc + $needZeros + $onRecord == $this->all_enrolled_users);
         //set timespent to 0 for ach of these users
         array_walk($needZeros, function($a){
             $a->timespentinclass = 0;
@@ -474,17 +463,21 @@ class lmsEnrollment extends apreport{
     }
     
     public function drop_existing_for_timerange(){
+
         global $DB;
         $select = sprintf("lastcourseaccess >= %s AND lastcourseaccess <= %s;",$this->proc_start, $this->proc_end);
         $DB->delete_records_select('apreport_enrol', $select);
     }
     
-    public function get_report($s=null,$e=null){
-        if(is_null($s) and is_null($e)){
-            $d = new DateTime('today');
-            $this->report_start = !is_null($this->report_start) ? $this->report_start : $d->getTimestamp();
-            $this->report_end    = !is_null($this->report_end)   ? $this->report_end   : $this->report_start + 86400;
-        }
+    public function get_report(){
+
+        
+        $d = new DateTime('today');
+        $this->report_start = isset($this->report_start) ? $this->report_start : $d->getTimestamp();
+        $this->report_end   = isset($this->report_end)   ? $this->report_end   : $this->report_start + 86400;
+
+
+        
         $sums = $this->get_db_sums($this->report_start,$this->report_end);
         $rows = $this->get_db_records($this->report_start,$this->report_end);
         $out  = array();
@@ -498,14 +491,17 @@ class lmsEnrollment extends apreport{
     }
     
     public function run(){
+
         $this->drop_existing_for_timerange();
         $newRecs = $this->processUsers(
                         $this->getEnrollment(), 
                         $this->getLogs(),
                         $this->getPriorRecords()
                     );
-        //save to db
+        
         lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
+        
+        //save to db
         $this->db_save_records($newRecs);
         lmsEnrollment::update_job_status(apreport_job_stage::PERSIST, apreport_job_status::SUCCESS, $this->mode);
         
@@ -521,19 +517,28 @@ class lmsEnrollment extends apreport{
         return !$xdoc ? new DOMDocument() : $xdoc;    }
 
     public static function backfill() {
-        $earliest = $start = apreport_util::get_earliest_semester_start();
-        while($earliest < time()){
-            mtrace(strftime('Beginning run for %s stopping at %s<br/>', strftime('%F', $earliest), strftime('%F', time())));
+        $diurnal = $start = apreport_util::get_earliest_semester_start();
+        $today = new DateTime('yesterday');
+        $todayFmt = $today->format('Y-m-d H:M:s');
+        while($diurnal < $today->getTimestamp()){
+            mtrace(sprintf('Beginning run for %s stopping at %s<br/>', strftime('%F', $diurnal), $todayFmt));
             $proc = new self;
-            $proc->proc_start = $earliest;
+            $proc->proc_start = $diurnal;
             $proc->proc_end   = $proc->proc_start + 86400;
 
             $proc->report_start = $start;
             $proc->report_end = $proc->proc_end;
             $proc->run();
-            $earliest += 86400;
+            $diurnal += 86400;
         }
-        
+        $proc->report_start = $start;
+        $proc->report_end = $today->getTimestamp();
+        $rep  = $proc->get_report();
+        $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
+        lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $proc->mode);
+        self::create_file($xdoc);
+        lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $proc->mode);
+        return true;
     }
     
 }
