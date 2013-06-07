@@ -477,15 +477,11 @@ class lmsEnrollment extends apreport{
         $DB->delete_records_select('apreport_enrol', $select);
     }
     
-    public function get_report(){
+    public function make_report(array $params=null){
 
-        
-        $d = new DateTime('today');
-        $this->report_start = isset($this->report_start) ? $this->report_start : $d->getTimestamp();
-        $this->report_end   = isset($this->report_end)   ? $this->report_end   : $this->report_start + 86400;
-
-
-        
+        if(!isset($this->report_start) || !isset($this->report_end) || $this->report_end <= $this->report_start){
+            throw new coding_exception("this method requires a valid timerange for the report");
+        }
         $sums = $this->get_db_sums($this->report_start,$this->report_end);
         $rows = $this->get_db_records($this->report_start,$this->report_end);
         $out  = array();
@@ -496,6 +492,15 @@ class lmsEnrollment extends apreport{
             $out[] = $o;
         }
         return $out;
+    }
+    
+    public function get_report(array $params=null){
+        $rep  = $this->make_report();
+        $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
+        lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $this->mode);
+
+        lmsEnrollment::update_job_status(apreport_job_stage::COMPLETE, apreport_job_status::SUCCESS, $this->mode.' '.  apreport_util::microtime_toString(microtime()));
+        return !$xdoc ? new DOMDocument() : $xdoc;    
     }
     
     public function run(){
@@ -515,7 +520,7 @@ class lmsEnrollment extends apreport{
         }
         
         //get all recs
-        $rep  = $this->get_report();
+        $rep  = $this->make_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
         lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $this->mode);
 
@@ -544,7 +549,7 @@ class lmsEnrollment extends apreport{
         }
         $proc->report_start = $start;
         $proc->report_end = $today->getTimestamp();
-        $rep  = $proc->get_report();
+        $rep  = $proc->make_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
         lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $proc->mode);
         self::create_file($xdoc);

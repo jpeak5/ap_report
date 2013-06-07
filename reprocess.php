@@ -7,7 +7,8 @@ require_login();
 
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once($CFG->libdir.'/cronlib.php');
-    
+
+
 $_s = function($key,$a=null) {
     return get_string($key, 'local_ap_report', $a);
 };
@@ -17,8 +18,6 @@ $context = get_system_context();
 $PAGE->set_context($context);
 $header  = format_string($SITE->shortname).": {$header}";
 $mode = optional_param('mode', null, PARAM_TEXT);
-$span = optional_param('time', null, PARAM_TEXT);
-
 
 if(isset($mode)){
     $PAGE->set_url('/local/ap_report/reprocess.php', array('mode'=>$mode));
@@ -41,6 +40,8 @@ if($mode=='cron'){
 
 echo $OUTPUT->header();
 
+
+            
 //----------------------------------------------------------------------------//
 //----------------------------------------------------------------------------//
 //------------------------ BEGIN VIEW BRANCHES -------------------------------//
