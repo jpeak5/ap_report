@@ -32,12 +32,9 @@ if ($hassiteconfig) {
      * A links section; 
      * add a term to the array to have that url avail in the $a string var
      */
-    
-    $alinks = array('reprocess', 'cron', 'preview','backfill');
-    
+    $alinks = array('reprocess', 'cron', 'preview','backfill', 'view_current', 'view_latest');
     foreach($alinks as $alink){
-        $tmp = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>$alink));
-        $a->$alink = $tmp;
+        $a->$alink = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>$alink));;
     }
 
     
@@ -95,28 +92,30 @@ if ($hassiteconfig) {
 //----------------------------- lmsEnrollment --------------------------------//    
 
     //init vars
-    $a->lmsEn_instr ='';
-    $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? apreport_util::microtime_toString($CFG->apreport_job_complete) : null;
-    $a->lmsEn_start = isset($CFG->apreport_job_start)    ? apreport_util::microtime_toString($CFG->apreport_job_start)    : null;
-    
-    if(isset($CFG->apreport_job_complete) and isset($CFG->apreport_job_start)){
-        $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
-    }else{
-        $correct_order = false;
-    }
-
-    if(isset($CFG->apreport_got_enrollment) and !$CFG->apreport_got_enrollment){
-        $a->lmsEn_instr .= $_s('lmsEn_no_activity');
-    }
-    if(isset($CFG->apreport_got_xml) and !$CFG->apreport_got_xml){
-        $a->mdl_dataroot = $CFG->dataroot.'/ ';
-        
-    }
+//    $a->lmsEn_instr ='';
+//    $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? apreport_util::microtime_toString($CFG->apreport_job_complete) : null;
+//    $a->lmsEn_start = isset($CFG->apreport_job_start)    ? apreport_util::microtime_toString($CFG->apreport_job_start)    : null;
+//    
+//    if(isset($CFG->apreport_job_complete) and isset($CFG->apreport_job_start)){
+//        $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
+//    }else{
+//        $correct_order = false;
+//    }
+//
+//    if(isset($CFG->apreport_got_enrollment) and !$CFG->apreport_got_enrollment){
+//        $a->lmsEn_instr .= $_s('lmsEn_no_activity');
+//    }
+//    if(isset($CFG->apreport_got_xml) and !$CFG->apreport_got_xml){
+//        $a->mdl_dataroot = $CFG->dataroot.'/ ';
+//        
+//    }
     //end init vars
     
     //list text
     $lmsEn_options = '';
     $lmsEn_linksList = html_writer::alist(array(
+        html_writer::link($a->view_current,$_s('lmsEn_view_current_url')) .$_s('lmsEn_view_current_desc'),
+        html_writer::link($a->view_latest,$_s('lmsEn_view_latest_url')) .$_s('lmsEn_view_latest_desc'),
         html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')) .$_s('lmsEn_reprocess_desc'),
         html_writer::link($a->preview, $_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
         html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))   .$_s('lmsEn_backfill_desc')

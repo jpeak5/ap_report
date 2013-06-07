@@ -33,11 +33,15 @@ $string['lmsEn_no_activity']    = 'Failure getting enrollment data for the time 
 
 
 //----------- lmsEn URLs
+$string['lmsEn_view_current_url']= 'Current Report';
+$string['lmsEn_view_latest_url']= 'Latest stats';
 $string['lmsEn_reprocess_url']  = 'Reprocess';
 $string['lmsEn_preview_url']    = 'Preview';
 $string['lmsEn_xml_url']        = 'XML';
 $string['lmsEn_backfill_url']   = 'Backfill';
 
+$string['lmsEn_view_current_desc']= ':  see the most recent report';
+$string['lmsEn_view_latest_desc']= ':  see what the report would look like if the stats were aggregated now';
 $string['lmsEn_reprocess_desc'] = ':  Re-run the enrollment job for yesterday\'s activity';
 $string['lmsEn_preview_desc']   = ':  View a report of activity for today.';
 $string['lmsEn_xml_desc']       = ':  Location of enrollment report xml';

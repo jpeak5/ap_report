@@ -512,7 +512,13 @@ class lmsEnrollment extends apreport{
                             $this->getPriorRecords()
                         );
 
-            lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
+            if(count($newRecs)>0){
+                lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
+            }else{
+                lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::EXCEPTION, $this->mode);
+                //nothing more to do
+                return new DOMDocument();
+            }
 
             //save to db
             $this->db_save_records($newRecs);
