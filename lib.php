@@ -159,9 +159,10 @@ class lmsEnrollment extends apreport{
     
     public function __construct($mode='cron'){
         $this->mode = $mode;
+
         lmsEnrollment::update_job_status(apreport_job_stage::BEGIN, apreport_job_status::SUCCESS, $this->mode);
         $this->earliest_active_semester_start = apreport_util::get_earliest_semester_start();
-//        list($this->proc_start, $this->proc_end) = apreport_util::get_day_span('yesteday');
+
         if(in_array($mode,self::$proc_modes)){
             if($this->mode =='preview'){
                 $d = new DateTime('today');
@@ -178,7 +179,7 @@ class lmsEnrollment extends apreport{
             //@TODO allow user to specify
         }elseif(in_array($mode, self::$view_modes)){
             $this->report_start = $this->earliest_active_semester_start;
-            $when = $mode == 'view_current' ? 'yesterday' : '';
+            $when = $mode == 'view_current' ? 'today' : 'tomorrow';
             $end  = new DateTime($when);
             $this->report_end = $end->getTimestamp();
         }

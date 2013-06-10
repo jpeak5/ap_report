@@ -5,13 +5,10 @@ require_once $CFG->dirroot.'/local/ap_report/lib.php';
 
 class lmsEnrollment_testcase extends advanced_testcase{
     
-    public $reportClass;
-
     public function setUp(){
 
         $this->resetAfterTest();
         $this->make_dummy_data();
-        $this->reportClass = new lmsEnrollment();
     }
     
     private function make_dummy_data(){
@@ -32,9 +29,10 @@ class lmsEnrollment_testcase extends advanced_testcase{
     
     public function test_dataset(){
         global $DB;
+        $unit = new lmsEnrollment();
         //check log activity exists
         $log_sql = "SELECT * FROM {log} WHERE time > ? and time < ?";
-        $logs = $DB->get_records_sql($log_sql, array($this->reportClass->proc_start, $this->reportClass->proc_end));
+        $logs = $DB->get_records_sql($log_sql, array($unit->proc_start, $unit->proc_end));
         $this->assertNotEmpty($logs);
     }
     
@@ -74,9 +72,72 @@ class lmsEnrollment_testcase extends advanced_testcase{
     }
 
 
-    public function test_construct(){
+    public function test_construct_todays_process_time_range(){
+        $unit = new lmsEnrollment('preview');
+        
+        $am = new DateTime('today');
+        $this->assertEquals($am->getTimestamp(), $unit->proc_start);
+        
+        $pm = new DateTime('tomorrow');
+        $this->assertEquals($unit->proc_end,$pm->getTimestamp());
         
     }
+    
+    public function test_construct_yesterdays_process_time_range(){
+        $reprocess = new lmsEnrollment('reprocess');
+        $cron      = new lmsEnrollment('cron');
+        
+        $am = new DateTime('yesterday');
+        $this->assertEquals($am->getTimestamp(), $reprocess->proc_start);
+        $this->assertEquals($am->getTimestamp(), $cron->proc_start);
+        
+        $pm = new DateTime('today');
+        $this->assertEquals($reprocess->proc_end,$pm->getTimestamp());
+        $this->assertEquals($cron->proc_end,$pm->getTimestamp());
+                
+    }
+
+    public function test_earliest_classes_start_date(){
+        global $DB;
+        $unit = new lmsEnrollment('preview');
+        $sql = sprintf("
+            SELECT classes_start FROM {enrol_ues_semesters} 
+            WHERE classes_start < %s AND grades_due > %s 
+            ORDER BY classes_start ASC LIMIT 1",$unit->proc_end,$unit->proc_end);
+        $earliest = $DB->get_record_sql($sql);
+        $this->assertEquals($earliest->classes_start, $unit->report_start);
+    }
+    
+    public function test_construct_todays_report_time_range(){
+        $latest  = new lmsEnrollment('view_latest');
+        $preview = new lmsEnrollment('preview');
+        
+        $start = apreport_util::get_earliest_semester_start();
+        $end   = new DateTime('tomorrow');
+        
+        $this->assertEquals($start, $latest->report_start);
+        $this->assertEquals($start, $preview->report_start);
+        
+        $this->assertEquals($end->getTimestamp(), $latest->report_end);
+        $this->assertEquals($end->getTimestamp(), $preview->report_end);
+    }
+    
+    public function test_construct_yesterdays_report_time_range(){
+        $current  = new lmsEnrollment('view_current');
+        $reproc   = new lmsEnrollment('reprocess');
+        $cron     = new lmsEnrollment('cron');
+        
+        $start = apreport_util::get_earliest_semester_start();
+        $end   = new DateTime('today');
+        
+        $this->assertEquals($start, $current->report_start);
+        $this->assertEquals($start, $reproc->report_start);
+        $this->assertEquals($start, $cron->report_start);
+        
+        $this->assertEquals($end->getTimestamp(), $current->report_end);
+        $this->assertEquals($end->getTimestamp(), $reproc->report_end);
+        $this->assertEquals($end->getTimestamp(), $cron->report_end);
+    }    
 }
 
 
