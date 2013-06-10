@@ -1,12 +1,17 @@
 <?php
 global $CFG;
 require_once $CFG->dirroot.'/local/ap_report/lib.php';
+require_once $CFG->dirroot.'/local/ap_report/tests/generators/enrollment_generator_test.php';
 
 
 class lmsEnrollment_testcase extends advanced_testcase{
     
+    public $xml;
+    
     public function setUp(){
-
+        $gen  = new enrollment_dataset_generator();
+        $this->xml = $gen->create_coursework_scenario();
+        
         $this->resetAfterTest();
         $this->make_dummy_data();
     }
@@ -138,6 +143,23 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertEquals($end->getTimestamp(), $reproc->report_end);
         $this->assertEquals($end->getTimestamp(), $cron->report_end);
     }    
+    
+    public function test_getEnrollment(){
+        $unit = new lmsEnrollment('cron');
+        $enr  = $unit->getEnrollment();
+        $this->assertGreaterThan(0,count($enr));
+        
+        //this is validating the integrity of the dataset 
+        //and should go somewhere else
+        $xpath  = new DOMXpath($this->xml);
+        $xrows  = $xpath->query("//table[@name='user']/row");
+//        $this->assertEquals($xrows->length, count($enr));
+        
+        $this->assertGreaterThan(0, count($enr));
+    }
+    
+    
+    
 }
 
 
