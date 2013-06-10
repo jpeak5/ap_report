@@ -148,6 +148,7 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $unit = new lmsEnrollment('cron');
         $enr  = $unit->getEnrollment();
         $this->assertGreaterThan(0,count($enr));
+//        mtrace(var_dump($enr));
         
         //this is validating the integrity of the dataset 
         //and should go somewhere else
@@ -158,8 +159,27 @@ class lmsEnrollment_testcase extends advanced_testcase{
         $this->assertGreaterThan(0, count($enr));
     }
     
+    public function test_process(){
     
-    
+    //        465-2326, 85 sec
+    //        465-9850, 54 sec
+        $unit  = new lmsEnrollment('cron');
+        $newRecs = $unit->processUsers(
+                 $unit->getEnrollment(), 
+                 $unit->getLogs(),
+                 $unit->getPriorRecords()
+             );
+
+        $this->assertGreaterThan(0, count($newRecs));
+        
+        $this->assertTrue(in_array('465-9850', array_keys($newRecs)));
+        $this->assertTrue(in_array('465-2326', array_keys($newRecs)));
+        $this->assertEquals(37,$newRecs['465-9850']->timespentinclass);
+        $this->assertEquals(63,$newRecs['465-2326']->timespentinclass);
+        
+        
+    }
+
 }
 
 

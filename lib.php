@@ -341,7 +341,6 @@ class lmsEnrollment extends apreport{
         $recs = $DB->get_records_sql($sql);
 
         return $recs;
-        
     }
 
     public function get_db_sums(){
@@ -431,7 +430,7 @@ class lmsEnrollment extends apreport{
                 $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
                 
             }
-    }
+        }
 
         
         return $out;

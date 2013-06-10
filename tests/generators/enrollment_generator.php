@@ -58,6 +58,104 @@ class enrollment_dataset_generator{
 //--------------------------------------------------------------------//
 //----------------------------- enrollment ITEMS ---------------------//
 //--------------------------------------------------------------------//
+
+        foreach(array_keys($tables) as $t){
+            ${"{$t}_rows"} = array();
+        }
+
+        
+        
+        
+        $date = new DateTime('today');
+        $now = $date->getTimestamp();
+        $current_semester = array(
+            'id'            =>5,
+            'year'          =>strftime('%Y', $now),
+            'name'          =>'Current',
+            'campus'        =>'LSU',
+            'session_key'   =>null,
+            'classes_start' =>$now-(86400*21),
+            'grades_due'    =>$now+(86400*14)
+            ); //end two weeks ahead
+        
+        $enr1 = array(
+            'cid'       => '1234',
+            'idnumber'  => 'COURSE001_SPRING',
+            'usectid'   => '4321',
+            'semester'  => $current_semester,
+            'ucourseid' => 1,
+            'ucourse_fname' => 'COURSE001',
+            'ucourse_dept'  => 'COURSE',
+            'ucourse_num'   => 4001,
+            'usect_num'     => 003
+        );
+
+        $user1 = array(9541,'student-3','exampleuser','student-3@example.com',700188683,'student-3');
+
+        $enrol = function($user, $enrollments) 
+            use(&$usem_rows,
+                &$ucourse_rows,
+                &$ustu_rows,
+                &$usect_rows,
+                &$course_rows,
+                &$ctx_rows,
+                &$ra_rows,
+                &$user_rows)
+                {
+            $user_rows[] = $user;
+            foreach($enrollments as $e){
+                $usem_rows[]        = array_values($e['semester']);
+                
+                $flag = false;
+                foreach($ucourse_rows as $r){
+                    if($r[0] == $e['ucourseid']){
+                        $flag = true;
+                    }
+                }
+                if(!$flag) $ucourse_rows[]     = array($e['ucourseid'],$e['ucourse_fname'],$e['ucourse_dept'],$e['ucourse_num']);
+                
+                $flag = false;
+                foreach($ustu_rows as $r){
+                    if($r[0] == $user[0].$e['usectid']){
+                        $flag = true;
+                    }
+                }
+                if(!$flag) $ustu_rows[]        = array($user[0].$e['usectid'],$user[0], $e['usectid'],3,'Enrolled');
+                
+                $flag = false;
+                foreach($usect_rows as $r){
+                    if($r[0] == $e['usectid']){
+                        $flag = true;
+                    }
+                }
+                if(!$flag) $usect_rows[]       = array($e['usectid'],$e['idnumber'],$e['cid'],$e['semester']['id'],$e['usect_num']);
+                
+                
+                
+                $flag = false;
+                foreach($course_rows as $r){
+                    if($r[0] == $e['cid']){
+                        $flag = true;
+                    }
+                }
+                if(!$flag) $course_rows[]      = array($e['cid'],$e['idnumber']);
+                
+                $flag = false;
+                foreach($ctx_rows as $r){
+                    if($r[0] == $e[cid].$user[0]){
+                        $flag = true;
+                    }
+                }
+                if(!$flag) $ctx_rows[]         = array($e['cid'].$user[0],50,$e['cid']);
+                
+                $ra_rows[]          = array(count($ra_rows)+1,5,$user[0],'contextid',$e['cid'].$user[0]);
+                
+            }
+        };
+        
+        $enrol($user1,array($enr1));
+
+        
         //ues semesters
         $usem_rows = $ucourse_rows = $usect_rows = $ustu_rows = array();
         $user_rows = $course_rows  = $ctx_rows = $groups = $groups_members = array();
@@ -92,6 +190,7 @@ class enrollment_dataset_generator{
         $ctx_cols       = array('id','contextlevel','instanceid');
         $ctx_rows[]     = array(2042,50,2326);
         $ctx_rows[]     = array(333,50,9850);
+        $ctx_rows[]     = array(334,50,3613);
         
         //mdl_role_asignment
         $ra_cols        = array('id','roleid','userid','contextid');
@@ -102,6 +201,7 @@ class enrollment_dataset_generator{
         $ra_rows[]      = array(5,3,999,2042);
         $ra_rows[]      = array(6,4,555,2042);
         $ra_rows[]      = array(7,3,5566,2042);
+        $ra_rows[]      = array(8,5,9854,334);
         
         //mdl_user
         $user_cols      = array('id','firstname','lastname','email', 'idnumber','username');
@@ -218,13 +318,13 @@ class enrollment_dataset_generator{
         $ts = self::get_sequence_start();
         $lid = 1;
         
-        $u = new stdclass();
-        $u->a = 465;
-        $u->b ='somenumber';
+        $user = new stdclass();
+        $user->a = 465;
+        $user->b = 9584;
         
-        $c = new stdClass();
-        $c->a = 2326;
-        $c->b = 9850;
+        $course = new stdClass();
+        $course->a = 2326;
+        $course->b = 9850;
         
         $log = function($uid, $ts, $cid=null, $login=false) use (&$lid){
             $action = ($login || is_null($cid)) ? 'login' : 'view';
@@ -244,32 +344,34 @@ class enrollment_dataset_generator{
         };
         
         //*************** begin sequesnce ***************//
-        
+        /**
+         * the following 
+         */
         
         //log the user in
-        $logs[] = $log($u->a, $ts,null, true);
+        $logs[] = $log($user->a, $ts,null, true);
         
         //********** look at some stuff **********//
-        $logs   = array_merge($logs,$view(array(10,10,10,10,10), $u->a, $c->a));
+        $logs   = array_merge($logs,$view(array(10,10,10,10,10), $user->a, $course->a));
 
         
         
         //*************** switch courses ***************//
-        $logs   = array_merge($logs,$view(array(10,10,10,4,3), $u->a, $c->b));
+        $logs   = array_merge($logs,$view(array(10,10,10,4,3), $user->a, $course->b));
         
         //*************** switch courses ***************//
-        $logs   = array_merge($logs,$view(array(2,5,13), $u->a, $c->a));
+        $logs   = array_merge($logs,$view(array(2,5,13), $user->a, $course->a));
         
         
         //*************** new login ***************//
         $ts+=4*3600; //four hours later...
-        $logs[] = $log($u->a, $ts);
+        $logs[] = $log($user->a, $ts);
         
         //********** look at some stuff **********//
-        $logs   = array_merge($logs,$view(array(7,10), $u->a, $c->b));
+        $logs   = array_merge($logs,$view(array(7,10), $user->a, $course->b));
         
         //*************** switch courses ***************//
-        $logs   = array_merge($logs,$view(array(10,5), $u->a, $c->a));
+        $logs   = array_merge($logs,$view(array(10,5), $user->a, $course->a));
         
 //        mtrace(print_r($logs));
         return $logs;
