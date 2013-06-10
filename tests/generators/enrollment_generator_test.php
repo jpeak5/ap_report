@@ -5,7 +5,7 @@ require_once ($CFG->dirroot.'/local/ap_report/tests/apreports_testcase.php');
 
 /**
  * This is not a typical phpunit/moodle data generator
- * It generates an xml dataset that may be capture from standard
+ * It generates an xml dataset that may be piped to standard
  * out and saved in a file for inspection.
  * This testsuite loads the dataset found in tests/fixtures/dataset.xml 
  * for the tests to pass, you must generate a fresh dataset (on a daily) basis);
@@ -13,9 +13,6 @@ require_once ($CFG->dirroot.'/local/ap_report/tests/apreports_testcase.php');
  * in the method test_create_coursework_scenario()
  */
 class enrollment_generator_testcase extends advanced_testcase{
-    public function test_true(){
-        $this->assertTrue(true);
-    }
     
     public function test_dbal_tbl_model(){
         $params = array(

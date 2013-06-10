@@ -63,7 +63,7 @@ class enrollment_dataset_generator{
         $user_rows = $course_rows  = $ctx_rows = $groups = $groups_members = array();
         
         $usem_cols      = array('id','year','name','campus','session_key','classes_start','grades_due');
-        $usem_rows[]     = array(5,2013,'Spring','LSU',null,1358143200,1369458000);
+        $usem_rows[]     = array(5,2013,'Spring','LSU',null,1358143200,time()+(86400*14)); //end two weeks ahead
         
         //ues_courses
         $ucourse_cols   = array('id', 'fullname', 'department', 'cou_number');

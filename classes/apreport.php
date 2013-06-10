@@ -50,7 +50,7 @@ class apreport_util{
                 AND  grades_due > UNIX_TIMESTAMP(NOW()) 
             ORDER BY classes_start ASC 
             LIMIT 1;";
-            
+
             $r = $DB->get_record_sql($sql);
             return $r->classes_start;
         

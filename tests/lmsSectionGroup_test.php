@@ -1,7 +1,7 @@
 <?php
 global $CFG;
 require_once $CFG->dirroot.'/local/ap_report/lib.php';
-require_once('fixtures/enrollment.php');
+
 require_once('apreports_testcase.php');
 
 class lmsSectionGroup_testcase extends apreports_testcase{
