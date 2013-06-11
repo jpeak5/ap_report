@@ -61,6 +61,7 @@ if(is_siteadmin($USER)){
         $gm = new lmsGroupMembership();
         if(($xdoc = $gm->run())!=false){
             echo render_table($xdoc, $xdoc->getElementsByTagName('lmsGroupMember'), lmsGroupMembershipRecord::$camels);
+            echo render_xml($xdoc);
         }else{
             echo "failed updating groupmembership report";
         }
@@ -71,6 +72,7 @@ if(is_siteadmin($USER)){
             echo render_table($xdoc,
                     $xdoc->getElementsByTagName('lmsSectionGroup'), 
                     lmsSectionGroupRecord::$camels);
+            echo render_xml($xdoc);
         }else{
             echo "failed updating section groups report";
         }
@@ -81,6 +83,7 @@ if(is_siteadmin($USER)){
             echo render_table($xdoc,
                     $xdoc->getElementsByTagName('lmsCourseworkItem'), 
                     lmsCourseworkRecord::$camels);
+            echo render_xml($xdoc);
         }else{
             echo "failed updating LMS Coursework report";
         }
@@ -155,9 +158,15 @@ function make_enrollment_report($xml, $start,$end,$filename){
                 'timeSpentInClass',
                 'extensions',
                 );
-            echo render_table($xml, $records, $fields);
+//            echo render_table($xml, $records, $fields);
+            echo render_xml($xml);
             
         }
+}
+
+function render_xml($xml){
+    $xml->formatOutput = true;
+    return html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>200));
 }
 
 function render_table($xml,$element_list,$fields){
@@ -183,8 +192,8 @@ function render_table($xml,$element_list,$fields){
 
         $display .= html_writer::tag('h4', 'Raw XML:');
         $row_count = 40;
-        $xml->formatOutput = true;
-        $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
+//        $xml->formatOutput = true;
+//        $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
         return $display;
 }
 ?>
