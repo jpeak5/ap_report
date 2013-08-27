@@ -79,18 +79,6 @@ if ($hassiteconfig) {
     
     $a->apreport_dir_default = $CFG->dataroot.DIRECTORY_SEPARATOR.'apreport';
     
-//    $settings->add(
-//            new admin_setting_configtext(
-//                    'apreport_dir_path', 
-//                    $_s('apreport_dir'), 
-//                    $_s('apreport_dir_desc', $a),
-//                    $a->apreport_dir_default ,
-//                    PARAM_FILE)
-//            );
-
-    
-
-    
     //list text
     $lmsEn_options = '';
     $lmsEn_linksList = html_writer::alist(array(
