@@ -52,7 +52,7 @@ class apreport_util{
             LIMIT 1;";
 
             $r = $DB->get_record_sql($sql);
-            return $r->classes_start;
+            return (int)$r->classes_start;
         
     }
     public static function microtime_toString($mt){
