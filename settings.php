@@ -139,7 +139,7 @@ if ($hassiteconfig) {
     //config selects for primary inst/coach
     //@TODO double check the default values are being used
 
-    $roles = $DB->get_records_menu('role');
+    $roles = role_get_names(null, null, true);
 
     $pi_defaults = array_keys($roles,'Teacher');
     if(!isset($CFG->apreport_primy_inst_roles)){
