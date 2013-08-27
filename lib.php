@@ -311,12 +311,17 @@ class lmsEnrollment extends apreport{
         
     }
 
+    /**
+     * monster query that returns rich lmsEnrollment records
+     * @global object $DB
+     * @return object[] db result
+     */
     public function get_db_records(){
         
         global $DB;
         $sql = sprintf("
-            select 
-                CONCAT(ap.uid,'-',ap.usectid) uniq,
+            SELECT
+                CONCAT(ap.uid,'-',ap.usectid) AS uniq,
                 CONCAT(usem.year,u.idnumber,LPAD(c.id,8,'0'),usect.sec_number) AS enrollmentId,
                 ap.id, 
                 ap.uid, 
@@ -324,29 +329,39 @@ class lmsEnrollment extends apreport{
                 ap.usemid, 
                 ap.timespentinclass, 
                 ap.lastcourseaccess, 
-                ap.timestamp, 
-                u.idnumber studentid, 
-                usect.sec_number sectionid, 
+                ap.timestamp,
+                u.idnumber AS studentid,
+                usect.sec_number AS sectionid,
                 CONCAT(RPAD(ucrs.department,4,' '),'  ',ucrs.cou_number) AS courseId,
                 usem.classes_start AS startDate,
                 usem.grades_due AS endDate,'A' AS status
 
-                FROM 
-                mdl_apreport_enrol ap 
+            FROM {apreport_enrol} AS ap
+
                 INNER JOIN 
                         (
-                        SELECT max(timestamp) timestamp, usectid, uid 
-                        FROM mdl_apreport_enrol 
-                        WHERE lastcourseaccess < %s OR lastcourseaccess IS NULL
-                        GROUP BY usectid,uid
-                        ) latest 
+                            SELECT max(timestamp) timestamp, usectid, uid
+                            FROM {apreport_enrol}
+                            WHERE lastcourseaccess < %s OR lastcourseaccess IS NULL
+                            GROUP BY usectid,uid
+                        ) AS latest
                 USING(timestamp,usectid,uid)
-                LEFT JOIN mdl_enrol_ues_sections usect ON usect.id = ap.usectid 
-                LEFT JOIN mdl_user u ON ap.uid = u.id 
-                LEFT JOIN mdl_enrol_ues_courses ucrs ON ucrs.id = usect.courseid 
-                LEFT JOIN mdl_enrol_ues_semesters usem ON ap.usemid = usem.id
-                LEFT JOIN mdl_course c on c.idnumber = usect.idnumber
-                WHERE (ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s) OR ap.lastcourseaccess IS NULL;",$this->report_end,$this->report_start,$this->report_end);
+                    LEFT JOIN {enrol_ues_sections} AS usect ON usect.id = ap.usectid
+                    LEFT JOIN {user} AS u ON ap.uid = u.id
+                    LEFT JOIN {enrol_ues_courses} AS ucrs ON ucrs.id = usect.courseid
+                    LEFT JOIN {enrol_ues_semesters} AS usem ON ap.usemid = usem.id
+                    LEFT JOIN {course} AS c on c.idnumber = usect.idnumber
+                WHERE   (
+                            ap.lastcourseaccess > %s
+                            AND
+                            ap.lastcourseaccess < %s
+                        )
+                        OR
+                        ap.lastcourseaccess IS NULL;",
+                $this->report_end,
+                $this->report_start,
+                $this->report_end
+            );
         $recs = $DB->get_records_sql($sql);
 
         return $recs;
