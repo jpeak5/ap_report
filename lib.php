@@ -273,22 +273,31 @@ class lmsEnrollment extends apreport{
         return $this->logs = $ulogs;
     }
     
+    /**
+     * Find the set of records in the apreport_enrol table that contains uniqe
+     * entries for userid + sectionid
+     * @global object $DB
+     * @return stdClass[] array of result objects, one for each unique
+     * user/sectionid combination; any user that has viewed a course will be
+     * represented here.
+     */
     public function getPriorRecords(){
         
         global $DB;
-        $sql = "select 
-                    distinct CONCAT(ap.uid, ap.usectid) AS uniq, 
-                    ap.uid, 
-                    c.id 
-                    from 
-                        mdl_apreport_enrol ap 
-                            INNER JOIN mdl_enrol_ues_sections usect on usect.id = ap.usectid 
-                            INNER JOIN mdl_course c ON c.idnumber = usect.idnumber;";
-        
+        $sql = "SELECT
+                    DISTINCT CONCAT(ap.uid, ap.usectid) AS uniq,
+                    ap.uid AS userid,
+                    c.id AS courseid
+                    FROM
+                        {apreport_enrol} AS ap
+                            INNER JOIN {enrol_ues_sections} AS usect on usect.id = ap.usectid
+                            INNER JOIN {course} AS c ON c.idnumber = usect.idnumber;";
+
         $enrlmnts = $DB->get_records_sql($sql);
         $priors = array();
         foreach($enrlmnts as $e){
-            $priors[$e->uid.'-'.$e->id] = $e;
+            //each element is gauranteed unique by the DISTINCT query
+            $priors[$e->userid.'-'.$e->courseid] = $e;
         }
         return $priors;
     }
@@ -431,11 +440,7 @@ class lmsEnrollment extends apreport{
                 
             }
         }
-
-        
         return $out;
-        
-        
     }
     
     public function processUsers($all, $logs, $priors){
