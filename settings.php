@@ -2,7 +2,6 @@
 
 defined('MOODLE_INTERNAL') or die();
 
-
 global $CFG, $DB;
 $plugin = 'local_ap_report';
 
@@ -19,7 +18,16 @@ $status = function ($comp){
     return html_writer::tag('p','Copmpletion Status for last run:'.$br.$msg_core);
 };
 
-//global $ADMIN;
+$hours = function(){
+    $i=0;
+    $hours = array();
+    while($i<24){
+        $hours[] = $i;
+        $i++;
+    }
+    return $hours;
+};
+
 if ($hassiteconfig) {
     require_once dirname(__FILE__) . '/lib.php';
     
@@ -37,48 +45,32 @@ if ($hassiteconfig) {
         $a->$alink = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>$alink));;
     }
 
-    
+
     $cron_desc = $_s(
         'apr_with_cron_desc')
         .html_writer::tag('br','')
         .html_writer::link($a->cron, $_s('apr_cron_url'))
         .$_s('apr_cron_desc');
-    
- $settings->add(
-    new admin_setting_configcheckbox(
-        'apreport_with_cron',
-        $_s('apr_with_cron'),
-        $cron_desc,
-    0
- ));
 
-     //lmsEn config controls
-    
-    /**
-     * quick util to generate hours
-     */
-    $hours = function(){
-        $i=0;
-        $hours = array();
-        while($i<24){
-            $hours[] = $i;
-            $i++;
-        }
-        return $hours;
-    };
-    
-    
     $settings->add(
-            new admin_setting_configselect(
-                    'apreport_daily_run_time_h',
-                    $_s('apr_daily_run_time'),
-                    $_s('apr_daily_run_time_dcr'),
-                    1,
-                    $hours()
-            ));
-    
+       new admin_setting_configcheckbox(
+           'apreport_with_cron',
+           $_s('apr_with_cron'),
+           $cron_desc,
+       0
+    ));
+
+    $settings->add(
+        new admin_setting_configselect(
+            'apreport_daily_run_time_h',
+            $_s('apr_daily_run_time'),
+            $_s('apr_daily_run_time_dcr'),
+            1,
+            $hours()
+    ));
+
     $a->apreport_dir_default = $CFG->dataroot.DIRECTORY_SEPARATOR.'apreport';
-    
+
     //list text
     $lmsEn_options = '';
     $lmsEn_linksList = html_writer::alist(array(
@@ -96,10 +88,10 @@ if ($hassiteconfig) {
      */
     if(!isset($a->lmsEn_stop) and isset($a->lmsEn_start)){
         $status_msg = $_s('lmsEn_job_unended', $a);
-                
+
     }elseif(!isset($a->lmsEn_stop) and !isset($a->lmsEn_start)){
         $status_msg = $_s('never_run',$a);
-        
+
     }elseif(isset($a->lmsEn_stop) and !isset($a->lmsEn_start)){
         $status_msg = $_s['no_start_set'];
 
@@ -110,49 +102,43 @@ if ($hassiteconfig) {
         $status_msg = $_s('lmsEn_job_unended', $a);
         $status_msg .= $_s('lmsEn_reprocess_url',$a);
     }
-    
+
     $settings->add(
-            new admin_setting_heading(
-                    'apreports_settings',
-                    $_s('lmsEn_hdr'),
-//                    $lmsEn_options.$status_msg.$status('lmsEnrollment')
-                    $lmsEn_options.$status('lmsEnrollment')
-                    ));    
-    
+        new admin_setting_heading(
+            'apreports_settings',
+            $_s('lmsEn_hdr'),
+            $lmsEn_options.$status('lmsEnrollment')
+            ));    
 
-        
-    
+    //-------------------------- lmsGroupMembership ------------------------------//
 
-//-------------------------- lmsGroupMembership ------------------------------//
-    
     $group_membership = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'group_membership'));
     $a->group_membership = $group_membership->out(false);
-    
+
     $settings->add(
         new admin_setting_heading(
-                'group_membership_header', 
-                $_s('lmsGM_hdr'),  
-                $_s('lmsGM_hdr_desc',$a).$status('lmsGroupMembership')
-                ));
-    
-    
+            'group_membership_header', 
+            $_s('lmsGM_hdr'),  
+            $_s('lmsGM_hdr_desc',$a).$status('lmsGroupMembership')
+        )
+    );
 
-  
-//-------------------------- lmsSectionGroup ------------------------------//
-    
+    //-------------------------- lmsSectionGroup ------------------------------//
+
     $section_groups = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'section_groups'));
     $a->section_groups = $section_groups->out(false);
-    
+
     $settings->add(
         new admin_setting_heading(
-                'section_groups_header', 
-                $_s('lmsSecGrp_hdr'),  
-                $_s('section_groups_header_desc', $a).$status('lmsSectionGroup')
-                ));
-    
+            'section_groups_header', 
+            $_s('lmsSecGrp_hdr'),  
+            $_s('section_groups_header_desc', $a).$status('lmsSectionGroup')
+        )
+    );
+
     //config selects for primary inst/coach
     //@TODO double check the default values are being used
-    
+
     $roles = $DB->get_records_menu('role');
 
     $pi_defaults = array_keys($roles,'Teacher');
@@ -160,15 +146,15 @@ if ($hassiteconfig) {
         $def = is_array($pi_defaults) ? implode(',',$pi_defaults) : $pi_defaults;
         set_config('apreport_primy_inst_roles', $def);
     }
-    $settings->add(
-            new admin_setting_configmultiselect(
-                    'apreport_primy_inst_roles',
-                    $_s('lmsSecGrp_pi_roles'), 
-                    $_s('lmsSecGrp_pi_role_dsc'),
-                    $pi_defaults, $roles)
-            );
 
-    
+    $settings->add(
+        new admin_setting_configmultiselect(
+            'apreport_primy_inst_roles',
+            $_s('lmsSecGrp_pi_roles'), 
+            $_s('lmsSecGrp_pi_role_dsc'),
+            $pi_defaults, $roles)
+    );
+
     //@TODO double check the default values are being used
     $coach_defaults = array_keys($roles,'Non-editing teacher');
     if(!isset($CFG->apreport_coach_roles)){
@@ -176,25 +162,25 @@ if ($hassiteconfig) {
         set_config('apreport_coach_roles', $def);
     }
 
-//    $coach_defaults = array(4,19,20,21);
+    //$coach_defaults = array(4,19,20,21);
     $settings->add(
-            new admin_setting_configmultiselect(
-                    'apreport_coach_roles',
-                    $_s('lmsSecGrp_coach_roles'), 
-                    $_s('lmsSecGrp_coach_sel'),
-                    $coach_defaults, $roles)
-            );
-    
+        new admin_setting_configmultiselect(
+            'apreport_coach_roles',
+            $_s('lmsSecGrp_coach_roles'), 
+            $_s('lmsSecGrp_coach_sel'),
+            $coach_defaults, $roles)
+    );
 
-//----------------------------- lmsCoursework --------------------------------//
-    
+
+    //----------------------------- lmsCoursework --------------------------------//
+
     $tbl = new html_table();
     $tbl->head = array($_s('lmsCwk_subrept_thead'), $_s('lmsCwk_status_thead'));
     $data = array();
-    
+
     foreach(lmsCoursework::$subreports as $sr){
         $cells = array();
-        
+
         $r = $_s('lmsCwk_fq_prefix').$sr;
 
         $k = html_writer::tag('strong', strtoupper($sr));
@@ -202,29 +188,25 @@ if ($hassiteconfig) {
         $cells[] = isset($CFG->$r) ? $CFG->$r : '';
         $data[]  = new html_table_row($cells);
     }
-    
+
     $tbl->data = $data;
-    
-    
+
+
     //lang strings
     $a->cwk_status_sub = html_writer::table($tbl);
     $cwk = new moodle_url('/local/ap_report/reprocess.php', array('mode'=>'coursework'));
     $a->cwk = $cwk->out(false);    
     $a->cwk_status = $status('lmsCoursework');
-    
+
     $settings->add(
         new admin_setting_heading(
-                'lmsCoursework_header', 
-                $_s('lmsCwk_hdr'),  
-                $_s('lmsCwk_hdr_desc',$a)
-                ));
-    
+            'lmsCoursework_header', 
+            $_s('lmsCwk_hdr'),  
+            $_s('lmsCwk_hdr_desc',$a)
+        )
+    );
+
     $ADMIN->add('localplugins', $settings);
-
-
     
 }
-
-
-
 ?>
