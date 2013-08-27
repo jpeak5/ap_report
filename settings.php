@@ -89,27 +89,7 @@ if ($hassiteconfig) {
 //            );
 
     
-//----------------------------- lmsEnrollment --------------------------------//    
 
-    //init vars
-//    $a->lmsEn_instr ='';
-//    $a->lmsEn_stop  = isset($CFG->apreport_job_complete) ? apreport_util::microtime_toString($CFG->apreport_job_complete) : null;
-//    $a->lmsEn_start = isset($CFG->apreport_job_start)    ? apreport_util::microtime_toString($CFG->apreport_job_start)    : null;
-//    
-//    if(isset($CFG->apreport_job_complete) and isset($CFG->apreport_job_start)){
-//        $correct_order  = $CFG->apreport_job_complete > $CFG->apreport_job_start;
-//    }else{
-//        $correct_order = false;
-//    }
-//
-//    if(isset($CFG->apreport_got_enrollment) and !$CFG->apreport_got_enrollment){
-//        $a->lmsEn_instr .= $_s('lmsEn_no_activity');
-//    }
-//    if(isset($CFG->apreport_got_xml) and !$CFG->apreport_got_xml){
-//        $a->mdl_dataroot = $CFG->dataroot.'/ ';
-//        
-//    }
-    //end init vars
     
     //list text
     $lmsEn_options = '';
