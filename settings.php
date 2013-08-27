@@ -77,8 +77,8 @@ if ($hassiteconfig) {
         html_writer::link($a->view_current,$_s('lmsEn_view_current_url')) .$_s('lmsEn_view_current_desc'),
         html_writer::link($a->view_latest,$_s('lmsEn_view_latest_url')) .$_s('lmsEn_view_latest_desc'),
         html_writer::link($a->reprocess,$_s('lmsEn_reprocess_url')) .$_s('lmsEn_reprocess_desc'),
-        html_writer::link($a->preview, $_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
-        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))   .$_s('lmsEn_backfill_desc')
+//        html_writer::link($a->preview, $_s('lmsEn_preview_url'))    .$_s('lmsEn_preview_desc'),
+//        html_writer::link($a->backfill,$_s('lmsEn_backfill_url'))   .$_s('lmsEn_backfill_desc')
     ));
     $lmsEn_options .= $lmsEn_linksList;
 
