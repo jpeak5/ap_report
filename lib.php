@@ -33,9 +33,11 @@ function local_ap_report_cron(){
             $report = new $r();
 
             if($r == 'lmsEnrollment'){
+                $timeStart = strftime('%F %T',$report->report_start);
+                $timeEnd   = strftime('%F %T',$report->report_end);
                 mtrace(sprintf("Getting activity statistics for time range: %s -> %s",
-                    strftime('%F %T',$report->start),
-                    strftime('%F %T',$report->end)
+                    $timeStart,
+                    $timeEnd
                     ));
             }
             $report->run();
@@ -337,7 +339,6 @@ class lmsEnrollment extends apreport{
                 usem.grades_due AS endDate,'A' AS status
 
             FROM {apreport_enrol} AS ap
-
                 INNER JOIN 
                         (
                             SELECT max(timestamp) timestamp, usectid, uid
@@ -527,10 +528,10 @@ class lmsEnrollment extends apreport{
         if(in_array($this->mode, self::$proc_modes)){
             $this->drop_existing_for_timerange();
             $newRecs = $this->processUsers(
-                            $this->getEnrollment(), 
-                            $this->getLogs(),
-                            $this->getPriorRecords()
-                        );
+                $this->getEnrollment(),
+                $this->getLogs(),
+                $this->getPriorRecords()
+            );
 
             if(count($newRecs)>0){
                 lmsEnrollment::update_job_status(apreport_job_stage::QUERY, apreport_job_status::SUCCESS, $this->mode);
