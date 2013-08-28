@@ -187,7 +187,6 @@ function render_table($xml,$element_list,$fields, $message=''){
         $table->data = $data;
         $display .= html_writer::table($table);
 
-        $display .= html_writer::tag('h4', 'Raw XML:');
         $row_count = 40;
 //        $xml->formatOutput = true;
 //        $display .= html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>$row_count));
