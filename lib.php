@@ -568,30 +568,30 @@ class lmsEnrollment extends apreport{
         return !$xdoc ? new DOMDocument() : $xdoc;    }
 
     public static function backfill() {
-        $diurnal = $start = apreport_util::get_earliest_semester_start();
-        $today = new DateTime('yesterday');
-        $todayFmt = $today->format('Y-m-d H:M:s');
-        while($diurnal < $today->getTimestamp()){
-            mtrace(sprintf('Beginning run for %s stopping at %s<br/>', strftime('%F', $diurnal), $todayFmt));
-            $proc = new self;
-            $proc->proc_start = $diurnal;
-            $proc->proc_end   = $proc->proc_start + 86400;
+        $tsCurrentDayStart  = $start = apreport_util::get_earliest_semester_start();
+        $dttmBackfillStop   = new DateTime('yesterday');
+        $todayFmt           = $dttmBackfillStop->format('Y-m-d H:M:s');
 
-            $proc->report_start = $start;
-            $proc->report_end = $proc->proc_end;
-            $proc->run();
-            $diurnal += 86400;
+        while($tsCurrentDayStart < $dttmBackfillStop->getTimestamp()){
+            mtrace(sprintf('Beginning run for %s stopping at %s<br/>', strftime('%F', $tsCurrentDayStart), $todayFmt));
+            $objLmsEnrollment = new self;
+            $objLmsEnrollment->proc_start = $tsCurrentDayStart;
+            $objLmsEnrollment->proc_end   = $objLmsEnrollment->proc_start + 86400;
+
+            $objLmsEnrollment->report_start = $start;
+            $objLmsEnrollment->report_end = $objLmsEnrollment->proc_end;
+            $objLmsEnrollment->run();
+            $tsCurrentDayStart += 86400;
         }
-        $proc->report_start = $start;
-        $proc->report_end = $today->getTimestamp();
-        $rep  = $proc->make_report();
+        $objLmsEnrollment->report_start = $start;
+        $objLmsEnrollment->report_end = $dttmBackfillStop->getTimestamp();
+        $rep  = $objLmsEnrollment->make_report();
         $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
-        lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $proc->mode);
+        lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $objLmsEnrollment->mode);
         self::create_file($xdoc);
-        lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $proc->mode);
+        lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $objLmsEnrollment->mode);
         return true;
     }
-    
 }
 
 
