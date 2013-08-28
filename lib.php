@@ -383,80 +383,88 @@ class lmsEnrollment extends apreport{
         return $DB->get_records_sql($sql);
     }
     
-
+    public function fetchUserLogsKeysByUserid($keyUserId){
+        return preg_grep("/{$keyUserId}\-[0-9]+/", array_keys($this->logs));
+    }
     
-    public function calculate_timespent($user){
-
-        $activity   = array();
-        $keys       = array_keys($this->logs);
-        $ulogs      = preg_grep("/{$user}\-[0-9]+/", $keys);
+    public function fetchUserLogsByUserid($keyUserId){
+        $arrUserLogs = array();
         
         //make one array containing log row objects for all of the student's courses
-        foreach($ulogs as $i){
-            $activity = array_merge($activity,$this->logs[$i]);
+        foreach($this->fetchUserLogsKeysByUserid($keyUserId) as $keyUserLogs){
+            $arrUserLogs = array_merge($arrUserLogs,$this->logs[$keyUserLogs]);
         }
         
-        $current = null;        //current course
-        $out     = array();     //hold the records for the db
-        
-        usort($activity,function($a,$b){
+        //sort by time
+        usort($arrUserLogs,function($a,$b){
             if($a->time == $b->time){
                 return 0;
             }else{
                 return $a->time < $b->time ? -1 : 1;
             }
         });
-        foreach($activity as $a){
+        return $arrUserLogs;
+    }
 
-            $ignored        = $a->course == 1 && $a->action  !== "login";
+    public function calculate_timespent($keyUserId){
+        $keyActiveUserCourse    = null;
+        $arrOutput              = array();
 
-            $login_event    = $a->course == 1 && $a->action  == 'login';
-            //handle login events;
-            //throw away other course=1 events
-            if($ignored){
-                continue;
-            }
+        //build summary report records per user/course
+        $arrUserLogs = $this->fetchUserLogsByUserid($keyUserId);
+        foreach($arrUserLogs as $objLog){
 
-            if($login_event){
-                foreach(array_values($ulogs) as $ac){
-                    if(array_key_exists($ac,$out) && isset($out[$ac]->lastcounter)){
-                        unset($out[$ac]->lastcounter);
+            $keyCurrentUserCourse       = $objLog->userid.'-'.$objLog->course;
+            $blnToIgnore                = $objLog->course == 1 && $objLog->action  !== "login";
+            $blnIsLogin                 = $objLog->course == 1 && $objLog->action  == 'login';
+            $blnIsNewSequence           = !$blnIsLogin && !isset($keyActiveUserCourse);
+            $blnIsSessionContinuation   = !$blnIsLogin &&  isset($keyActiveUserCourse);
+
+
+            //handle login events; throw away other course=1 events
+            if($blnIsLogin || $blnToIgnore){
+                if($blnToIgnore){
+                    continue; //should rarely happen
+                }
+                $arrUserLogsKeys = $this->fetchUserLogsKeysByUserid($keyUserId);
+                foreach($arrUserLogsKeys as $keyUserLogs){
+                    if(array_key_exists($keyUserLogs,$arrOutput) && isset($arrOutput[$keyUserLogs]->lastcounter)){
+                        unset($arrOutput[$keyUserLogs]->lastcounter);
                     }
                 }
+                unset($keyActiveUserCourse);
                 continue;
-            }
-            
-            //get objects into place
-            $k = $a->userid.'-'.$a->course;
-            if(!array_key_exists($k, $out)){
-                $out[$k] = $this->all_enrolled_users[$k];
-                $out[$k]->timespentinclass = 0;}
-            
-            
-            $c_switch  = isset($current) && ($current !== $k);
-            
-            $new_seq   = !$login_event && !isset($current);
-            $cont_seq  = !$login_event && $current == $k;
-            
-            if($new_seq){
-                $current  = !isset($current) ? $k : $current;
-                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
-                if(!isset($out[$current]->timespentinclass)){
-                    $out[$current]->timespentinclass = 0;
+            }elseif(!array_key_exists($keyCurrentUserCourse, $arrOutput)){
+                if(array_key_exists($keyCurrentUserCourse, $this->all_enrolled_users)){
+                    $arrOutput[$keyCurrentUserCourse] = $this->all_enrolled_users[$keyCurrentUserCourse];
+                    $arrOutput[$keyCurrentUserCourse]->timespentinclass = 0;
+                }else{
+                    //user has log activity in a course where (s)he is not enrolled
+                    continue; //@TODO catch this further up the chain
                 }
             }
-            elseif($cont_seq){
-                $out[$current]->timespentinclass += $a->time - $out[$current]->lastcounter;
-                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
+            
+            if($blnIsNewSequence){
+                $keyActiveUserCourse = $keyCurrentUserCourse;
+                if(!isset($arrOutput[$keyActiveUserCourse]->timespentinclass)){
+                    $arrOutput[$keyActiveUserCourse]->timespentinclass = 0;
+                }
             }
-            elseif($c_switch){
-                unset($out[$current]->lastcounter);
-                $current  = $k;
-                $out[$current]->lastcounter = $out[$current]->lastcourseaccess = $a->time;
-                
+            elseif($blnIsSessionContinuation){
+                if($keyActiveUserCourse == $keyCurrentUserCourse){ //same sequence
+                    $arrOutput[$keyActiveUserCourse]->timespentinclass += $objLog->time - $arrOutput[$keyActiveUserCourse]->lastcounter;
+                }else{
+                    unset($arrOutput[$keyActiveUserCourse]->lastcounter);
+                $keyActiveUserCourse  = $keyCurrentUserCourse;
+                }
             }
+            else{
+                Throw new Exception("Unhandled case");
+            }
+
+            $arrOutput[$keyActiveUserCourse]->lastcounter = $arrOutput[$keyActiveUserCourse]->lastcourseaccess = $objLog->time;
         }
-        return $out;
+        return $arrOutput;
     }
     
     public function processUsers($all, $logs, $priors){
