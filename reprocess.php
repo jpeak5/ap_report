@@ -141,8 +141,6 @@ function make_enrollment_report($xml, $start,$end,$filename){
                             )
                     );
             $file_loc = isset($filename) ? $CFG->dataroot.'/'.$filename : 'ERROR- report is undefined';
-            echo html_writer::tag('p', 
-                    get_string('file_location', 'local_ap_report', $file_loc));
 
             $records = $xml->getElementsByTagName('lmsEnrollment');
 
