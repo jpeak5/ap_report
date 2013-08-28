@@ -784,23 +784,33 @@ class lmsCoursework extends apreport{
         $this->courses = enrollment_model::get_all_courses(enrollment_model::get_active_ues_semesters(null, true), true);
     }
     
-    public function coursework_get_subreport_dataset($cids,$qry, $type){
+    /**
+     * For each course id, execute the query and return the result;
+     * SCORM is a special case and is the reason for the type param
+     * @global type $DB
+     * @param int[] $arrCourseIds courseids used as query input params
+     * @param string $strQuery basically raw SQL
+     * @param string $strActivityType used to determine whether we need to take 
+     * special actions for special cases, like SCORM
+     * @return stdClass[] query result rows
+     */
+    public function coursework_get_subreport_dataset($arrCourseIds,$strQuery, $strActivityType){
         global $DB;
-        $recs = array();
-        foreach($cids as $cid){
-            $sql = sprintf($qry, $cid,$cid);
-                    $recs = array_merge($recs,$DB->get_records_sql($sql));
+        $records = array();
+        foreach($arrCourseIds as $cid){
+            $sql = sprintf($strQuery, $cid,$cid);
+                    $records = array_merge($records,$DB->get_records_sql($sql));
         }
         
         //calculate SCORM date complete
-        if($type == 'scorm'){
-            foreach($recs as $rec){
-                if(isset($rec->timeelapsed) && isset($rec->datestarted)){
-                    $rec->datesubmitted = lmsCoursework::get_scorm_datesubmitted($rec->datestarted, $rec->timeelapsed);
+        if($strActivityType == 'scorm'){
+            foreach($records as $record){
+                if(isset($record->timeelapsed) && isset($record->datestarted)){
+                    $record->datesubmitted = lmsCoursework::get_scorm_datesubmitted($record->datestarted, $record->timeelapsed);
                 }
             }
         }
-        return $recs;
+        return $records;
     }
     
     public function run(){
