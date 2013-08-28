@@ -180,9 +180,9 @@ class enrollment_model {
         
     }
     
-    public function get_group_membership_report(){
-            
-
+    
+    public function queryGroupmembership(){
+        global $DB;
         $sql = "SELECT
                     CONCAT(gm.id,c.idnumber) AS userGroupId,
                     c.id AS courseid,                    
@@ -210,14 +210,15 @@ class enrollment_model {
                 WHERE usem.classes_start < UNIX_TIMESTAMP(NOW())
                         AND usem.grades_due > UNIX_TIMESTAMP(NOW())
                 GROUP BY userGroupId";
-        
-        global $DB;
-        $rows = $DB->get_records_sql($sql);
-        assert(count($rows) > 0);
+
+        return $DB->get_records_sql($sql);
+    }
+    
+    public function get_group_membership_report(){
         if(!isset($this->groups)){
             $this->groups = array();
         }
-        foreach($rows as $row){
+        foreach($this->queryGroupmembership() as $row){
             $rec = new lmsGroupMembershipRecord();
             $rec->groupid = $row->groupid;
             $rec->sectionid = $row->ues_sectionid;
@@ -227,8 +228,7 @@ class enrollment_model {
             }
             $this->group_membership_records[$rec->groupid][$row->usergroupid] = $rec;
         }
-//print_r($this->group_membership_records);
-//        die();
+
         return $this->group_membership_records;
     
     }
@@ -528,7 +528,7 @@ class enrollment_model {
 
             return !empty($ids) ? $ids : false;
         }
-//die(print_r($sql));
+
         assert(count($semesters) > 0);
         $s = array();
         foreach($semesters as $semester){
