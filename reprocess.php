@@ -142,8 +142,8 @@ function make_enrollment_report($xml, $start,$end,$filename){
                     );
             $file_loc = isset($filename) ? $CFG->dataroot.'/'.$filename : 'ERROR- report is undefined';
 
-            $records = $xml->getElementsByTagName('lmsEnrollment');
-
+            $xpath = new DOMXPath($xml);
+            $records = $xpath->query('//lmsEnrollment[timeSpentInClass>0]');
             $fields = array(
                 'enrollmentId',
                 'studentId', 
@@ -156,9 +156,8 @@ function make_enrollment_report($xml, $start,$end,$filename){
                 'timeSpentInClass',
                 'extensions',
                 );
-//            echo render_table($xml, $records, $fields);
-            echo render_xml($xml);
-            
+            $message = "Returning records with timeSpent values greater than 0";
+            echo render_table($xml, $records, $fields,$message);
         }
 }
 
@@ -167,14 +166,14 @@ function render_xml($xml){
     return html_writer::tag('textarea', $xml->saveXML(),array('cols'=>45, 'rows'=>200));
 }
 
-function render_table($xml,$element_list,$fields){
+function render_table($xml,$element_list,$fields, $message=''){
     $table = new html_table();
         $display = "";
         $table->head = $fields;
         $data = array();
         $xpath = new DOMXPath($xml);
 
-        $display .= "returning only the first 100 table rows";
+        $display .= $message;
         for ($i=0; $i<100; $i++){
             $record = $element_list->item($i);
             $cells = array();
