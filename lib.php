@@ -373,13 +373,22 @@ class lmsEnrollment extends apreport{
         global $DB;
         $sql = sprintf("
             SELECT 
-                CONCAT(ap.uid,'-',ap.usectid) uniq,
-                sum(ap.timespentinclass) time
+                CONCAT(ap.uid,'-',ap.usectid) AS uniq,
+                sum(ap.timespentinclass) AS time
             FROM
-                mdl_apreport_enrol ap
-            WHERE (ap.lastcourseaccess > %s AND ap.lastcourseaccess < %s) or ap.lastcourseaccess IS NULL
+                {apreport_enrol} AS ap
+            WHERE   (
+                        ap.lastcourseaccess > %s
+                        AND
+                        ap.lastcourseaccess < %s
+                    )
+                    OR
+                    ap.lastcourseaccess IS NULL
             GROUP BY
-                ap.uid,ap.usectid",$this->report_start,$this->report_end);
+                ap.uid,ap.usectid",
+                $this->report_start,
+                $this->report_end
+                );
         return $DB->get_records_sql($sql);
     }
     
@@ -513,14 +522,14 @@ class lmsEnrollment extends apreport{
         }
         $sums = $this->get_db_sums($this->report_start,$this->report_end);
         $rows = $this->get_db_records($this->report_start,$this->report_end);
-        $out  = array();
+        $arrFullRecords  = array();
 
         foreach($rows as $k=>$v){
-            $o = lmsEnrollmentRecord::instantiate($v);
-            $o->timespentinclass = array_key_exists($k, $sums) ? $sums[$k]->time : 0;
-            $out[] = $o;
+            $objLmsEnrollment = lmsEnrollmentRecord::instantiate($v);
+            $objLmsEnrollment->timespentinclass = array_key_exists($k, $sums) ? $sums[$k]->time : 0;
+            $arrFullRecords[] = $objLmsEnrollment;
         }
-        return $out;
+        return $arrFullRecords;
     }
     
     public function get_report(array $params=null){
@@ -568,7 +577,7 @@ class lmsEnrollment extends apreport{
         return !$xdoc ? new DOMDocument() : $xdoc;    }
 
     public static function backfill() {
-        $tsCurrentDayStart  = $start = apreport_util::get_earliest_semester_start();
+        $tsCurrentDayStart  = $tsBackfillStart = apreport_util::get_earliest_semester_start();
         $dttmBackfillStop   = new DateTime('yesterday');
         $todayFmt           = $dttmBackfillStop->format('Y-m-d H:M:s');
 
@@ -578,24 +587,24 @@ class lmsEnrollment extends apreport{
             $objLmsEnrollment->proc_start = $tsCurrentDayStart;
             $objLmsEnrollment->proc_end   = $objLmsEnrollment->proc_start + 86400;
 
-            $objLmsEnrollment->report_start = $start;
+            $objLmsEnrollment->report_start = $tsBackfillStart;
             $objLmsEnrollment->report_end = $objLmsEnrollment->proc_end;
             $objLmsEnrollment->run();
             $tsCurrentDayStart += 86400;
         }
-        $objLmsEnrollment->report_start = $start;
+        $objLmsEnrollment->report_start = $tsBackfillStart;
         $objLmsEnrollment->report_end = $dttmBackfillStop->getTimestamp();
+
         $rep  = $objLmsEnrollment->make_report();
-        $xdoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
+        $domDoc = lmsEnrollmentRecord::toXMLDoc($rep,'lmsEnrollments', 'lmsEnrollment');
+
         lmsEnrollment::update_job_status(apreport_job_stage::RETRIEVE, apreport_job_status::SUCCESS, $objLmsEnrollment->mode);
-        self::create_file($xdoc);
+        self::create_file($domDoc);
+
         lmsEnrollment::update_job_status(apreport_job_stage::SAVE_XML, apreport_job_status::SUCCESS, $objLmsEnrollment->mode);
         return true;
     }
 }
-
-
-
 
 /**
  * The LMS group membership file contains data from the LMS system matching up students with the
