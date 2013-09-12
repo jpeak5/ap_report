@@ -1,7 +1,7 @@
 <?php
 
 //common
-$string['mod_name']             = 'AP Report';
+$string['pluginame']             = 'AP Report';
 
 $string['apr_daily_run_time']       = 'Daily Run Time'; 
 $string['apr_daily_run_time_dcr']   = 'When should cron trigger this job? The enrollment report never automatically queries activity occurring after the first second of today.'; 
