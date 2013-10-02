@@ -957,7 +957,7 @@ class coursework_queries{
                 mm.grade AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {enrol_ues_sections} us ON c.idnumber = us.idnumber
@@ -1005,7 +1005,7 @@ class coursework_queries{
                         mm.grade AS pointsPossible,
                         mgg.finalgrade AS pointsReceived,
                         mgc.fullname AS gradeCategory,
-                        (cats.categoryWeight * 100) AS categoryWeight,
+                        cats.categoryWeight AS categoryWeight,
                         NULL AS extensions
                     FROM {course} c
                         INNER JOIN {assign} mm ON mm.course = c.id
@@ -1053,7 +1053,7 @@ class coursework_queries{
                 mm.grade AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {assignment} mm ON mm.course = c.id
@@ -1101,7 +1101,7 @@ class coursework_queries{
                 mm.scale AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {data} mm ON mm.course = c.id
@@ -1149,7 +1149,7 @@ class coursework_queries{
                 mm.scale AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {forum} mm ON mm.course = c.id
@@ -1198,7 +1198,7 @@ class coursework_queries{
                 mm.ratingscale AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {forumng} mm ON mm.course = c.id
@@ -1247,7 +1247,7 @@ class coursework_queries{
                 mm.scale AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {glossary} mm ON mm.course = c.id
@@ -1295,7 +1295,7 @@ class coursework_queries{
                 mm.gradeweighting AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {hotpot} mm ON mm.course = c.id
@@ -1343,7 +1343,7 @@ class coursework_queries{
                 mm.grade AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {kalvidassign} mm ON mm.course = c.id
@@ -1391,7 +1391,7 @@ class coursework_queries{
                 mm.grade AS pointsPossible,
                 mgg.finalgrade AS pointsReceived,
                 mgc.fullname AS gradeCategory,
-                (cats.categoryWeight * 100) AS categoryWeight,
+                cats.categoryWeight AS categoryWeight,
                 NULL AS extensions
             FROM {course} c
                 INNER JOIN {lesson} mm ON mm.course = c.id
@@ -1441,7 +1441,7 @@ class coursework_queries{
     mm.maxgrade AS pointsPossible,
     mgg.finalgrade AS pointsReceived,
     mgc.fullname AS gradeCategory,
-    (cats.categoryWeight * 100) AS categoryWeight,
+    cats.categoryWeight AS categoryWeight,
     NULL AS extensions
 FROM {course} c
     INNER JOIN {scorm} mm ON mm.course = c.id
