@@ -14,7 +14,7 @@ $_s = function($key,$a=null) {
 };
 
 $header = "online reports";
-$context = get_system_context();
+$context = context_system::instance();
 $PAGE->set_context($context);
 $header  = format_string($SITE->shortname).": {$header}";
 $mode = optional_param('mode', null, PARAM_TEXT);

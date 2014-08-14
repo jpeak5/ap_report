@@ -579,15 +579,15 @@ class enrollment_model {
        //get, also, the timestamp of the last time they were included in this 
        //scan (so we keep a contiguous record of their activity)
        $sql =  vsprintf("SELECT DISTINCT u.id
-                FROM 
-                    {log} log 
-                        join 
-                    {user} u 
-                        on log.userid = u.id 
-                WHERE 
-                    log.time > %s
-                AND 
-                    log.time < %s;",array($start,$end));
+                FROM
+                    {logstore_standard_log} log
+                        join
+                    {user} u
+                        on log.userid = u.id
+                WHERE
+                    log.timecreated > %s
+                AND
+                    log.timecreated < %s;",array($start,$end));
        $this->active_users = $DB->get_records_sql($sql);
        
        return count($this->active_users) > 0 ? $this->active_users : false;

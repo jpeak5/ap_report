@@ -7,7 +7,8 @@ abstract class apreports_testcase extends advanced_testcase{
         $this->resetAllData();
         $this->resetAfterTest(true);
         $DB->delete_records('log');
-        
+        $DB->delete_records('role_assignments');
+
         $logs = $DB->get_records('log');
         $this->assertEmpty($logs);
 
