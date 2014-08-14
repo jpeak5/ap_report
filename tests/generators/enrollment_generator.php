@@ -44,7 +44,7 @@ class enrollment_dataset_generator{
             'course'    =>'course',
             'ctx'       =>'context',
             'ra'        =>'role_assignments',
-            'log'       =>'log',
+            'log'       =>'logstore_standard_log',
             'g'         =>'groups',
             'gm'        =>'groups_members',
             'mgi'       =>'grade_items',
@@ -331,7 +331,7 @@ class enrollment_dataset_generator{
             $cid = ($login || is_null($cid)) ? 1 : $cid;
             $params = array('id'=>$lid,'time'=>$ts,'userid'=>$uid, 'course'=>$cid, 'action'=>$action);
             $lid++;
-            return tbl_model::instantiate_from_tablename('log', $params);
+            return tbl_model::instantiate_from_tablename('logstore_standard_log', $params);
         };
         
         $view = function($offsets, $u, $c) use (&$ts, $log){

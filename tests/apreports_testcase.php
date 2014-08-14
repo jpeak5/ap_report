@@ -6,10 +6,10 @@ abstract class apreports_testcase extends advanced_testcase{
         global $DB;
         $this->resetAllData();
         $this->resetAfterTest(true);
-        $DB->delete_records('log');
+        $DB->delete_records('logstore_standard_log');
         $DB->delete_records('role_assignments');
 
-        $logs = $DB->get_records('log');
+        $logs = $DB->get_records('logstore_standard_log');
         $this->assertEmpty($logs);
 
         $dataset = $this->createXMLDataSet('tests/fixtures/dataset.xml');
@@ -94,7 +94,7 @@ abstract class apreports_testcase extends advanced_testcase{
         }
         
         //test mdl_logs count
-        $mdl_logs = $DB->get_records('log');
+        $mdl_logs = $DB->get_records('logstore_standard_log');
         $this->assertNotEmpty($mdl_logs);
         $this->assertGreaterThan(11,count($mdl_logs));
         
@@ -155,7 +155,7 @@ abstract class apreports_testcase extends advanced_testcase{
         $this->assertEquals(2, $ra_ct);
         
         //check log activity exists
-        $logs = $DB->get_records('log');
+        $logs = $DB->get_records('logstore_standard_log');
         $this->assertNotEmpty($logs);
 
 
